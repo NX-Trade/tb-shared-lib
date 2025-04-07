@@ -3,9 +3,9 @@ from datetime import datetime
 
 from mongoengine import fields as mongoFields
 
-from ..base import BaseCollection, BASE_META
 from ...config import MongoConfig
 from ...utils.enums import DateFormatEnum
+from ..base import BASE_META, BaseCollection
 
 
 class TradingDatesCollection(BaseCollection):

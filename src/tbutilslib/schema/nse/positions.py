@@ -1,39 +1,46 @@
-from marshmallow import Schema, fields, pre_load
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, validator
 
 from ...utils.common import validate_quantity
 from ...utils.dtu import parse_timestamp
-from ...utils.enums import DateFormatEnum
 
 
-class PositionsSchema(Schema):
+class PositionsSchema(BaseModel):
     """Positions Schema."""
 
-    id = fields.String(required=False)
-    account = fields.String(required=True)
-    security = fields.String(required=True)
-    sec_type = fields.String()
-    currency = fields.String()
-    position = fields.Float()
-    avg_cost = fields.Float(validate=validate_quantity)
-    on_date = fields.Date(DateFormatEnum.TB_DATE.value)
-    timestamp = fields.DateTime(DateFormatEnum.FULL_TS.value)
+    id: Optional[str] = None
+    account: str
+    security: str
+    sec_type: Optional[str] = None
+    currency: Optional[str] = None
+    position: Optional[float] = None
+    avg_cost: Optional[float] = None
+    on_date: Optional[date] = None
+    timestamp: datetime
 
-    @pre_load
-    def slugify_date(self, in_data: dict, **kwargs) -> dict:
-        """Set a new key on_date.
+    @validator("avg_cost", pre=True)
+    @classmethod
+    def validate_avg_cost(cls, v):
+        return validate_quantity(v)
+
+    @classmethod
+    def from_nse_data(cls, in_data: Dict[str, Any]) -> "PositionsSchema":
+        """Create a model from NSE data format.
 
         Args:
-            in_data: dict
+            in_data: Dictionary containing NSE data
         """
         ts = parse_timestamp(in_data["timestamp"])
-        in_data["on_date"] = ts.date().strftime(DateFormatEnum.TB_DATE.value)
-        return in_data
+
+        return cls(**in_data, on_date=ts.date(), timestamp=ts)
 
 
-class PositionsResponseSchema(Schema):
+class PositionsResponseSchema(BaseModel):
     """Order Dates Response Schema."""
 
-    positions = fields.Boolean(default=True)
-    totalItems = fields.Integer()
-    possibleKeys = fields.List(fields.String())
-    items = fields.List(fields.Nested(PositionsSchema))
+    positions: bool = True
+    total_items: int
+    possible_keys: List[str] = []
+    items: List[PositionsSchema] = []

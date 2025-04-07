@@ -1,35 +1,40 @@
-from marshmallow import Schema, fields
+from datetime import date, datetime
+from typing import List, Optional
 
-from datetime import datetime
+from pydantic import BaseModel, Field, validator
 
 from ...utils.common import validate_quantity
-from ...utils.enums import DateFormatEnum
 
 
-class OrdersSchema(Schema):
+class OrdersSchema(BaseModel):
     """Orders Schema."""
 
-    id = fields.String(required=False)
-    order_id = fields.Integer(required=True)
-    security = fields.String(required=True)
-    sec_type = fields.String(required=True)
-    order_type = fields.String(required=True)
-    status = fields.String()
-    action = fields.String()
-    limit_price = fields.Float()
-    aux_price = fields.Float()
-    total_quantity = fields.Float(validate=validate_quantity)
-    filled = fields.Float()
-    remaining = fields.Float()
-    avg_fill_price = fields.Float()
-    on_date = fields.Date(DateFormatEnum.TB_DATE.value)
-    timestamp = fields.DateTime(DateFormatEnum.FULL_TS.value, default=datetime.now)
+    id: Optional[str] = None
+    order_id: int
+    security: str
+    sec_type: str
+    order_type: str
+    status: Optional[str] = None
+    action: Optional[str] = None
+    limit_price: Optional[float] = None
+    aux_price: Optional[float] = None
+    total_quantity: float
+    filled: Optional[float] = None
+    remaining: Optional[float] = None
+    avg_fill_price: Optional[float] = None
+    on_date: Optional[date] = None
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    @validator("total_quantity", pre=True)
+    @classmethod
+    def validate_total_quantity(cls, v):
+        return validate_quantity(v)
 
 
-class OrdersResponseSchema(Schema):
+class OrdersResponseSchema(BaseModel):
     """Order Dates Response Schema."""
 
-    orders = fields.Boolean(default=True)
-    total_items = fields.Integer()
-    possible_keys = fields.List(fields.String())
-    items = fields.List(fields.Nested(OrdersSchema))
+    orders: bool = True
+    total_items: int
+    possible_keys: List[str] = []
+    items: List[OrdersSchema] = []

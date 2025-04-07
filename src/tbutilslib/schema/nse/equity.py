@@ -1,210 +1,150 @@
 """Equity Related Schema."""
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
 
-from marshmallow import Schema, fields, pre_load
+from pydantic import BaseModel, validator
 
 from ...utils.common import validate_quantity
-from ...utils.dtu import (
-    parse_timestamp,
-    str_to_date,
-    change_date_format,
-    parse_timestamp_to_str,
-)
-from ...utils.enums import DateFormatEnum
+from ...utils.dtu import parse_timestamp
+from .common import ChartDataBaseSchema
 
 
-class EquitySchema(Schema):
+class EquitySchema(ChartDataBaseSchema):
     """Equity Schema."""
 
-    id = fields.String(required=False)
-    security = fields.String()
-    identifier = fields.String()
-    series = fields.String()
-    open = fields.Float()
-    day_high = fields.Float()
-    day_low = fields.Float()
-    last_price = fields.Float()
-    previous_close = fields.Float()
-    change = fields.Float()
-    p_change = fields.Float()
-    total_traded_volume = fields.Integer(validate=validate_quantity, default=0)
-    total_traded_value = fields.Float()
-    year_high = fields.Float()
-    year_low = fields.Float()
-    ffmc = fields.Float()
-    near_weak_high = fields.Float()
-    near_weak_low = fields.Float()
-    per_change_30d = fields.Float()
-    per_change_365d = fields.Float()
-    chart_30d_path = fields.String()
-    chart_today_path = fields.String()
-    chart_365d_path = fields.String()
-    date_30d_ago = fields.Date(format=DateFormatEnum.TB_DATE.value)
-    date_365d_ago = fields.Date(format=DateFormatEnum.TB_DATE.value)
-    timestamp = fields.DateTime(DateFormatEnum.FULL_TS.value)
-    on_date = fields.Date(format=DateFormatEnum.TB_DATE.value)
-    last_update_time = fields.DateTime(DateFormatEnum.FULL_TS.value)
+    id: Optional[str] = None
+    security: Optional[str] = None
+    identifier: Optional[str] = None
+    series: Optional[str] = None
+    total_traded_volume: int = 0
+    total_traded_value: Optional[float] = None
+    year_high: Optional[float] = None
+    year_low: Optional[float] = None
+    ffmc: Optional[float] = None
+    on_date: date
+    last_update_time: datetime
     # Fields coming from `meta`
-    company_name = fields.String()
-    industry = fields.String()
-    active_series = fields.List(fields.String(), default=[])
-    debt_series = fields.List(fields.String(), default=[])
-    temp_suspended_series = fields.List(fields.String(), default=[])
-    is_fno_sec = fields.Bool()
-    is_ca_sec = fields.Bool()
-    is_slb_sec = fields.Bool()
-    is_debt_sec = fields.Bool()
-    is_suspended = fields.Bool()
-    is_etf_Sec = fields.Bool()
-    is_delisted = fields.Bool()
-    isin = fields.String()
-    is_municipal_bond = fields.Bool()
+    company_name: Optional[str] = None
+    industry: Optional[str] = ""
+    active_series: List[str] = []
+    debt_series: List[str] = []
+    temp_suspended_series: List[str] = []
+    is_fno_sec: Optional[bool] = None
+    is_ca_sec: Optional[bool] = None
+    is_slb_sec: Optional[bool] = None
+    is_debt_sec: Optional[bool] = None
+    is_suspended: Optional[bool] = None
+    is_etf_Sec: Optional[bool] = None
+    is_delisted: Optional[bool] = None
+    isin: Optional[str] = None
+    is_municipal_bond: Optional[bool] = None
 
-    @pre_load
-    def slugify_date(self, in_data: dict, **kwargs) -> dict:
-        """Set a new key on_date and update date format for date30dAgo.
+    @validator("total_traded_volume", pre=True)
+    @classmethod
+    def validate_volume(cls, v):
+        return validate_quantity(v)
+
+    @classmethod
+    def from_nse_data(cls, in_data: Dict[str, Any]) -> "EquitySchema":
+        """Create a model from NSE data format.
 
         Args:
-            in_data: dict
+            in_data: Dictionary containing NSE data
         """
-        is_nse = in_data.get("is_nse", False)
-        if is_nse:
-            timestamp: datetime = parse_timestamp(in_data["timestamp"])
-            last_update_time: datetime = parse_timestamp(in_data["lastUpdateTime"])
-            on_date: str = change_date_format(
-                timestamp.date(), DateFormatEnum.TB_DATE.value
-            )
+        if not in_data.get("is_nse", False):
+            return cls(**in_data)
 
-            date_30d_ago: date = str_to_date(
-                in_data["date30dAgo"], DateFormatEnum.NSE_DATE.value
-            )
-            date_30d_ago: str = change_date_format(
-                date_30d_ago, DateFormatEnum.TB_DATE.value
-            )
+        # Get common data from base class
+        common_data = ChartDataBaseSchema.parse_nse_common_data(in_data)
 
-            date_365d_ago: date = str_to_date(
-                in_data["date365dAgo"], DateFormatEnum.NSE_DATE.value
-            )
-            date_365d_ago: str = change_date_format(
-                date_365d_ago, DateFormatEnum.TB_DATE.value
-            )
+        # Add equity-specific fields
+        equity_data = {
+            "series": in_data["series"],
+            "company_name": in_data["companyName"],
+            "industry": in_data.get("industry") or "",
+            "active_series": in_data["activeSeries"],
+            "debt_series": in_data["debtSeries"],
+            "temp_suspended_series": in_data["tempSuspendedSeries"],
+            "is_fno_sec": in_data["isFNOSec"],
+            "is_ca_sec": in_data["isCASec"],
+            "is_slb_sec": in_data["isSLBSec"],
+            "is_debt_sec": in_data["isDebtSec"],
+            "is_suspended": in_data["isSuspended"],
+            "is_etf_Sec": in_data["isETFSec"],
+            "is_delisted": in_data["isDelisted"],
+            "isin": in_data["isin"],
+            "is_municipal_bond": in_data["isMunicipalBond"],
+        }
 
-            return {
-                "security": in_data["symbol"],
-                "identifier": in_data["identifier"],
-                "series": in_data["series"],
-                "open": in_data["open"],
-                "day_high": in_data["dayHigh"],
-                "day_low": in_data["dayLow"],
-                "last_price": in_data["lastPrice"],
-                "previous_close": in_data["previousClose"],
-                "change": in_data["change"],
-                "p_change": in_data["pChange"],
-                "total_traded_volume": in_data["totalTradedVolume"],
-                "total_traded_value": in_data["totalTradedValue"],
-                "year_high": in_data["yearHigh"],
-                "year_low": in_data["yearLow"],
-                "ffmc": in_data["ffmc"],
-                "near_weak_high": in_data["nearWKH"],
-                "near_weak_low": in_data["nearWKL"],
-                "per_change_30d": in_data["perChange30d"],
-                "per_change_365d": in_data["perChange365d"],
-                "chart_30d_path": in_data["chart30dPath"],
-                "chart_today_path": in_data["chartTodayPath"],
-                "chart_365d_path": in_data["chart365dPath"],
-                "on_date": on_date,
-                "date_30d_ago": date_30d_ago,
-                "date_365d_ago": date_365d_ago,
-                "timestamp": parse_timestamp_to_str(
-                    timestamp, DateFormatEnum.FULL_TS.value
-                ),
-                "last_update_time": parse_timestamp_to_str(
-                    last_update_time, DateFormatEnum.FULL_TS.value
-                ),
-                "company_name": in_data["companyName"],
-                "industry": in_data.get("industry") or "",
-                "active_series": in_data["activeSeries"],
-                "debt_series": in_data["debtSeries"],
-                "temp_suspended_series": in_data["tempSuspendedSeries"],
-                "is_fno_sec": in_data["isFNOSec"],
-                "is_ca_sec": in_data["isCASec"],
-                "is_slb_sec": in_data["isSLBSec"],
-                "is_debt_sec": in_data["isDebtSec"],
-                "is_suspended": in_data["isSuspended"],
-                "is_etf_Sec": in_data["isETFSec"],
-                "is_delisted": in_data["isDelisted"],
-                "isin": in_data["isin"],
-                "is_municipal_bond": in_data["isMunicipalBond"],
-            }
+        # Merge common and equity-specific data
+        all_data = {**common_data, **equity_data}
 
-        return in_data
+        return cls(**all_data)
 
 
-class EquityResponseSchema(Schema):
+class EquityResponseSchema(BaseModel):
     """Equity Response Schema."""
 
-    equity = fields.Boolean(default=True)
-    possible_keys = fields.List(fields.String())
-    total_items = fields.Integer()
-    items = fields.List(fields.Nested(EquitySchema))
+    equity: bool = True
+    possible_keys: List[str] = []
+    total_items: int
+    items: List[EquitySchema] = []
 
 
-class EquityRequestSchema(Schema):
+class EquityRequestSchema(BaseModel):
     """Equity Request Schema."""
 
-    security = fields.String()
+    security: Optional[str] = None
 
 
-class AdvanceDeclineSchema(Schema):
+class AdvanceDeclineSchema(BaseModel):
     """Advance Decline Schema."""
 
-    id = fields.String(required=False)
-    advances = fields.Integer()
-    declines = fields.Integer()
-    unchanged = fields.Integer()
-    timestamp = fields.DateTime(DateFormatEnum.FULL_TS.value)
-    on_date = fields.Date(DateFormatEnum.TB_DATE.value)
+    id: Optional[str] = None
+    advances: Optional[int] = None
+    declines: Optional[int] = None
+    unchanged: Optional[int] = None
+    timestamp: datetime
+    on_date: date
 
-    @pre_load
-    def slugify_date(self, in_data: dict, **kwargs) -> dict:
-        """Set a new key on_date.
+    @classmethod
+    def from_nse_data(cls, in_data: Dict[str, Any]) -> "AdvanceDeclineSchema":
+        """Create a model from NSE data format.
 
         Args:
-            in_data: dict
+            in_data: Dictionary containing NSE data
         """
         timestamp: datetime = parse_timestamp(in_data["timestamp"])
-        in_data["on_date"] = change_date_format(
-            timestamp.date(), DateFormatEnum.TB_DATE.value
-        )
-        return in_data
+
+        return cls(**in_data, on_date=timestamp.date(), timestamp=timestamp)
 
 
-class AdvanceDeclineResponseSchema(Schema):
+class AdvanceDeclineResponseSchema(BaseModel):
     """Advance Decline Response Schema."""
 
-    advance_decline = fields.Boolean(default=True)
-    total_items = fields.Integer()
-    items = fields.List(fields.Nested(AdvanceDeclineSchema))
+    advance_decline: bool = True
+    total_items: int
+    items: List[AdvanceDeclineSchema] = []
 
 
-class EquityMetaSchema(Schema):
+class EquityMetaSchema(BaseModel):
     """Static Equity Schema."""
 
-    id = fields.String(required=False)
-    security = fields.String()
-    company = fields.String()
-    industry = fields.String()
-    isin = fields.String()
-    series = fields.String()
-    is_fno = fields.Boolean(default=False)
-    is_nifty_50 = fields.Boolean(default=False)
-    is_nifty_100 = fields.Boolean(default=False)
-    is_nifty_500 = fields.Boolean(default=False)
+    id: Optional[str] = None
+    security: Optional[str] = None
+    company: Optional[str] = None
+    industry: Optional[str] = None
+    isin: Optional[str] = None
+    series: Optional[str] = None
+    is_fno: bool = False
+    is_nifty_50: bool = False
+    is_nifty_100: bool = False
+    is_nifty_500: bool = False
 
 
-class EquityMetaResponseSchema(Schema):
+class EquityMetaResponseSchema(BaseModel):
     """Equity Meta Response Schema."""
 
-    equity_meta = fields.Boolean(default=True)
-    total_items = fields.Integer()
-    items = fields.List(fields.Nested(EquityMetaSchema))
+    equity_meta: bool = True
+    total_items: int
+    items: List[EquityMetaSchema] = []

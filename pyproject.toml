@@ -1,0 +1,126 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tbutilslib"
+dynamic = ["version"]
+description = "Trading Bot Utilities Library"
+readme = "README.md"
+authors = [
+    {name = "Abhishake Gupta", email = "letspython3.x@gmail.com"},
+]
+maintainers = [
+    {name = "LetsPython3.x", email = "letspython3.x@gmail.com"},
+]
+requires-python = ">=3.8"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+keywords = ["trading", "bot", "finance", "stock market", "algorithmic trading"]
+dependencies = [
+    "Flask-RESTful>=0.3.9",
+    "flask-mongoengine>=1.0.0",
+    "marshmallow>=3.13.0",
+    "marshmallow-mongoengine>=0.9.1",
+    "pymongo>=3.12.0",
+    "requests>=2.31.0",
+    "urllib3>=2.1.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/letspython3x/tbutilslib"
+"Bug Tracker" = "https://github.com/letspython3x/tbutilslib/issues"
+"Documentation" = "https://github.com/letspython3x/tbutilslib/wiki"
+"Source Code" = "https://github.com/letspython3x/tbutilslib"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "flake8-docstrings>=1.7.0",
+    "pre-commit>=3.0.0",
+    "pylint>=2.17.0",
+]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.3.0",
+]
+
+[project.scripts]
+tbutilslib = "tbutilslib.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "tbutilslib.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["tbutilslib*"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(\n  \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"
+addopts = "--cov=tbutilslib --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["tbutilslib"]
+omit = ["tests/*", "setup.py"]
+
+[tool.pylint.main]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "E0401",  # import-error - disable temporarily for CI
+    "R0903",  # too-few-public-methods - common in data models
+    "R0913",  # too-many-arguments - common in API client methods
+    "W0718",  # Catching too general exception
+]
+ignore = ["CVS", ".git", ".pytest_cache", "dist", "build"]
+jobs = 0
+persistent = "yes"

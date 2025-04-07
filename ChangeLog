@@ -1,0 +1,56 @@
+CHANGES
+=======
+
+* Remove ExpiryDatesVuew and converted SecurityInFocus View to OptionMetaDataView
+* Update index for derivatives
+* Add schema and collection for TB Api /index to store index data
+* Fix Index for NiftyEquityCollection
+* Refactor for timestamp format
+* Add EquityMeta Collector and Load helper scripts to load 1 time data
+* Add Schema & Collection for EquityMeta
+* Handle FII-DII Schema
+* Fix Nifty Equity Derivatives collection
+* Fix Nifty Equity Collection
+* Update for converting date into TB\_DATE
+* Update value for on\_date
+* Offers discounts
+* Refactor TradingBot Utils
+* Refactor TradingBot Utils
+* Add a pre-commit config yaml file
+* Update README to setup database and python connection
+* ensure\_index function is updated to create\_index
+* Update AUTHORS
+* Update ReADME
+* Error: delete is bool
+* Add more tbapi functions
+* Update function names
+* update orders
+* Add a wrapper over Trading Bot Api
+* set an id for orders and positions
+* Save orders and positions
+* Save orders and positions function call
+* Save orders and positions
+* Add models and schema for positions
+* Add Orders Models and Schema
+* Add Tbapi Utils function
+* Add Tbapi Utils function
+* Remove division of openInterest by marketLot
+* Remove validate\_quantity from EquityCount
+* Add validator for schema
+* Add TRADING\_DATES url in config
+* Add models and schema for tradingDates Views
+* Divide by marketLot
+* Return list for fno & non-fno securities
+* Set BASE\_URI as localhost
+* Add id in each payload
+* Url Changes and code optimizations
+* Update ExpiryDates view and mode
+* Update Ensure index for ExpiryDatesCollection
+* Add ExpiryDates Collection and model
+* Update index for securityInFocusCollection
+* Add logging config and functionality
+
+0.1.0
+-----
+
+* Initial Commit

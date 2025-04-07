@@ -1,34 +1,35 @@
 """MaxOI Schema."""
-from marshmallow import Schema, fields
+from datetime import date
+from typing import List, Optional
 
-from ...utils.enums import DateFormatEnum
+from pydantic import BaseModel
 
 
-class MaxOiDatumSchema(Schema):
+class MaxOiDatumSchema(BaseModel):
     """MaxOI Datum Schema."""
 
-    open_interest = fields.Integer()
-    strike_price = fields.Integer()
+    open_interest: Optional[int] = None
+    strike_price: Optional[int] = None
 
 
-class MaxOpenInterestSchema(Schema):
+class MaxOpenInterestSchema(BaseModel):
     """MaxOI Schema."""
 
-    CE = fields.Nested(MaxOiDatumSchema)
-    PE = fields.Nested(MaxOiDatumSchema)
+    CE: Optional[MaxOiDatumSchema] = None
+    PE: Optional[MaxOiDatumSchema] = None
 
 
-class MaxOpenInterestResponseSchema(Schema):
+class MaxOpenInterestResponseSchema(BaseModel):
     """MaxOI Response Schema."""
 
-    max_open_interest = fields.Boolean(default=True)
-    security = fields.String()
-    expiry_date = fields.Date(DateFormatEnum.TB_DATE.value)
-    possible_keys = fields.List(fields.String())
-    items = fields.Nested(MaxOpenInterestSchema)
+    max_open_interest: bool = True
+    security: Optional[str] = None
+    expiry_date: Optional[date] = None
+    possible_keys: List[str] = []
+    items: Optional[MaxOpenInterestSchema] = None
 
 
-class MaxOpenInterestRequestSchema(Schema):
+class MaxOpenInterestRequestSchema(BaseModel):
     """MaxOI Request Schema."""
 
-    security = fields.String()
+    security: Optional[str] = None

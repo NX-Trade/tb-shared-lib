@@ -1,14 +1,13 @@
 from copy import deepcopy
-from datetime import datetime
 
 from mongoengine import fields as mongoFields
 
-from ..base import BaseCollection, BASE_META
 from ...config import MongoConfig
-from ...utils.enums import DateFormatEnum
+from ..base import BASE_META
+from .common import DateBaseModel
 
 
-class OrdersCollection(BaseCollection):
+class OrdersCollection(DateBaseModel):
     """ORDERS collection."""
 
     order_id = mongoFields.IntField(required=True)
@@ -23,10 +22,6 @@ class OrdersCollection(BaseCollection):
     filled = mongoFields.FloatField()
     remaining = mongoFields.FloatField()
     avg_fill_price = mongoFields.FloatField()
-    on_date = mongoFields.DateField(format=DateFormatEnum.TB_DATE.value)
-    timestamp = mongoFields.DateTimeField(
-        format=DateFormatEnum.FULL_TS.value, default=datetime.now
-    )
     meta = deepcopy(BASE_META)
     meta["ordering"] = ["-timestamp"]
     meta["collection"] = MongoConfig.ORDERS

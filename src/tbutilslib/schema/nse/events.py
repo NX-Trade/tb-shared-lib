@@ -1,49 +1,51 @@
 """Events Schema."""
-from marshmallow import Schema, fields, pre_load
+from datetime import date
+from typing import Any, Dict, List, Optional
 
-from ...utils.dtu import change_date_format, str_to_date
+from pydantic import BaseModel
+
+from ...utils.dtu import str_to_date
 from ...utils.enums import DateFormatEnum
 
 
-class EventsSchema(Schema):
+class EventsSchema(BaseModel):
     """Events Schema."""
 
-    id = fields.String(required=False)
-    company = fields.String()
-    description = fields.String()
-    event_date = fields.Date(required=True, format=DateFormatEnum.TB_DATE.value)
-    index = fields.String(required=False, default="equities")
-    purpose = fields.String()
-    security = fields.String(required=True)
+    id: Optional[str] = None
+    company: Optional[str] = None
+    description: Optional[str] = None
+    event_date: date
+    index: str = "equities"
+    purpose: Optional[str] = None
+    security: str
 
-    @pre_load
-    def marshal_nse(self, in_data: dict, **kwargs) -> dict:
-        is_nse = in_data.get("is_nse", False)
-        if is_nse:
-            event_date = str_to_date(in_data["date"], DateFormatEnum.NSE_DATE.value)
-            event_date = change_date_format(event_date, DateFormatEnum.TB_DATE.value)
+    @classmethod
+    def from_nse_data(cls, in_data: Dict[str, Any]) -> "EventsSchema":
+        """Create a model from NSE data format."""
+        if not in_data.get("is_nse", False):
+            return cls(**in_data)
 
-            return {
-                "security": in_data["symbol"],
-                "event_date": event_date,
-                "company": in_data["company"],
-                "purpose": in_data["purpose"],
-                "description": in_data["bm_desc"],
-            }
+        event_date_obj = str_to_date(in_data["date"], DateFormatEnum.NSE_DATE.value)
 
-        return in_data
+        return cls(
+            security=in_data["symbol"],
+            event_date=event_date_obj,
+            company=in_data["company"],
+            purpose=in_data["purpose"],
+            description=in_data["bm_desc"],
+        )
 
 
-class EventsResponseSchema(Schema):
+class EventsResponseSchema(BaseModel):
     """Events Response Schema."""
 
-    events = fields.Boolean(default=True)
-    possible_keys = fields.List(fields.String())
-    total_items = fields.Int()
-    items = fields.List(fields.Nested(EventsSchema))
+    events: bool = True
+    possible_keys: List[str] = []
+    total_items: int
+    items: List[EventsSchema] = []
 
 
-class EventsRequestSchema(Schema):
+class EventsRequestSchema(BaseModel):
     """Events Request Schema."""
 
-    security = fields.String()
+    security: str

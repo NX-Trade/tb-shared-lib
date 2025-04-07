@@ -1,24 +1,22 @@
-"""Trading Dates Schema."""
-from datetime import datetime
+from datetime import date, datetime
+from typing import List, Optional
 
-from marshmallow import Schema, fields
-
-from ...utils.enums import DateFormatEnum
+from pydantic import BaseModel, Field
 
 
-class TradingDatesSchema(Schema):
+class TradingDatesSchema(BaseModel):
     """Trading Dates Schema."""
 
-    id = fields.String(required=False)
-    last_trading_date = fields.Date(DateFormatEnum.TB_DATE.value)
-    current_trading_date = fields.Date(DateFormatEnum.TB_DATE.value)
-    timestamp = fields.DateTime(DateFormatEnum.FULL_TS.value, default=datetime.now)
+    id: Optional[str] = None
+    last_trading_date: date
+    current_trading_date: date
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
-class TradingDatesResponseSchema(Schema):
+class TradingDatesResponseSchema(BaseModel):
     """Trading Dates Response Schema."""
 
-    trading_dates = fields.Boolean(default=True)
-    possible_keys = fields.List(fields.String())
-    total_items = fields.Integer()
-    items = fields.List(fields.Nested(TradingDatesSchema))
+    trading_dates: bool = True
+    possible_keys: List[str] = []
+    total_items: int
+    items: List[TradingDatesSchema] = []
