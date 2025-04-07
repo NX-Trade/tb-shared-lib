@@ -73,6 +73,7 @@ setup(
         "pymongo>=3.12.0",
         "requests>=2.31.0",
         "urllib3>=2.1.0",
+        "pydantic>=2.5.1",
     ],
     extras_require={
         "dev": [

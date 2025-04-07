@@ -476,7 +476,7 @@ class TbApiCore(ApiClient):
         """Fetch events data from TbApi.
 
         Args:
-            query: Additional query parameters
+            params: Additional query parameters
             securities: List of securities to filter by
 
         Returns:

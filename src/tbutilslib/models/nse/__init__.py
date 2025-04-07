@@ -1,21 +1,28 @@
 """collection models."""
 
-from .derivatives import CumulativeDerivativesCollection
-from .equity import EquityCollection
+from .derivatives import CumulativeDerivativesCollection, IndexDerivativesCollection
+from .equity import (
+    AdvanceDeclineCollection,
+    EquityMetaCollection,
+    NiftyEquityCollection,
+)
 from .events import EventsCollection
+from .fiidii import FiiDiiCollection
 from .indexes import IndexCollection
-from .max_oi import MaxOpenInterestCollection
 from .orders import OrdersCollection
 from .positions import PositionsCollection
 from .trading_dates import TradingDatesCollection
 
 __all__ = [
     "CumulativeDerivativesCollection",
-    "EquityCollection",
+    "IndexDerivativesCollection",
+    "NiftyEquityCollection",
+    "AdvanceDeclineCollection",
+    "EquityMetaCollection",
     "IndexCollection",
     "EventsCollection",
-    "MaxOpenInterestCollection",
     "OrdersCollection",
     "PositionsCollection",
     "TradingDatesCollection",
+    "FiiDiiCollection",
 ]
