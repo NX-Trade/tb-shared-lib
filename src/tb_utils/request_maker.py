@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 import requests
 
 from sqlalchemy.orm import Session
-from ..models.broker import ExternalApiRequest
+from .models.broker import ExternalApiRequest
 
 logger = logging.getLogger("tb-utils.requests.request_maker")
 
