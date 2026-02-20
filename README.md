@@ -1,139 +1,243 @@
-# Trading Bot Utilities Library (tbutilslib)
+# tb-utils — Trading Bot Shared Library
 
-[![Python Versions](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://pypi.org/project/tbutilslib/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A shared Python library for the NX-Trade Monorepo. Provides SQLAlchemy ORM models, Pydantic schemas, PostgreSQL session management, and a circuit-breaker HTTP client for external APIs (NSE, BSE, MoneyControl).
 
-A comprehensive library for algorithmic trading with utilities for data handling, model management, and API integration.
+---
 
-## Features
+## Tech Stack
 
-- MongoDB integration for storing and retrieving trading data
-- Schema validation using Marshmallow
-- RESTful API support with Flask
-- Logging utilities with rotation
-- Error handling and custom exceptions
-- Command-line interface for common tasks
+| Concern       | Old (`v0.x`)          | New (`v1.0.0`)                   |
+| ------------- | --------------------- | -------------------------------- |
+| Web Framework | Flask, Flask-RESTful  | FastAPI                          |
+| Database      | MongoDB, MongoEngine  | PostgreSQL + TimescaleDB         |
+| ORM           | MongoEngine Documents | SQLAlchemy `DeclarativeBase`     |
+| Validation    | Marshmallow           | Pydantic v2                      |
+| Migrations    | None                  | Alembic                          |
+| External HTTP | Bare `requests`       | `RequestMaker` (circuit breaker) |
+
+---
 
 ## Installation
 
-### From Source
+```bash
+pip install tb-utils
+```
+
+Or in development mode from the monorepo root:
 
 ```bash
-# Clone the repository
-git clone https://github.com/letspython3x/tbutilslib.git
-cd tbutilslib
-
-# Install the package
-pip install .
-
-# For development installation with extra dependencies
-pip install -e ".[dev,docs]"
+pip install -e libs/tb-shared-lib
 ```
 
-## Database Setup
+### Environment Variables
 
-### Using Docker (Recommended)
+| Variable            | Default     | Description       |
+| ------------------- | ----------- | ----------------- |
+| `POSTGRES_USER`     | `postgres`  | Database user     |
+| `POSTGRES_PASSWORD` | `postgres`  | Database password |
+| `POSTGRES_HOST`     | `127.0.0.1` | Database host     |
+| `POSTGRES_PORT`     | `5432`      | Database port     |
+| `POSTGRES_DB`       | `nx_trade`  | Database name     |
 
-1. Pull the MongoDB Docker image:
-   ```bash
-   docker pull mongodb/mongodb-community-server
-   ```
+Create a `.env` file in your project root or set these variables in your shell. The library reads them automatically via `pydantic-settings`.
 
-2. Run the MongoDB container:
-   ```bash
-   docker run -d -p 27017:27017 --name mongo-db mongodb/mongodb-community-server
-   ```
+---
 
-3. Access the MongoDB shell (optional):
-   ```bash
-   docker exec -it mongo-db mongosh
-   ```
+## Package Structure
 
-4. Create database and collections:
-   ```
-   use Stockmarket
-   show collections
-   ```
-
-### Setting up Database Indexes
-
-You can use the built-in CLI to set up all required database indexes:
-
-```bash
-# Using the CLI
-tbutilslib setup-db --host 0.0.0.0 --port 27017 --verbose
+```
+src/tb-utils/
+├── __init__.py           # Public API surface (version 1.0.0)
+├── apiwrapper/
+│   └── tbapi.py          # Internal TradingBot HTTP API client
+├── config/
+│   ├── apiconfig.py      # NSE, TbApi URL config
+│   ├── database.py       # PostgresConfig (pydantic-settings)
+│   └── db_session.py     # SQLAlchemy engine + session factory
+├── errors.py             # Custom exceptions
+├── logger.py             # Logging helpers
+├── models/
+│   ├── base.py            # Base, PostgresUpsertMixin
+│   ├── broker.py          # Broker, BrokerHealthLog, ExternalApiRequest
+│   ├── corporate_event.py # CorporateEvent, TradingHoliday
+│   ├── historical_data.py # HistoricalEquityData, HistoricalIndexData, Candle, OptionChain
+│   ├── instrument.py      # Instrument
+│   ├── market_data.py     # FiiDii, News, MarketBreadth
+│   ├── system.py          # SystemMetric, SystemLog
+│   └── trading.py         # TradingSignal, TradingOrder, Position, Trade
+├── requests.py            # RequestMaker (circuit breaker + telemetry)
+├── schema/
+│   ├── base.py            # BaseSchema, GenericResponseSchema
+│   ├── broker.py          # BrokerResponse, ExternalApiRequestResponse, ...
+│   ├── corporate_event.py # CorporateEventResponse, TradingHolidayResponse
+│   ├── historical_data.py # CandleResponse, OptionChainResponse, ...
+│   ├── instrument.py      # InstrumentResponse
+│   ├── market_data.py     # FiiDiiResponse, MarketBreadthResponse, NewsResponse
+│   ├── system.py          # SystemMetricResponse, SystemLogResponse
+│   └── trading.py         # TradingSignalCreate/Response, TradingOrderCreate/Response, ...
+└── utils/
+    ├── common.py
+    ├── dtu.py             # Date/time utilities
+    └── enums.py           # Domain enumerations
 ```
 
-## Usage Examples
+---
 
-### Connecting to MongoDB
+## Usage
+
+### 1. Database Session
+
+Use `get_db()` as a FastAPI dependency or call `SessionLocal()` directly in scripts.
 
 ```python
-from mongoengine import connect
-from tbutilslib.config.database import MongoConfig
+from tb_utils import get_db, SessionLocal
 
-# Connect to MongoDB
-connect(MongoConfig.MONGODB_DB, host='0.0.0.0', port=27017)
+# FastAPI
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
+def my_route(db: Session = Depends(get_db)):
+    ...
+
+# Script / Celery task
+db = SessionLocal()
+try:
+    ...
+finally:
+    db.close()
 ```
 
-### Working with Collections
+### 2. SQLAlchemy Models
+
+All models use `Integer` auto-increment PKs and are mapped to the schema in `docs/DATABASE_SCHEMA.sql`.
 
 ```python
-from tbutilslib import (
-    AdvanceDeclineCollection,
-    NiftyEquityCollection,
-    IndexCollection
-)
+from tb_utils import Instrument, Candle, TradingOrder
 
-# Create a new record
-adv_decline = AdvanceDeclineCollection(
-    advances=125,
-    declines=75,
-    unchanged=10,
-    timestamp="2025-04-07T12:30:00Z"
-)
-adv_decline.save()
+# Query
+from tb_utils import SessionLocal
+from sqlalchemy import select
 
-# Query records
-today_data = AdvanceDeclineCollection.objects(
-    timestamp__gte="2025-04-07T00:00:00Z"
-).order_by("-timestamp")
-
-# Print results
-for item in today_data:
-    print(f"Advances: {item.advances}, Declines: {item.declines}")
+db = SessionLocal()
+instruments = db.execute(select(Instrument).where(Instrument.is_fno == 1)).scalars().all()
 ```
+
+### 3. UPSERT (PostgreSQL native)
+
+Models that inherit `PostgresUpsertMixin` expose a class method `upsert_native()`:
+
+```python
+from tb_utils import FiiDii, get_db
+
+db = next(get_db())
+FiiDii.upsert_native(
+    session=db,
+    constraint_name="fiidii_trade_date_category_segment_key",
+    data=[{"trade_date": "2025-02-20", "category": "FII", "segment": "CASH", ...}],
+    update_fields=["buy_value", "sell_value", "net_value"],
+)
+db.commit()
+```
+
+### 4. Pydantic Schemas
+
+All response schemas are configured with `from_attributes=True` for direct ORM → schema conversion.
+
+```python
+from tb_utils import InstrumentResponse, CandleResponse
+from tb_utils import SessionLocal, Instrument
+from sqlalchemy import select
+
+db = SessionLocal()
+rows = db.execute(select(Instrument)).scalars().all()
+result = [InstrumentResponse.model_validate(r) for r in rows]
+```
+
+### 5. RequestMaker (Circuit Breaker)
+
+Use `RequestMaker` to call external APIs (NSE, BSE, MoneyControl). It automatically:
+
+- Opens the **circuit** after N consecutive failures.
+- Logs all request/response telemetry to the `external_api_request` table.
+- Resets automatically after a configurable timeout.
+
+```python
+from tb_utils import RequestMaker, CircuitBreakerError, get_db
+
+db = next(get_db())
+nse = RequestMaker(
+    api_provider_id=1,   # 1 = NSE
+    session=db,
+    max_failures=5,
+    reset_timeout_seconds=60
+)
+
+try:
+    response = nse.request(
+        method="GET",
+        url="https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
+        headers={"user-agent": "Mozilla/5.0"},
+        correlation_id="req-abc-123",
+    )
+    data = response.json()
+except CircuitBreakerError:
+    print("NSE circuit is open, skipping request.")
+```
+
+### 6. Internal API Client
+
+```python
+from tb_utils.apiwrapper.tbapi import TbApi
+
+api = TbApi()
+orders = api.get_orders()
+positions = api.get_positions()
+```
+
+---
+
+## Versioning
+
+This library follows [Semantic Versioning](https://semver.org/):
+
+- `MAJOR` — breaking changes (like this `v0` → `v1` migration)
+- `MINOR` — new backwards-compatible features
+- `PATCH` — bug fixes
+
+The version is defined in `tb_utils/__init__.py`:
+
+```python
+__version__ = "1.0.0"
+```
+
+---
+
+## Migration from v0.x
+
+| v0.x                                                  | v1.0.0                                                            |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| `from tb_utils.config.database import MongoConfig`  | `from tb_utils import PostgresConfig, db_settings`              |
+| `from tb_utils.models import NiftyEquityCollection` | `from tb_utils import Candle, HistoricalEquityData`             |
+| `from tb_utils.schema import OrdersSchema`          | `from tb_utils import TradingOrderCreate, TradingOrderResponse` |
+| `BaseCollection` / `MongoEngine.Document`             | `Base` / `SQLAlchemy DeclarativeBase`                             |
+| `flask-mongoengine` connection                        | `get_db()` / `SessionLocal()`                                     |
+
+> No shim or compatibility layer is provided. All old MongoDB collections must be re-mapped to the new PostgreSQL tables defined in `docs/DATABASE_SCHEMA.sql`.
+
+---
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Install development dependencies
+# Create and activate a virtual environment
+python3 -m venv venv && source venv/bin/activate
+
+# Install in editable mode with dev extras
 pip install -e ".[dev]"
+
+# Run pre-commit hooks
+pre-commit run --all-files
 
 # Run tests
 pytest
 ```
-
-### Code Formatting and Linting
-
-```bash
-# Format code
-black src tests
-
-# Sort imports
-isort src tests
-
-# Run linting
-flake8 src tests
-pylint src
-```
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

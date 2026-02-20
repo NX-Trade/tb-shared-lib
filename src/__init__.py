@@ -1,1 +1,1 @@
-"""Source package for tbutilslib."""
+"""Source package for tb_utils."""

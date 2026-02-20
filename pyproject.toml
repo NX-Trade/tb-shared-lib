@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tbutilslib"
+name = "tb-utils"
 dynamic = ["version"]
 description = "Trading Bot Utilities Library"
 readme = "README.md"
@@ -31,20 +31,22 @@ classifiers = [
 ]
 keywords = ["trading", "bot", "finance", "stock market", "algorithmic trading"]
 dependencies = [
-    "Flask-RESTful>=0.3.9",
-    "flask-mongoengine>=1.0.0",
-    "marshmallow>=3.13.0",
-    "marshmallow-mongoengine>=0.9.1",
-    "pymongo>=3.12.0",
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+    "psycopg2-binary>=2.9.9",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
     "requests>=2.31.0",
     "urllib3>=2.1.0",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/letspython3x/tbutilslib"
-"Bug Tracker" = "https://github.com/letspython3x/tbutilslib/issues"
-"Documentation" = "https://github.com/letspython3x/tbutilslib/wiki"
-"Source Code" = "https://github.com/letspython3x/tbutilslib"
+"Homepage" = "https://github.com/letspython3x/tb_utils"
+"Bug Tracker" = "https://github.com/letspython3x/tb_utils/issues"
+"Documentation" = "https://github.com/letspython3x/tb_utils/wiki"
+"Source Code" = "https://github.com/letspython3x/tb_utils"
 
 [project.optional-dependencies]
 dev = [
@@ -63,17 +65,17 @@ docs = [
 ]
 
 [project.scripts]
-tbutilslib = "tbutilslib.cli:main"
+tb-utils = "tb_utils.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.dynamic]
-version = {attr = "tbutilslib.__version__"}
+version = {attr = "tb_utils.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["tbutilslib*"]
+include = ["tb_utils*"]
 
 [tool.black]
 line-length = 88
@@ -106,10 +108,10 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 python_classes = "Test*"
-addopts = "--cov=tbutilslib --cov-report=term-missing"
+addopts = "--cov=tb_utils --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["tbutilslib"]
+source = ["tb_utils"]
 omit = ["tests/*", "setup.py"]
 
 [tool.pylint.main]
