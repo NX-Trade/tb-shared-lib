@@ -24,6 +24,7 @@ class Instrument(Base, PostgresUpsertMixin):
     company_name = Column(String(255))
     is_fno = Column(SmallInteger, default=0)
     indices = Column(ARRAY(String))
+    is_index = Column(SmallInteger, default=0)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
@@ -31,4 +32,4 @@ class Instrument(Base, PostgresUpsertMixin):
     )
 
     def __repr__(self):
-        return f"<Instrument(id={self.instrument_id}, ib_symbol={self.ib_symbol}, isin={self.isin})>"
+        return f"<Instrument(id={self.instrument_id}, ib_symbol={self.ib_symbol}, isin={self.isin}, is_index={self.is_index})>"

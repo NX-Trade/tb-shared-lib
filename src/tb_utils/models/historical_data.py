@@ -54,7 +54,7 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
     symbol = Column(String(20), nullable=False, index=True)
     timeframe = Column(String(10), nullable=False, index=True)
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
-
+    index_name = Column(String(20), nullable=False, index=True)
     open = Column(Numeric(10, 2), nullable=False)
     high = Column(Numeric(10, 2), nullable=False)
     low = Column(Numeric(10, 2), nullable=False)
@@ -64,7 +64,7 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "symbol", "timeframe", "timestamp", name="uix_historical_index_data_key"
+            "symbol", "timeframe", "timestamp", "index_name", name="uix_historical_index_data_key"
         ),
     )
 

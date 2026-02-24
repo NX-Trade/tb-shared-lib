@@ -40,7 +40,7 @@ def get_engine() -> Engine:
                 max_overflow=20,  # Max connections beyond pool_size
                 echo=False,  # Set True to log all SQL queries
             )
-            logger.debug("SQLAlchemy engine created: %s", db_settings.POSTGRES_HOST)
+            logger.debug("SQLAlchemy engine created: %s", db_settings.DB_HOST)
         except Exception as exc:
             logger.error("Failed to create SQLAlchemy engine: %s", exc, exc_info=True)
             raise RuntimeError(f"Could not create database engine: {exc}") from exc

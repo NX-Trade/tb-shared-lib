@@ -7,7 +7,7 @@ Pydantic schema validation, and external API integration.
 
 __version__ = "1.1.0"
 
-from .config.database import PostgresConfig, db_settings
+from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
 
 from .models import (
@@ -63,7 +63,7 @@ __all__ = [
     # Version
     "__version__",
     # Config
-    "PostgresConfig",
+    "DatabaseConfig",
     "db_settings",
     "SessionLocal",
     "get_db",

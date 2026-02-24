@@ -35,7 +35,7 @@ class PostgresUpsertMixin:
         constraint_name: str,
         data: Union[Dict[str, Any], List[Dict[str, Any]]],
         update_fields: List[str],
-    ) -> Any:
+    ) -> int:
         """Perform a PostgreSQL specific UPSERT operation.
 
         Args:
@@ -45,10 +45,10 @@ class PostgresUpsertMixin:
             update_fields: List of column names to update on conflict
 
         Returns:
-            The execution result
+            Number of rows affected (inserted + updated)
         """
         if not data:
-            return None
+            return 0
 
         if isinstance(data, dict):
             data = [data]
@@ -68,7 +68,7 @@ class PostgresUpsertMixin:
 
         try:
             result = session.execute(stmt)
-            return result
+            return result.rowcount
         except Exception as e:
             logger.error(
                 "UPSERT operation failed for %s: %s", cls.__tablename__, str(e)

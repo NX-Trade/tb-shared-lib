@@ -102,7 +102,7 @@ def check_config() -> int:
         else url
     )
     print(f"Database URL : {masked}")
-    print(f"Host         : {db_settings.POSTGRES_HOST}")
+    print(f"Host         : {db_settings.DB_HOST}")
     print(f"Port         : {db_settings.POSTGRES_PORT}")
     print(f"Database     : {db_settings.POSTGRES_DB}")
     print(f"User         : {db_settings.POSTGRES_USER}")

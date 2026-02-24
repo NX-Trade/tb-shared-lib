@@ -31,13 +31,13 @@ pip install -e libs/tb-shared-lib
 
 ### Environment Variables
 
-| Variable            | Default     | Description       |
-| ------------------- | ----------- | ----------------- |
-| `POSTGRES_USER`     | `postgres`  | Database user     |
-| `POSTGRES_PASSWORD` | `postgres`  | Database password |
-| `POSTGRES_HOST`     | `127.0.0.1` | Database host     |
-| `POSTGRES_PORT`     | `5432`      | Database port     |
-| `POSTGRES_DB`       | `nx_trade`  | Database name     |
+| Variable            | Default      | Description       |
+| ------------------- | ------------ | ----------------- |
+| `DB_USER`     | `postgres`   | Database user     |
+| `DB_PASS` | `postgres`   | Database password |
+| `DB_HOST`     | `127.0.0.1`  | Database host     |
+| `DB_PORT`     | `5432`       | Database port     |
+| `DB_NAME`       | `trading_db` | Database name     |
 
 Create a `.env` file in your project root or set these variables in your shell. The library reads them automatically via `pydantic-settings`.
 
@@ -52,7 +52,7 @@ src/tb-utils/
 │   └── tbapi.py          # Internal TradingBot HTTP API client
 ├── config/
 │   ├── apiconfig.py      # NSE, TbApi URL config
-│   ├── database.py       # PostgresConfig (pydantic-settings)
+│   ├── database.py       # DatabaseConfig (pydantic-settings)
 │   └── db_session.py     # SQLAlchemy engine + session factory
 ├── errors.py             # Custom exceptions
 ├── logger.py             # Logging helpers
@@ -214,13 +214,13 @@ __version__ = "1.0.0"
 
 ## Migration from v0.x
 
-| v0.x                                                  | v1.0.0                                                            |
-| ----------------------------------------------------- | ----------------------------------------------------------------- |
-| `from tb_utils.config.database import MongoConfig`  | `from tb_utils import PostgresConfig, db_settings`              |
+| v0.x                                                | v1.0.0                                                          |
+| --------------------------------------------------- | --------------------------------------------------------------- |
+| `from tb_utils.config.database import MongoConfig`  | `from tb_utils import DatabaseConfig, db_settings`              |
 | `from tb_utils.models import NiftyEquityCollection` | `from tb_utils import Candle, HistoricalEquityData`             |
 | `from tb_utils.schema import OrdersSchema`          | `from tb_utils import TradingOrderCreate, TradingOrderResponse` |
-| `BaseCollection` / `MongoEngine.Document`             | `Base` / `SQLAlchemy DeclarativeBase`                             |
-| `flask-mongoengine` connection                        | `get_db()` / `SessionLocal()`                                     |
+| `BaseCollection` / `MongoEngine.Document`           | `Base` / `SQLAlchemy DeclarativeBase`                           |
+| `flask-mongoengine` connection                      | `get_db()` / `SessionLocal()`                                   |
 
 > No shim or compatibility layer is provided. All old MongoDB collections must be re-mapped to the new PostgreSQL tables defined in `docs/DATABASE_SCHEMA.sql`.
 
