@@ -8,9 +8,12 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     UniqueConstraint,
 )
+
+from tb_utils.utils.enums import SourceEnum
 
 from .base import Base, PostgresUpsertMixin
 
@@ -34,7 +37,8 @@ class HistoricalEquityData(Base, PostgresUpsertMixin):
     close = Column(Numeric(10, 2), nullable=False)
     adj_close = Column(Numeric(10, 2))
     volume = Column(BigInteger, nullable=False)
-    broker_id = Column(Integer, ForeignKey("broker.broker_id"))
+    # SourceEnum can be ICICI, IB, NSE
+    source_id = Column(SmallInteger, nullable=False, default=SourceEnum.IB.value)
 
     __table_args__ = (
         UniqueConstraint(
@@ -61,7 +65,8 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
     low = Column(Numeric(10, 2), nullable=False)
     close = Column(Numeric(10, 2), nullable=False)
     adj_close = Column(Numeric(10, 2))
-    broker_id = Column(Integer, ForeignKey("broker.broker_id"))
+    # SourceEnum can be ICICI, IB, NSE
+    source_id = Column(SmallInteger, nullable=False, default=SourceEnum.NSE.value)
 
     __table_args__ = (
         UniqueConstraint(

@@ -1,5 +1,19 @@
 import datetime
-from enum import Enum
+from enum import Enum, IntEnum
+
+
+class SourceEnum(IntEnum):
+    NSE = 1
+    IB = 2
+    ICICI = 3
+
+
+class BrokerTypeEnum(Enum):
+    """Enum for BrokerType; to fetch data or post orders."""
+
+    DATA = "DATA"
+    OMS = "OMS"
+    BOTH = "BOTH"
 
 
 class MarketPositionEnum(Enum):

@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db

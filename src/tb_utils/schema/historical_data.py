@@ -16,9 +16,9 @@ class HistoricalEquityDataResponse(BaseSchema):
     high: float
     low: float
     close: float
-    adj_close: Optional[float] = None
+    adj_close: float
     volume: int
-    broker_id: Optional[int] = None
+    source_id: int  # SourceEnum can be ICICI, IB, NSE
 
 
 class HistoricalIndexDataResponse(BaseSchema):
@@ -31,8 +31,8 @@ class HistoricalIndexDataResponse(BaseSchema):
     high: float
     low: float
     close: float
-    adj_close: Optional[float] = None
-    broker_id: Optional[int] = None
+    adj_close: float
+    source_id: int  # SourceEnum can be ICICI, IB, NSE
 
 
 class CandleResponse(BaseSchema):
