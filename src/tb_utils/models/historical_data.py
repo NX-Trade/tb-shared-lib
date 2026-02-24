@@ -3,14 +3,15 @@
 from sqlalchemy import (
     BigInteger,
     Column,
-    Integer,
-    String,
-    DateTime,
-    Numeric,
     Date,
+    DateTime,
     ForeignKey,
+    Integer,
+    Numeric,
+    String,
     UniqueConstraint,
 )
+
 from .base import Base, PostgresUpsertMixin
 
 
@@ -64,7 +65,11 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "symbol", "timeframe", "timestamp", "index_name", name="uix_historical_index_data_key"
+            "symbol",
+            "timeframe",
+            "timestamp",
+            "index_name",
+            name="uix_historical_index_data_key",
         ),
     )
 

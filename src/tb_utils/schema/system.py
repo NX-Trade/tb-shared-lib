@@ -1,8 +1,10 @@
 """Pydantic schemas for System configurations, metrics, and logs."""
 
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any, Optional
+
 from pydantic import Field
+
 from .base import BaseSchema
 
 

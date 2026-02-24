@@ -4,9 +4,9 @@ from .base import Base, PostgresUpsertMixin
 from .broker import Broker, BrokerHealthLog, ExternalApiRequest
 from .corporate_event import CorporateEvent, TradingHoliday
 from .historical_data import (
+    Candle,
     HistoricalEquityData,
     HistoricalIndexData,
-    Candle,
     OptionChain,
 )
 from .instrument import Instrument

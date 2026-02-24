@@ -1,20 +1,21 @@
 """Trading, Position, and Order Models."""
 
 from sqlalchemy import (
+    JSON,
+    Boolean,
     Column,
+    DateTime,
+    ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
-    DateTime,
-    Boolean,
-    Numeric,
-    ForeignKey,
-    JSON,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from .base import Base, PostgresUpsertMixin
 
 

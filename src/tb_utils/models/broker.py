@@ -3,15 +3,16 @@
 from sqlalchemy import (
     BigInteger,
     Column,
+    DateTime,
     ForeignKey,
     Integer,
     SmallInteger,
     String,
     Text,
-    DateTime,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from .base import Base
 
 

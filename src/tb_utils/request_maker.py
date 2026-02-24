@@ -1,11 +1,13 @@
+# pylint: disable=R0902
 """Request Maker and Circuit Breaker."""
 
 import logging
 import time
 from typing import Any, Dict, Optional
-import requests
 
+import requests
 from sqlalchemy.orm import Session
+
 from .models.broker import ExternalApiRequest
 
 logger = logging.getLogger("tb-utils.requests.request_maker")
@@ -13,8 +15,6 @@ logger = logging.getLogger("tb-utils.requests.request_maker")
 
 class CircuitBreakerError(Exception):
     """Exception raised when the circuit breaker is open."""
-
-    pass
 
 
 class RequestMaker:
@@ -81,7 +81,8 @@ class RequestMaker:
         if self.failure_count >= self.max_failures:
             self.state = "OPEN"
             logger.warning(
-                f"Circuit breaker tripped to OPEN state after {self.failure_count} failures."
+                "Circuit breaker tripped to OPEN state after %s failures.",
+                self.failure_count,
             )
 
     def request(

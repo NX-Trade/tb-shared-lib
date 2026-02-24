@@ -3,15 +3,16 @@
 from sqlalchemy import (
     BigInteger,
     Column,
+    Date,
+    DateTime,
     Integer,
+    Numeric,
     String,
     Text,
-    DateTime,
-    Numeric,
-    Date,
     UniqueConstraint,
 )
 from sqlalchemy.sql import func
+
 from .base import Base, PostgresUpsertMixin
 
 

@@ -3,7 +3,8 @@
 Provides a layered HTTP client for the internal TradingBot API and
 generic external REST API interactions.
 """
-
+import functools
+import json
 import time
 from datetime import datetime
 from logging import getLogger
@@ -24,8 +25,6 @@ logger = getLogger("tb-utils.apiwrapper.tbapi")
 
 def request_decorator(func):
     """Decorator that handles standard HTTP exceptions and returns parsed JSON."""
-
-    import functools
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -304,8 +303,6 @@ class TbApiCore(ApiClient):
         params = params or {}
         if securities:
             if len(securities) < 80:
-                import json
-
                 params["security__in"] = json.dumps(securities)
             else:
                 logger.warning("Security list exceeds the safe API limit of 80.")

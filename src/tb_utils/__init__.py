@@ -5,11 +5,10 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.3.0"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
-
 from .models import (
     Base,
     Broker,
@@ -32,6 +31,7 @@ from .models import (
     TradingOrder,
     TradingSignal,
 )
+from .request_maker import CircuitBreakerError, RequestMaker
 from .schema import (
     BrokerHealthLogResponse,
     BrokerResponse,
@@ -57,7 +57,6 @@ from .schema import (
     TradingSignalCreate,
     TradingSignalResponse,
 )
-from .request_maker import CircuitBreakerError, RequestMaker
 
 __all__ = [
     # Version

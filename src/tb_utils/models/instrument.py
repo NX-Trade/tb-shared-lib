@@ -1,14 +1,9 @@
 """Instrument Master Model."""
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    SmallInteger,
-    String,
-    DateTime,
-)
+from sqlalchemy import Column, DateTime, Integer, SmallInteger, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.sql import func
+
 from .base import Base, PostgresUpsertMixin
 
 
@@ -32,4 +27,9 @@ class Instrument(Base, PostgresUpsertMixin):
     )
 
     def __repr__(self):
-        return f"<Instrument(id={self.instrument_id}, ib_symbol={self.ib_symbol}, isin={self.isin}, is_index={self.is_index})>"
+        return (
+            f"<Instrument(id={self.instrument_id}, "
+            f"ib_symbol={self.ib_symbol}, "
+            f"isin={self.isin}, "
+            f"is_index={self.is_index})>"
+        )

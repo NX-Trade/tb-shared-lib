@@ -1,6 +1,7 @@
 """Base Pydantic Schema."""
 
 from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 

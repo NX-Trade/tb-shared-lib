@@ -4,12 +4,11 @@ This module provides the base declarative class for all PostgreSQL tables in the
 It includes common functionality and an UPSERT mixin for bulk insert/updates.
 """
 
-from typing import Any, Dict, List, TypeVar, Union
 import logging
+from typing import Any, Dict, List, TypeVar, Union
 
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import DeclarativeBase, Session
 
 logger = logging.getLogger("tb-utils.models.base")
 
@@ -21,8 +20,6 @@ class Base(DeclarativeBase):
 
     This class serves as the declarative base for all ORM models.
     """
-
-    pass
 
 
 class PostgresUpsertMixin:

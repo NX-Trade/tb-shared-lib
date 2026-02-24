@@ -1,15 +1,9 @@
 """Corporate Event and Trading Holiday Models."""
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    DateTime,
-    UniqueConstraint,
-)
+from sqlalchemy import Column, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.sql import func
+
 from .base import Base, PostgresUpsertMixin
 
 
@@ -56,7 +50,11 @@ class CorporateEvent(Base, PostgresUpsertMixin):
     )
 
     def __repr__(self):
-        return f"<CorporateEvent(symbol={self.symbol}, type={self.event_type}, date={self.event_date})>"
+        return (
+            f"<CorporateEvent(symbol={self.symbol}, "
+            f"type={self.event_type}, "
+            f"date={self.event_date})>"
+        )
 
 
 class TradingHoliday(Base):

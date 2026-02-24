@@ -11,7 +11,10 @@ import sys
 from typing import List, Optional
 
 from tb_utils import __version__
+from tb_utils.config.database import db_settings
+from tb_utils.config.db_session import get_engine
 from tb_utils.logger import get_logger
+from tb_utils.models import Base
 
 logger = get_logger(__name__, use_file=False)
 
@@ -68,9 +71,6 @@ def setup_database(args: argparse.Namespace) -> int:
         logger.debug("Debug logging enabled")
 
     try:
-        from tb_utils.config.db_session import get_engine
-        from tb_utils.models import Base
-
         engine = get_engine()
         logger.info(
             "Connected to database at: %s",
@@ -92,7 +92,6 @@ def check_config() -> int:
     Returns:
         Exit code (0 always)
     """
-    from tb_utils.config.database import db_settings
 
     url = db_settings.get_database_url
     # Mask the password in output

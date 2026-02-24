@@ -1,6 +1,6 @@
 """Config and constants."""
 
-from .apiconfig import TbApiConfig, TbApiPathConfig, NseApiConfig
+from .apiconfig import NseApiConfig, TbApiConfig, TbApiPathConfig
 from .database import DatabaseConfig, db_settings
 from .db_session import SessionLocal, get_db
 

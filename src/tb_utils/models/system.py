@@ -1,15 +1,8 @@
 """System Configuration, Metrics, and Log Models."""
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    DateTime,
-    Numeric,
-    JSON,
-)
+from sqlalchemy import JSON, Column, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.sql import func
+
 from .base import Base
 
 

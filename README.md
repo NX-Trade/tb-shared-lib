@@ -1,6 +1,6 @@
 # tb-utils — Trading Bot Shared Library
 
-A shared Python library for the NX-Trade Monorepo. Provides SQLAlchemy ORM models, Pydantic schemas, PostgreSQL session management, and a circuit-breaker HTTP client for external APIs (NSE, BSE, MoneyControl).
+A shared Python library for the NX-Trade. Provides SQLAlchemy ORM models, Pydantic schemas, PostgreSQL session management, and a circuit-breaker HTTP client for external APIs (NSE, BSE, MoneyControl).
 
 ---
 
@@ -38,8 +38,6 @@ pip install -e libs/tb-shared-lib
 | `DB_HOST`     | `127.0.0.1`  | Database host     |
 | `DB_PORT`     | `5432`       | Database port     |
 | `DB_NAME`       | `trading_db` | Database name     |
-
-Create a `.env` file in your project root or set these variables in your shell. The library reads them automatically via `pydantic-settings`.
 
 ---
 

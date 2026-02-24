@@ -80,6 +80,6 @@ class TbApiPathConfig:
 class Config:
     """Configuration for App."""
 
-    DEBUG = os.getenv("DEBUG", True)
+    DEBUG = os.getenv("DEBUG", "1")
     SECRET_KEY = os.getenv("SECRET_KEY", "my_precious_secret_key")
     CORS_HEADERS = "Content-Type"

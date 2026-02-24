@@ -1,6 +1,8 @@
+# pylint: disable=W0603
 """Database Configuration."""
 
 import os
+
 from pydantic_settings import BaseSettings
 
 
@@ -16,7 +18,10 @@ class DatabaseConfig(BaseSettings):
     @property
     def get_database_url(self) -> str:
         """Get standard synchronous PostgreSQL URL for SQLAlchemy."""
-        return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        return (
+            f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
 
 
 # Define global settings instance
