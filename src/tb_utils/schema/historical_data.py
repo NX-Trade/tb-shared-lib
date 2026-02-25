@@ -27,6 +27,7 @@ class HistoricalIndexDataResponse(BaseSchema):
     symbol: str
     timeframe: str
     timestamp: datetime
+    index_name: str
     open: float
     high: float
     low: float
