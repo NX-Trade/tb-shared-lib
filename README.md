@@ -37,7 +37,7 @@ pip install -e libs/tb-shared-lib
 | `DB_PASS` | `postgres`   | Database password |
 | `DB_HOST`     | `127.0.0.1`  | Database host     |
 | `DB_PORT`     | `5432`       | Database port     |
-| `DB_NAME`       | `trading_db` | Database name     |
+| `DB_NAME`       | `nx_trade_db` | Database name     |
 
 ---
 

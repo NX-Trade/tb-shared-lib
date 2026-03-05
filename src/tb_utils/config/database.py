@@ -13,7 +13,7 @@ class DatabaseConfig(BaseSettings):
     DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
     DB_USER: str = os.getenv("DB_USER", "postgres")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "postgres")
-    DB_NAME: str = os.getenv("DB_NAME", "trading_db")
+    DB_NAME: str = os.getenv("DB_NAME", "nx_trade_db")
 
     @property
     def get_database_url(self) -> str:
