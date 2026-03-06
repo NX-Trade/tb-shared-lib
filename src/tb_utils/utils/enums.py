@@ -6,6 +6,7 @@ class SourceEnum(IntEnum):
     NSE = 1
     IB = 2
     ICICI = 3
+    SENSIBULL = 4
 
 
 class BrokerTypeEnum(Enum):
@@ -91,3 +92,5 @@ class FiiDiiCategoryEnum(Enum):
     MF_DEBT = "MF DEBT"
     FII_EQUITY = "FII EQUITY"
     FII_DEBT = "FII DEBT"
+    PRO = "PRO"
+    CLIENT = "CLIENT"

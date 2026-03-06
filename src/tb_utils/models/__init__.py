@@ -10,7 +10,7 @@ from .historical_data import (
     OptionChain,
 )
 from .instrument import Instrument
-from .market_data import FiiDii, MarketBreadth, News
+from .market_data import FiiDii, FiiDiiDerivatives, MarketBreadth, News
 from .system import SystemLog, SystemMetric
 from .trading import Position, Trade, TradingOrder, TradingSignal
 
@@ -28,6 +28,7 @@ __all__ = [
     "OptionChain",
     "Instrument",
     "FiiDii",
+    "FiiDiiDerivatives",
     "MarketBreadth",
     "News",
     "SystemLog",

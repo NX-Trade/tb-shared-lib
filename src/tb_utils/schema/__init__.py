@@ -15,7 +15,12 @@ from .historical_data import (
     OptionChainResponse,
 )
 from .instrument import InstrumentResponse
-from .market_data import FiiDiiResponse, MarketBreadthResponse, NewsResponse
+from .market_data import (
+    FiiDiiResponse,
+    FiiDiiDerivativesResponse,
+    MarketBreadthResponse,
+    NewsResponse,
+)
 from .system import SystemLogResponse, SystemMetricResponse
 from .trading import (
     PositionResponse,
@@ -41,6 +46,7 @@ __all__ = [
     "OptionChainResponse",
     "InstrumentResponse",
     "FiiDiiResponse",
+    "FiiDiiDerivativesResponse",
     "MarketBreadthResponse",
     "NewsResponse",
     "SystemMetricResponse",

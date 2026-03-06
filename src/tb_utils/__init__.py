@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
@@ -17,6 +17,7 @@ from .models import (
     CorporateEvent,
     ExternalApiRequest,
     FiiDii,
+    FiiDiiDerivatives,
     HistoricalEquityData,
     HistoricalIndexData,
     Instrument,
@@ -40,6 +41,7 @@ from .schema import (
     ExternalApiRequestCreate,
     ExternalApiRequestResponse,
     FiiDiiResponse,
+    FiiDiiDerivativesResponse,
     GenericResponseSchema,
     HistoricalEquityDataResponse,
     HistoricalIndexDataResponse,
@@ -74,6 +76,7 @@ __all__ = [
     "CorporateEvent",
     "ExternalApiRequest",
     "FiiDii",
+    "FiiDiiDerivatives"
     "HistoricalEquityData",
     "HistoricalIndexData",
     "Instrument",
@@ -101,6 +104,7 @@ __all__ = [
     "OptionChainResponse",
     "InstrumentResponse",
     "FiiDiiResponse",
+    "FiiDiiDerivativesResponse",
     "MarketBreadthResponse",
     "NewsResponse",
     "SystemMetricResponse",
