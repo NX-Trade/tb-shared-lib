@@ -3,7 +3,7 @@
 
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 from sqlalchemy.orm import Session
@@ -47,7 +47,7 @@ class RequestMaker:
 
         self.failure_count = 0
         self.state = "CLOSED"  # 'CLOSED', 'OPEN', 'HALF_OPEN'
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self._session = requests.Session()
 
     def _before_request(self) -> None:
@@ -61,9 +61,7 @@ class RequestMaker:
                 self.state = "HALF_OPEN"
                 logger.info("Circuit breaker entered HALF_OPEN state.")
             else:
-                raise CircuitBreakerError(
-                    "Circuit breaker is OPEN. Requests are blocked."
-                )
+                raise CircuitBreakerError("Circuit breaker is OPEN. Requests are blocked.")
 
     def _record_success(self) -> None:
         """Record a successful request to reset circuit breaker."""
@@ -89,9 +87,9 @@ class RequestMaker:
         self,
         method: str,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
         correlation_id: str = None,
         timeout: float = 10.0,
     ) -> requests.Response:

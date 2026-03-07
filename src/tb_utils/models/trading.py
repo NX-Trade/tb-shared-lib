@@ -112,9 +112,7 @@ class TradingOrder(Base):
 
     filled_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
-    )
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
     # Relationships
     broker = relationship("Broker", back_populates="orders")
@@ -130,23 +128,17 @@ class Position(Base, PostgresUpsertMixin):
     instrument_id = Column(
         Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
     )
-    broker_id = Column(
-        Integer, ForeignKey("broker.broker_id"), nullable=False, index=True
-    )
+    broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
 
     net_quantity = Column(Integer, nullable=False)
     average_price = Column(Numeric(10, 2), nullable=False)
     realized_pnl = Column(Numeric(10, 2), default=0)
     unrealized_pnl = Column(Numeric(10, 2), default=0)
-    last_updated_at = Column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
-    )
+    last_updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
     broker = relationship("Broker", back_populates="positions")
 
-    __table_args__ = (
-        UniqueConstraint("instrument_id", "broker_id", name="uix_position_key"),
-    )
+    __table_args__ = (UniqueConstraint("instrument_id", "broker_id", name="uix_position_key"),)
 
 
 class Trade(Base):
@@ -156,12 +148,8 @@ class Trade(Base):
 
     trade_id = Column(Integer, primary_key=True, autoincrement=True)
     strategy_id = Column(String(50), index=True)
-    instrument_id = Column(
-        Integer, ForeignKey("instrument.instrument_id"), nullable=False
-    )
-    broker_id = Column(
-        Integer, ForeignKey("broker.broker_id"), nullable=False, index=True
-    )
+    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
+    broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
 
     entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
     exit_order_id = Column(Integer, ForeignKey("trading_order.order_id"))

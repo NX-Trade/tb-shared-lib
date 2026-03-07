@@ -10,7 +10,6 @@ import os
 import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
-from typing import Optional, Union
 
 # Default formatter with timestamp, logger name, level, and message
 DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -27,7 +26,7 @@ DEFAULT_LOG_DIR = os.getenv("TBUTILSLIB_LOG_DIR", os.getcwd())
 
 
 def get_console_handler(
-    level: int = logging.INFO, formatter: Optional[logging.Formatter] = None
+    level: int = logging.INFO, formatter: logging.Formatter | None = None
 ) -> logging.StreamHandler:
     """Create a console handler for logging to stdout.
 
@@ -49,14 +48,14 @@ def get_console_handler(
 
 
 def get_file_handler(
-    log_file: Optional[str] = None,
-    log_dir: Optional[str] = None,
+    log_file: str | None = None,
+    log_dir: str | None = None,
     level: int = logging.DEBUG,
-    formatter: Optional[logging.Formatter] = None,
+    formatter: logging.Formatter | None = None,
     max_bytes: int = 10485760,  # 10MB
     backup_count: int = 5,
     rotation_type: str = "timed",  # "timed" or "size"
-) -> Union[TimedRotatingFileHandler, RotatingFileHandler]:
+) -> TimedRotatingFileHandler | RotatingFileHandler:
     """Create a file handler for logging to a file with rotation.
 
     Args:
@@ -81,13 +80,9 @@ def get_file_handler(
     log_path = os.path.join(log_dir, log_file)
 
     if rotation_type.lower() == "timed":
-        file_handler = TimedRotatingFileHandler(
-            log_path, when="midnight", backupCount=backup_count
-        )
+        file_handler = TimedRotatingFileHandler(log_path, when="midnight", backupCount=backup_count)
     else:  # size-based rotation
-        file_handler = RotatingFileHandler(
-            log_path, maxBytes=max_bytes, backupCount=backup_count
-        )
+        file_handler = RotatingFileHandler(log_path, maxBytes=max_bytes, backupCount=backup_count)
 
     file_handler.setLevel(level)
 
@@ -100,8 +95,8 @@ def get_file_handler(
 
 def get_logger(
     logger_name: str,
-    log_file: Optional[str] = None,
-    log_dir: Optional[str] = None,
+    log_file: str | None = None,
+    log_dir: str | None = None,
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
     use_console: bool = True,
@@ -143,9 +138,7 @@ def get_logger(
 
     # Add file handler if requested
     if use_file:
-        logger.addHandler(
-            get_file_handler(log_file=log_file, log_dir=log_dir, level=file_level)
-        )
+        logger.addHandler(get_file_handler(log_file=log_file, log_dir=log_dir, level=file_level))
 
     # Control propagation to parent loggers
     logger.propagate = propagate

@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name, unused-import, no-name-in-module
 """Add fiidii_derivatives table and update fiidii table.
 
 Revision ID: 0d74251f71ff
@@ -6,18 +7,18 @@ Create Date: 2026-03-06 12:15:45.068963
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0d74251f71ff"
-down_revision: Union[str, None] = "8ec9a1295d43"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "8ec9a1295d43"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -82,15 +83,11 @@ def upgrade() -> None:
     op.alter_column("fiidii", "source", nullable=False)
 
     # ── Fix instrument.symbol nullable ─────────────────────────────────────
-    op.alter_column(
-        "instrument", "symbol", existing_type=sa.VARCHAR(length=100), nullable=False
-    )
+    op.alter_column("instrument", "symbol", existing_type=sa.VARCHAR(length=100), nullable=False)
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "instrument", "symbol", existing_type=sa.VARCHAR(length=100), nullable=True
-    )
+    op.alter_column("instrument", "symbol", existing_type=sa.VARCHAR(length=100), nullable=True)
 
     op.drop_column("fiidii", "net_view_strength")
     op.drop_column("fiidii", "net_view")

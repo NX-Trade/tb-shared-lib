@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name, unused-import, no-name-in-module
 """Delete column broker_id and add column source_id
 
 Revision ID: 491e28677e29
@@ -6,7 +7,7 @@ Create Date: 2026-02-24 20:36:28.633782
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
@@ -14,9 +15,9 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "491e28677e29"
-down_revision: Union[str, None] = "aca419aa9b48"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "aca419aa9b48"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

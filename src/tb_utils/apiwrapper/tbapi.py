@@ -3,12 +3,13 @@
 Provides a layered HTTP client for the internal TradingBot API and
 generic external REST API interactions.
 """
+
 import functools
 import json
 import time
 from datetime import datetime
 from logging import getLogger
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import requests
 from pydantic import BaseModel
@@ -53,12 +54,12 @@ def request_decorator(func):
 class ApiClient:
     """Base API client for making HTTP requests with retry logic."""
 
-    def __init__(self, base_url: str, verify_ssl: Optional[bool] = None):
+    def __init__(self, base_url: str, verify_ssl: bool | None = None):
         self.base_url = base_url
         self.verify_ssl = verify_ssl
         self.headers = {}
 
-    def set_headers(self, headers: Dict[str, str]) -> None:
+    def set_headers(self, headers: dict[str, str]) -> None:
         """Set headers for all subsequent requests."""
         self.headers = headers
 
@@ -66,9 +67,9 @@ class ApiClient:
         self,
         method: str,
         endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        data: Optional[Union[List, Dict[str, Any], BaseModel]] = None,
-        retry_codes: Optional[List[int]] = None,
+        params: dict[str, Any] | None = None,
+        data: list | dict[str, Any] | BaseModel | None = None,
+        retry_codes: list[int] | None = None,
         max_retries: int = 3,
         retry_wait: int = 2,
     ) -> requests.Response:
@@ -102,7 +103,7 @@ class ApiClient:
         if isinstance(data, BaseModel):
             data = data.model_dump()
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "params": params,
             "headers": self.headers,
             "verify": self.verify_ssl,
@@ -115,10 +116,7 @@ class ApiClient:
             try:
                 response = requests.request(method, url, **kwargs)
 
-                if (
-                    response.status_code < 400
-                    or response.status_code not in retry_codes
-                ):
+                if response.status_code < 400 or response.status_code not in retry_codes:
                     return response
 
                 logger.warning(
@@ -133,7 +131,7 @@ class ApiClient:
 
                 time.sleep(retry_wait)
 
-            except (requests.RequestException, IOError) as e:
+            except (OSError, requests.RequestException) as e:
                 if attempt == max_retries - 1:
                     raise
 
@@ -151,9 +149,9 @@ class ApiClient:
         self,
         method: str,
         endpoint: str,
-        data: Optional[Union[List, Dict[str, Any], BaseModel]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        data: list | dict[str, Any] | BaseModel | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make a request and parse JSON response."""
         try:
             response = self._make_request(
@@ -166,21 +164,19 @@ class ApiClient:
                 raise errors.TradingBotAPIException(str(e))
             raise
 
-    def get(
-        self, endpoint: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a GET request."""
         return self.request("get", endpoint, params=params)
 
-    def post(self, endpoint: str, data: Union[List, Dict[str, Any]]) -> Dict[str, Any]:
+    def post(self, endpoint: str, data: list | dict[str, Any]) -> dict[str, Any]:
         """Make a POST request."""
         return self.request("post", endpoint, data=data)
 
-    def put(self, endpoint: str, data: Union[List, Dict[str, Any]]) -> Dict[str, Any]:
+    def put(self, endpoint: str, data: list | dict[str, Any]) -> dict[str, Any]:
         """Make a PUT request."""
         return self.request("put", endpoint, data=data)
 
-    def delete(self, endpoint: str) -> Dict[str, Any]:
+    def delete(self, endpoint: str) -> dict[str, Any]:
         """Make a DELETE request."""
         return self.request("delete", endpoint)
 
@@ -191,9 +187,7 @@ class TbApiCore(ApiClient):
     Handles auth headers and low-level CRUD endpoint methods.
     """
 
-    def __init__(
-        self, base_url: Optional[str] = None, verify_ssl: Optional[bool] = None
-    ):
+    def __init__(self, base_url: str | None = None, verify_ssl: bool | None = None):
         super().__init__(base_url or TbApiPathConfig.BASE_URI, verify_ssl)
         self.x_force_delete = False
         self._make_tb_api_headers()
@@ -214,9 +208,9 @@ class TbApiCore(ApiClient):
         self,
         method: str,
         endpoint: str,
-        data: Optional[Union[List, Dict[str, Any]]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        data: list | dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make a request to the TradingBot internal API."""
         try:
             response = super()._make_request(
@@ -229,22 +223,20 @@ class TbApiCore(ApiClient):
                 raise errors.TradingBotAPIException(str(e))
             raise
 
-    def get(
-        self, endpoint: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.request("get", endpoint, params=params)
 
-    def post(self, endpoint: str, data: Union[List, Dict[str, Any]]) -> Dict[str, Any]:
+    def post(self, endpoint: str, data: list | dict[str, Any]) -> dict[str, Any]:
         return self.request("post", endpoint, data=data)
 
-    def put(self, endpoint: str, data: Union[List, Dict[str, Any]]) -> Dict[str, Any]:
+    def put(self, endpoint: str, data: list | dict[str, Any]) -> dict[str, Any]:
         """PUT one item or iterate and PUT a list."""
         try:
             if isinstance(data, dict):
                 return self.request("put", endpoint, data=data)
 
             if isinstance(data, list):
-                results: Dict[str, Any] = {}
+                results: dict[str, Any] = {}
                 for item in data:
                     result = self.request("put", endpoint, data=item)
                     results.update(result)
@@ -255,50 +247,50 @@ class TbApiCore(ApiClient):
             logger.warning("PUT request failed: %s", e, exc_info=True)
             return {}
 
-    def delete(self, endpoint: str) -> Dict[str, Any]:
+    def delete(self, endpoint: str) -> dict[str, Any]:
         self.set_force_delete(True)
         return self.request("delete", endpoint)
 
     # ---------- Domain Endpoints ----------
 
-    def get_equity(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_equity(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch equity data."""
         return self.get(f"{TbApiPathConfig.EQUITY}/{on_date}")
 
     def get_historical_derivatives(
-        self, security: Optional[str] = None, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, security: str | None = None, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get historical derivatives data."""
         endpoint = TbApiPathConfig.HISTORICAL_DERIVATIVES
         if security:
             endpoint = f"{endpoint}/{security}"
         return self.get(endpoint, params=params)
 
-    def get_fii_dii(self) -> Dict[str, Any]:
+    def get_fii_dii(self) -> dict[str, Any]:
         """Fetch FII-DII investment data."""
         return self.get(TbApiPathConfig.FII_DII)
 
-    def get_trading_dates_data(self) -> Dict[str, Any]:
+    def get_trading_dates_data(self) -> dict[str, Any]:
         """Fetch all trading dates."""
         return self.get(TbApiPathConfig.TRADING_DATES)
 
-    def get_orders_data(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_orders_data(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch orders for a given date."""
         return self.get(f"{TbApiPathConfig.ORDERS}/{on_date}")
 
-    def get_positions_data(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_positions_data(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch positions for a given date."""
         return self.get(f"{TbApiPathConfig.POSITIONS}/{on_date}")
 
-    def get_expiry_dates_data(self, security_type: str = "EQUITY") -> List[str]:
+    def get_expiry_dates_data(self, security_type: str = "EQUITY") -> list[str]:
         """Fetch expiry dates for a security type."""
         return self.get(f"{TbApiPathConfig.EXPIRY_DATES}/{security_type.lower()}")
 
     def get_events_data(
         self,
-        params: Optional[Dict[str, Any]] = None,
-        securities: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        params: dict[str, Any] | None = None,
+        securities: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch event calendar data."""
         params = params or {}
         if securities:
@@ -308,21 +300,19 @@ class TbApiCore(ApiClient):
                 logger.warning("Security list exceeds the safe API limit of 80.")
         return self.get(TbApiPathConfig.EVENTS_PATH, params=params)
 
-    def create_orders(self, orders_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def create_orders(self, orders_data: list[dict[str, Any]]) -> dict[str, Any]:
         """POST new orders."""
         return self.post(f"{TbApiPathConfig.ORDERS}/{TODAY}", data=orders_data)
 
-    def create_positions(self, positions_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def create_positions(self, positions_data: list[dict[str, Any]]) -> dict[str, Any]:
         """POST new positions."""
         return self.post(f"{TbApiPathConfig.POSITIONS}/{TODAY}", data=positions_data)
 
-    def update_orders_data(self, orders_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def update_orders_data(self, orders_data: list[dict[str, Any]]) -> dict[str, Any]:
         """PUT updated orders."""
         return self.put(f"{TbApiPathConfig.ORDERS}/{TODAY}", data=orders_data)
 
-    def update_positions_data(
-        self, positions_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def update_positions_data(self, positions_data: list[dict[str, Any]]) -> dict[str, Any]:
         """PUT updated positions."""
         return self.put(f"{TbApiPathConfig.POSITIONS}/{TODAY}", data=positions_data)
 
@@ -330,42 +320,42 @@ class TbApiCore(ApiClient):
 class TbApiService:
     """Service layer with higher-level business operations built on TbApiCore."""
 
-    def __init__(self, api_client: Optional[TbApiCore] = None):
+    def __init__(self, api_client: TbApiCore | None = None):
         self.api = api_client or TbApiCore()
 
-    def get_security_in_focus(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_security_in_focus(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch securities in focus for a given date."""
         return self.api.get_equity(on_date)
 
-    def get_investment(self) -> Dict[str, Any]:
+    def get_investment(self) -> dict[str, Any]:
         """Fetch FII-DII investment data."""
         return self.api.get_fii_dii()
 
-    def get_trading_dates(self) -> Dict[str, Any]:
+    def get_trading_dates(self) -> dict[str, Any]:
         """Fetch all trading dates."""
         return self.api.get_trading_dates_data()
 
-    def get_orders(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_orders(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch orders for a given date."""
         return self.api.get_orders_data(on_date)
 
-    def get_positions(self, on_date: str = TODAY) -> List[Dict[str, Any]]:
+    def get_positions(self, on_date: str = TODAY) -> list[dict[str, Any]]:
         """Fetch positions for a given date."""
         return self.api.get_positions_data(on_date)
 
-    def get_expiry_dates(self, security_type: str = "EQUITY") -> List[str]:
+    def get_expiry_dates(self, security_type: str = "EQUITY") -> list[str]:
         """Fetch expiry dates for a security type."""
         return self.api.get_expiry_dates_data(security_type)
 
     def get_events(
         self,
-        query: Optional[Dict[str, Any]] = None,
-        securities: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        query: dict[str, Any] | None = None,
+        securities: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch event calendar with optional security filter."""
         return self.api.get_events_data(query, securities)
 
-    def save_orders(self, orders: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def save_orders(self, orders: list[dict[str, Any]]) -> dict[str, Any]:
         """Persist new orders to the API, skipping existing ones by orderId.
 
         Args:
@@ -395,7 +385,7 @@ class TbApiService:
 
         return self.api.create_orders(new_orders)
 
-    def save_positions(self, positions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def save_positions(self, positions: list[dict[str, Any]]) -> dict[str, Any]:
         """Persist positions, creating new ones and updating existing ones.
 
         Args:
@@ -407,7 +397,7 @@ class TbApiService:
         cache_positions = self.api.get_positions_data()
         cache_securities = {pos.get("security", "") for pos in cache_positions}
 
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         new_positions = [
             {
@@ -439,7 +429,7 @@ class TbApiService:
 
         return result
 
-    def update_orders(self, orders: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    def update_orders(self, orders: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """Update orders in the API.
 
         Args:
@@ -462,7 +452,7 @@ class TbApiService:
 
         return self.api.update_orders_data(put_orders)
 
-    def update_positions(self, positions: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    def update_positions(self, positions: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """Update positions in the API.
 
         Args:
@@ -499,7 +489,5 @@ class TbApi(TbApiService):
         orders = api.get_orders()
     """
 
-    def __init__(
-        self, base_url: Optional[str] = None, verify_ssl: Optional[bool] = None
-    ):
+    def __init__(self, base_url: str | None = None, verify_ssl: bool | None = None):
         super().__init__(api_client=TbApiCore(base_url=base_url, verify_ssl=verify_ssl))

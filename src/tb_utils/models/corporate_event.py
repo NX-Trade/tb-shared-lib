@@ -41,13 +41,9 @@ class CorporateEvent(Base, PostgresUpsertMixin):
     isin = Column(String(20))
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        UniqueConstraint("symbol", "event_date", name="uix_corporate_event_key"),
-    )
+    __table_args__ = (UniqueConstraint("symbol", "event_date", name="uix_corporate_event_key"),)
 
     def __repr__(self):
         return (
@@ -63,9 +59,7 @@ class TradingHoliday(Base):
     __tablename__ = "trading_holiday"
 
     holiday_id = Column(Integer, primary_key=True, autoincrement=True)
-    holiday_date = Column(
-        DateTime(timezone=True), nullable=False, unique=True, index=True
-    )
+    holiday_date = Column(DateTime(timezone=True), nullable=False, unique=True, index=True)
     holiday_name = Column(String(200), nullable=False)
     holiday_type = Column(String(50), default="TRADING")
     week_day = Column(String(20))

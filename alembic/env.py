@@ -5,10 +5,10 @@
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
-
-from alembic import context
 from tb_utils.config.database import DatabaseConfig  # noqa: E402
 from tb_utils.models import Base  # noqa: E402
+
+from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

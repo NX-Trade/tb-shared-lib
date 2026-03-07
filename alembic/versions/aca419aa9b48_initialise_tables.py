@@ -1,11 +1,13 @@
+# pylint: disable=invalid-name, unused-import, no-name-in-module
 """Initialise tables
 
 Revision ID: aca419aa9b48
-Revises: 
+Revises:
 Create Date: 2026-02-24 16:27:10.429308
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -14,9 +16,9 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "aca419aa9b48"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -103,9 +105,7 @@ def upgrade() -> None:
         ["event_type"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_corporate_event_symbol"), "corporate_event", ["symbol"], unique=False
-    )
+    op.create_index(op.f("ix_corporate_event_symbol"), "corporate_event", ["symbol"], unique=False)
     op.create_table(
         "external_api_request",
         sa.Column("request_id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -202,9 +202,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("instrument_id"),
     )
-    op.create_index(
-        op.f("ix_instrument_ib_symbol"), "instrument", ["ib_symbol"], unique=False
-    )
+    op.create_index(op.f("ix_instrument_ib_symbol"), "instrument", ["ib_symbol"], unique=False)
     op.create_index(op.f("ix_instrument_isin"), "instrument", ["isin"], unique=True)
     op.create_table(
         "market_breadth",
@@ -231,9 +229,7 @@ def upgrade() -> None:
         sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("news_id"),
     )
-    op.create_index(
-        op.f("ix_news_published_at"), "news", ["published_at"], unique=False
-    )
+    op.create_index(op.f("ix_news_published_at"), "news", ["published_at"], unique=False)
     op.create_index(op.f("ix_news_source"), "news", ["source"], unique=False)
     op.create_table(
         "option_chain",
@@ -260,9 +256,7 @@ def upgrade() -> None:
         sa.Column("bid_qty", sa.Integer(), nullable=True),
         sa.Column("ask_qty", sa.Integer(), nullable=True),
         sa.Column("source", sa.String(length=10), nullable=False),
-        sa.PrimaryKeyConstraint(
-            "ts", "symbol", "expiry_date", "strike_price", "option_type"
-        ),
+        sa.PrimaryKeyConstraint("ts", "symbol", "expiry_date", "strike_price", "option_type"),
     )
     op.create_table(
         "system_log",
@@ -355,9 +349,7 @@ def upgrade() -> None:
             ["instrument.instrument_id"],
         ),
         sa.PrimaryKeyConstraint("historical_equity_data_id"),
-        sa.UniqueConstraint(
-            "symbol", "timeframe", "timestamp", name="uix_historical_data_key"
-        ),
+        sa.UniqueConstraint("symbol", "timeframe", "timestamp", name="uix_historical_data_key"),
     )
     op.create_index(
         op.f("ix_historical_equity_data_symbol"),
@@ -458,12 +450,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("position_id"),
         sa.UniqueConstraint("instrument_id", "broker_id", name="uix_position_key"),
     )
-    op.create_index(
-        op.f("ix_position_broker_id"), "position", ["broker_id"], unique=False
-    )
-    op.create_index(
-        op.f("ix_position_instrument_id"), "position", ["instrument_id"], unique=False
-    )
+    op.create_index(op.f("ix_position_broker_id"), "position", ["broker_id"], unique=False)
+    op.create_index(op.f("ix_position_instrument_id"), "position", ["instrument_id"], unique=False)
     op.create_table(
         "trading_order",
         sa.Column("order_id", sa.Integer(), autoincrement=True, nullable=False),
@@ -479,9 +467,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "order_type",
-            postgresql.ENUM(
-                "MKT", "LMT", "STP", "STP_LMT", "BRACKET", "TRAIL", name="order_type"
-            ),
+            postgresql.ENUM("MKT", "LMT", "STP", "STP_LMT", "BRACKET", "TRAIL", name="order_type"),
             nullable=False,
         ),
         sa.Column("quantity", sa.Integer(), nullable=False),
@@ -535,9 +521,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "timeframe",
-            postgresql.ENUM(
-                "SCALPING", "INTRADAY", "SWING", "POSITIONAL", name="signal_timeframe"
-            ),
+            postgresql.ENUM("SCALPING", "INTRADAY", "SWING", "POSITIONAL", name="signal_timeframe"),
             nullable=False,
         ),
         sa.Column("entry_price", sa.Numeric(precision=14, scale=4), nullable=False),
@@ -601,9 +585,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_trade_broker_id"), "trade", ["broker_id"], unique=False)
     op.create_index(op.f("ix_trade_status"), "trade", ["status"], unique=False)
-    op.create_index(
-        op.f("ix_trade_strategy_id"), "trade", ["strategy_id"], unique=False
-    )
+    op.create_index(op.f("ix_trade_strategy_id"), "trade", ["strategy_id"], unique=False)
     # ### end Alembic commands ###
 
 
@@ -618,28 +600,14 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_position_instrument_id"), table_name="position")
     op.drop_index(op.f("ix_position_broker_id"), table_name="position")
     op.drop_table("position")
-    op.drop_index(
-        op.f("ix_historical_index_data_timestamp"), table_name="historical_index_data"
-    )
-    op.drop_index(
-        op.f("ix_historical_index_data_timeframe"), table_name="historical_index_data"
-    )
-    op.drop_index(
-        op.f("ix_historical_index_data_symbol"), table_name="historical_index_data"
-    )
-    op.drop_index(
-        op.f("ix_historical_index_data_index_name"), table_name="historical_index_data"
-    )
+    op.drop_index(op.f("ix_historical_index_data_timestamp"), table_name="historical_index_data")
+    op.drop_index(op.f("ix_historical_index_data_timeframe"), table_name="historical_index_data")
+    op.drop_index(op.f("ix_historical_index_data_symbol"), table_name="historical_index_data")
+    op.drop_index(op.f("ix_historical_index_data_index_name"), table_name="historical_index_data")
     op.drop_table("historical_index_data")
-    op.drop_index(
-        op.f("ix_historical_equity_data_timestamp"), table_name="historical_equity_data"
-    )
-    op.drop_index(
-        op.f("ix_historical_equity_data_timeframe"), table_name="historical_equity_data"
-    )
-    op.drop_index(
-        op.f("ix_historical_equity_data_symbol"), table_name="historical_equity_data"
-    )
+    op.drop_index(op.f("ix_historical_equity_data_timestamp"), table_name="historical_equity_data")
+    op.drop_index(op.f("ix_historical_equity_data_timeframe"), table_name="historical_equity_data")
+    op.drop_index(op.f("ix_historical_equity_data_symbol"), table_name="historical_equity_data")
     op.drop_table("historical_equity_data")
     op.drop_table("broker_health_log")
     op.drop_index(op.f("ix_trading_holiday_holiday_date"), table_name="trading_holiday")
@@ -661,9 +629,7 @@ def downgrade() -> None:
         op.f("ix_external_api_request_request_timestamp"),
         table_name="external_api_request",
     )
-    op.drop_index(
-        op.f("ix_external_api_request_is_success"), table_name="external_api_request"
-    )
+    op.drop_index(op.f("ix_external_api_request_is_success"), table_name="external_api_request")
     op.drop_index(
         op.f("ix_external_api_request_http_status_code"),
         table_name="external_api_request",
@@ -672,9 +638,7 @@ def downgrade() -> None:
         op.f("ix_external_api_request_correlation_id"),
         table_name="external_api_request",
     )
-    op.drop_index(
-        op.f("ix_external_api_request_api_provider"), table_name="external_api_request"
-    )
+    op.drop_index(op.f("ix_external_api_request_api_provider"), table_name="external_api_request")
     op.drop_table("external_api_request")
     op.drop_index(op.f("ix_corporate_event_symbol"), table_name="corporate_event")
     op.drop_index(op.f("ix_corporate_event_event_type"), table_name="corporate_event")

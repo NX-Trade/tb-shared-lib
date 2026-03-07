@@ -5,7 +5,6 @@ These exceptions provide more specific error handling than standard Python excep
 """
 
 from enum import Enum
-from typing import Optional
 
 
 class TbErrorCode(str, Enum):
@@ -25,9 +24,9 @@ class TradingBotAPIException(Exception):
         status_code: HTTP status code associated with the error (optional)
     """
 
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         self.message = message
-        self.error_code: Optional[TbErrorCode] = None
+        self.error_code: TbErrorCode | None = None
         self.status_code = status_code
         super().__init__(self.message)
 

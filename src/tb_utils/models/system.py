@@ -33,6 +33,4 @@ class SystemLog(Base):
     level = Column(String(10), nullable=False)
     event_type = Column(String(50), nullable=False)
     message = Column(Text, nullable=False)
-    metadata_ = Column(
-        "metadata", JSON, default={}
-    )  # _ suffix to avoid SQLAlchemy conflict
+    metadata_ = Column("metadata", JSON, default={})  # _ suffix to avoid SQLAlchemy conflict

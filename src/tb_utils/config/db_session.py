@@ -5,7 +5,7 @@ importing this library does not require an active database connection.
 """
 
 import logging
-from typing import Generator, Optional
+from collections.abc import Generator
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
@@ -15,8 +15,8 @@ from .database import db_settings
 logger = logging.getLogger(__name__)
 
 # Module-level singletons — populated on first access via get_engine() / get_session()
-_engine: Optional[Engine] = None
-_SessionLocal: Optional[scoped_session] = None
+_engine: Engine | None = None
+_SessionLocal: scoped_session | None = None
 
 
 def get_engine() -> Engine:
@@ -30,7 +30,7 @@ def get_engine() -> Engine:
     Raises:
         RuntimeError: If the engine could not be created (e.g. bad DB URL)
     """
-    global _engine
+    global _engine  # pylint: disable=global-statement
     if _engine is None:
         try:
             _engine = create_engine(
@@ -53,12 +53,10 @@ def get_session_factory() -> scoped_session:
     Returns:
         A SQLAlchemy scoped_session factory
     """
-    global _SessionLocal
+    global _SessionLocal  # pylint: disable=global-statement
     if _SessionLocal is None:
         engine = get_engine()
-        _SessionLocal = scoped_session(
-            sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        )
+        _SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
     return _SessionLocal
 
 

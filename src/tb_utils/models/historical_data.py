@@ -12,7 +12,6 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-
 from tb_utils.utils.enums import SourceEnum
 
 from .base import Base, PostgresUpsertMixin
@@ -24,9 +23,7 @@ class HistoricalEquityData(Base, PostgresUpsertMixin):
     __tablename__ = "historical_equity_data"
 
     historical_equity_data_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    instrument_id = Column(
-        Integer, ForeignKey("instrument.instrument_id"), nullable=False
-    )
+    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     symbol = Column(String(20), nullable=False, index=True)
     timeframe = Column(String(10), nullable=False, index=True)
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -41,9 +38,7 @@ class HistoricalEquityData(Base, PostgresUpsertMixin):
     source_id = Column(SmallInteger, nullable=False, default=SourceEnum.IB.value)
 
     __table_args__ = (
-        UniqueConstraint(
-            "symbol", "timeframe", "timestamp", name="uix_historical_data_key"
-        ),
+        UniqueConstraint("symbol", "timeframe", "timestamp", name="uix_historical_data_key"),
     )
 
 
@@ -53,9 +48,7 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
     __tablename__ = "historical_index_data"
 
     historical_index_data_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    instrument_id = Column(
-        Integer, ForeignKey("instrument.instrument_id"), nullable=False
-    )
+    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     symbol = Column(String(20), nullable=False, index=True)
     timeframe = Column(String(10), nullable=False, index=True)
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)

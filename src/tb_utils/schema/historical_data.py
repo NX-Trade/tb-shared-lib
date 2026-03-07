@@ -1,7 +1,6 @@
 """Pydantic schemas for Historical Data."""
 
 from datetime import datetime
-from typing import Optional
 
 from .base import BaseSchema
 
@@ -45,7 +44,7 @@ class CandleResponse(BaseSchema):
     low: float
     close: float
     volume: int
-    vwap: Optional[float] = None
+    vwap: float | None = None
     source: str
 
 
@@ -55,21 +54,21 @@ class OptionChainResponse(BaseSchema):
     expiry_date: datetime
     strike_price: float
     option_type: str
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    ltp: Optional[float] = None
-    volume: Optional[int] = None
-    open_interest: Optional[int] = None
-    change_in_oi: Optional[int] = None
-    implied_vol: Optional[float] = None
-    delta: Optional[float] = None
-    gamma: Optional[float] = None
-    theta: Optional[float] = None
-    vega: Optional[float] = None
-    bid_price: Optional[float] = None
-    ask_price: Optional[float] = None
-    bid_qty: Optional[int] = None
-    ask_qty: Optional[int] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    ltp: float | None = None
+    volume: int | None = None
+    open_interest: int | None = None
+    change_in_oi: int | None = None
+    implied_vol: float | None = None
+    delta: float | None = None
+    gamma: float | None = None
+    theta: float | None = None
+    vega: float | None = None
+    bid_price: float | None = None
+    ask_price: float | None = None
+    bid_qty: int | None = None
+    ask_qty: int | None = None
     source: str

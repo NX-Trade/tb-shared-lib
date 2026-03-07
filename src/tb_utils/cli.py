@@ -8,7 +8,6 @@ including database setup and configuration validation.
 import argparse
 import logging
 import sys
-from typing import List, Optional
 
 from tb_utils import __version__
 from tb_utils.config.database import db_settings
@@ -19,7 +18,7 @@ from tb_utils.models import Base
 logger = get_logger(__name__, use_file=False)
 
 
-def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments.
 
     Args:
@@ -33,9 +32,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -44,9 +41,7 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         "setup-db",
         help="Create all database tables defined by the SQLAlchemy models",
     )
-    db_parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Enable verbose output"
-    )
+    db_parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
 
     # check-config: validate env vars without making a DB connection
     subparsers.add_parser(
@@ -96,9 +91,7 @@ def check_config() -> int:
     url = db_settings.get_database_url
     # Mask the password in output
     masked = (
-        url.replace(db_settings.POSTGRES_PASSWORD, "****")
-        if db_settings.POSTGRES_PASSWORD
-        else url
+        url.replace(db_settings.POSTGRES_PASSWORD, "****") if db_settings.POSTGRES_PASSWORD else url
     )
     print(f"Database URL : {masked}")
     print(f"Host         : {db_settings.DB_HOST}")
@@ -108,7 +101,7 @@ def check_config() -> int:
     return 0
 
 
-def main(args: Optional[List[str]] = None) -> int:
+def main(args: list[str] | None = None) -> int:
     """Main entry point for the CLI.
 
     Args:

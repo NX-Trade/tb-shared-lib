@@ -1,7 +1,7 @@
 """Pydantic schemas for System configurations, metrics, and logs."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field
 
@@ -27,4 +27,4 @@ class SystemLogResponse(BaseSchema):
     level: str
     event_type: str
     message: str
-    metadata_: Optional[dict[str, Any]] = Field(default=None, alias="metadata")
+    metadata_: dict[str, Any] | None = Field(default=None, alias="metadata")

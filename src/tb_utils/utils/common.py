@@ -60,7 +60,7 @@ def get_next_thursday(dt=None) -> str:
     """Return the date of the next Thursday from the given date.
 
     Args:
-        dt: The reference date (defaults to today)
+        dt (datetime, optional): The reference date (defaults to today)
 
     Returns:
         Date string in '%d-%b-%Y' format (e.g. '27-Feb-2026')
@@ -83,8 +83,8 @@ def validate_quantity(number, valid_value=0) -> int:
     """Validate that a quantity is above the minimum valid value.
 
     Args:
-        number: The quantity to validate
-        valid_value: The minimum acceptable value (exclusive)
+        number (int/float): The quantity to validate
+        valid_value (int/float, optional): The minimum acceptable value (exclusive)
 
     Returns:
         The original number if valid, else 0
@@ -98,7 +98,5 @@ def validate_quantity(number, valid_value=0) -> int:
 def is_trading_hours_open() -> bool:
     """Return True if current time is within trading hours."""
     return bool(
-        MarketTimingEnum.PRE_OPEN.value
-        < datetime.now().time()
-        < MarketTimingEnum.CLOSE.value
+        MarketTimingEnum.PRE_OPEN.value < datetime.now().time() < MarketTimingEnum.CLOSE.value
     )

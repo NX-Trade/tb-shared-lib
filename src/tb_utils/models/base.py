@@ -5,7 +5,7 @@ It includes common functionality and an UPSERT mixin for bulk insert/updates.
 """
 
 import logging
-from typing import Any, Dict, List, TypeVar, Union
+from typing import Any, TypeVar
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import DeclarativeBase, Session
@@ -30,8 +30,8 @@ class PostgresUpsertMixin:
         cls: type[T],
         session: Session,
         constraint_name: str,
-        data: Union[Dict[str, Any], List[Dict[str, Any]]],
-        update_fields: List[str],
+        data: dict[str, Any] | list[dict[str, Any]],
+        update_fields: list[str],
     ) -> int:
         """Perform a PostgreSQL specific UPSERT operation.
 
@@ -59,15 +59,11 @@ class PostgresUpsertMixin:
             # If no fields to update, just do DO NOTHING
             stmt = stmt.on_conflict_do_nothing(constraint=constraint_name)
         else:
-            stmt = stmt.on_conflict_do_update(
-                constraint=constraint_name, set_=update_dict
-            )
+            stmt = stmt.on_conflict_do_update(constraint=constraint_name, set_=update_dict)
 
         try:
             result = session.execute(stmt)
             return result.rowcount
         except Exception as e:
-            logger.error(
-                "UPSERT operation failed for %s: %s", cls.__tablename__, str(e)
-            )
+            logger.error("UPSERT operation failed for %s: %s", cls.__tablename__, str(e))
             raise

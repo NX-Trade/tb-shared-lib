@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Optional
 
 from .enums import DateFormatEnum
 
@@ -15,19 +14,19 @@ TB_DT_MAPPING = {
 TODAY: str = datetime.today().strftime(DateFormatEnum.TB_DATE.value)
 
 
-def parse_timestamp(timestamp: str, fmt: Optional[str] = None) -> datetime:
+def parse_timestamp(timestamp: str, fmt: str | None = None) -> datetime:
     """Convert a string timestamp given in format to datetime."""
 
     return datetime.strptime(timestamp, fmt or DateFormatEnum.FULL_TS.value)
 
 
-def parse_timestamp_to_str(timestamp: datetime, fmt: Optional[str] = None) -> str:
+def parse_timestamp_to_str(timestamp: datetime, fmt: str | None = None) -> str:
     """Convert a datetime to string in given format."""
 
     return datetime.strftime(timestamp, fmt or DateFormatEnum.FULL_TS.value)
 
 
-def str_to_date(date_str: str, fmt: Optional[str] = None) -> date:
+def str_to_date(date_str: str, fmt: str | None = None) -> date:
     """Convert a date string given in format to actual date."""
 
     fmt = fmt or DateFormatEnum.NSE_DATE.value
@@ -37,7 +36,7 @@ def str_to_date(date_str: str, fmt: Optional[str] = None) -> date:
         return datetime.strptime(date_str, DateFormatEnum.TB_DATE.value).date()
 
 
-def date_to_str(val: date, fmt: Optional[str] = None) -> str:
+def date_to_str(val: date, fmt: str | None = None) -> str:
     """Convert a date to a string in the given format."""
 
     fmt = fmt or DateFormatEnum.TB_DATE.value

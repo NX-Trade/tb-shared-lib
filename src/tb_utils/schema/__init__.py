@@ -16,8 +16,8 @@ from .historical_data import (
 )
 from .instrument import InstrumentResponse
 from .market_data import (
-    FiiDiiResponse,
     FiiDiiDerivativesResponse,
+    FiiDiiResponse,
     MarketBreadthResponse,
     NewsResponse,
 )
