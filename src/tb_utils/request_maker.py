@@ -8,7 +8,7 @@ from typing import Any
 import requests
 from sqlalchemy.orm import Session
 
-from .models.broker import ExternalApiRequest
+from tb_utils.models.broker import ExternalApiRequest
 
 logger = logging.getLogger("tb-utils.requests.request_maker")
 
