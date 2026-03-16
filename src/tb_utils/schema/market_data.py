@@ -70,3 +70,39 @@ class MarketBreadthResponse(BaseSchema):
     advance_volume: int | None = None
     decline_volume: int | None = None
     ad_ratio: float | None = None
+
+
+# ── Live Redis Responses ─────────────────────────────────────────────────
+
+
+class SpotPriceResponse(BaseSchema):
+    """Response schema for real-time spot price fetched from Redis."""
+
+    symbol: str
+    price: float
+    updated_at: datetime
+
+
+class DerivativeMetricsResponse(BaseSchema):
+    """Response schema for Options calculated metrics fetched from Redis."""
+
+    symbol: str
+    spot_price: float
+    pcr: float | None = None
+    max_pain: float | None = None
+    support: float | None = None
+    resistance: float | None = None
+    total_ce_oi: float = 0.0
+    total_pe_oi: float = 0.0
+    updated_at: datetime
+
+
+class MarketBreadthLiveResponse(BaseSchema):
+    """Response schema for live Market Breadth fetched from Redis."""
+
+    exchange: str
+    advances: int
+    declines: int
+    unchanged: int
+    ad_ratio: float | None = None
+    updated_at: datetime

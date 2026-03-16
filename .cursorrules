@@ -1,0 +1,33 @@
+# AI Coding Assistant Rules
+
+These rules apply to all repositories and workspaces. The AI assistant should strictly adhere to these guidelines when suggesting, writing, or modifying code.
+
+## 1. Type Hinting
+- **Optional Types**: Always use `from typing import Optional` and `Optional[Type]` instead of the union operator `Type | None`.
+- **Collections**: Use standard python collection type hints (`list[str]`, `dict[str, Any]`, `set[int]`).
+- **Completeness**: Add return types and argument types to all new methods and functions.
+
+## 2. Logging
+- **Lazy Formatting**: ALWAYS use lazy `%s` string formatting in logging functions. 
+  - *Correct*: `logger.info("Processing order %s for user %s", order_id, user_id)`
+  - *Incorrect*: `logger.info(f"Processing order {order_id} for user {user_id}")`
+- **Error Logging**: When catching exceptions, use `logger.exception("...")` to automatically capture the stack trace instead of manually logging the error string.
+
+## 3. Imports
+- **Optimization**: Do not leave unused imports in the file.
+- **Ordering**: Keep imports grouped and sorted:
+  1. Standard library imports (e.g., `import os`, `import json`)
+  2. Related third-party imports (e.g., `import fastapi`, `import sqlalchemy`)
+  3. Local application/library specific imports (e.g., `from app.core import settings`)
+- **Format**: Avoid `*` wildcard imports. Import specific functions/classes or whole modules.
+
+## 4. Error Handling and Exceptions
+- **Specificity**: Catch specific exceptions (e.g., `ValueError`, `KeyError`) rather than bare `except Exception:`.
+- **Custom Exceptions**: Use the application's core exception classes located in `app.core.exceptions` when raising HTTP or business-logic errors instead of returning raw tuples or plain FastAPI `HTTPException`.
+
+## 5. Code Style & Linting Constraints
+- Ensure variable names use `snake_case` and class names use `PascalCase`.
+- Respect existing line-length and linter configurations in `pyproject.toml` (e.g. `ruff`, `black`, `pylint`).
+
+## 6. Response Formatting (FastAPI)
+- **Standardized Responses**: Always use the defined `APIResponse` models and the `success_response()` wrappers for API endpoint returns. Don't return raw dictionaries from routers.

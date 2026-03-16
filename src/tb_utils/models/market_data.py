@@ -132,3 +132,45 @@ class MarketBreadth(Base, PostgresUpsertMixin):
     advance_volume = Column(BigInteger, default=0)
     decline_volume = Column(BigInteger, default=0)
     ad_ratio = Column(Numeric(8, 4))
+
+
+class DerivativeTick(Base, PostgresUpsertMixin):
+    """High-frequency tick data for options and futures from IBKR.
+
+    This table stores snapshot prices, bid/ask, volume, and open interest
+    for individual derivative contracts at a specific timestamp.
+    """
+
+    __tablename__ = "derivative_tick"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Contract Details
+    symbol = Column(
+        String(50), nullable=False, index=True
+    )  # Underlying symbol (e.g., NIFTY, RELIANCE)
+    contract_type = Column(String(10), nullable=False)  # FUT, CE, PE
+    strike = Column(Numeric(18, 2))  # Null for FUT
+    expiry = Column(Date, nullable=False, index=True)
+
+    # Tick Data
+    price = Column(Numeric(18, 4))
+    bid = Column(Numeric(18, 4))
+    ask = Column(Numeric(18, 4))
+    volume = Column(BigInteger)
+    open_interest = Column(BigInteger)
+    implied_vol = Column(Numeric(10, 4))
+
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "timestamp",
+            "symbol",
+            "contract_type",
+            "strike",
+            "expiry",
+            name="uq_deriv_tick_ts_sym_typ_strk_exp",
+        ),
+    )
