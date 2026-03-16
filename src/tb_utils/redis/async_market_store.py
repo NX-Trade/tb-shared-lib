@@ -28,7 +28,7 @@ class AsyncMarketStore:
     ) -> list[dict[str, Any]] | None:
         key = get_contracts_key(symbol)
         data = await self.client.get(key)
-        
+
         if not data:
             return None
 
@@ -44,16 +44,18 @@ class AsyncMarketStore:
             deviation = abs(current_spot - cached_spot) / cached_spot
             if deviation > deviation_threshold:
                 logger.debug(
-                    f"Cache miss for {symbol}: spot deviated {deviation*100:.2f}% "
-                    f"(Threshold: {deviation_threshold*100}%)"
+                    "Cache miss for %s: spot deviated %.2f%% (Threshold: %s%%)",
+                    symbol,
+                    deviation * 100,
+                    deviation_threshold * 100,
                 )
                 return None
 
-            logger.debug(f"Cache hit for {symbol} contracts (Spot dev: {deviation*100:.4f}%).")
+            logger.debug("Cache hit for %s contracts (Spot dev: %.4f%%).", symbol, deviation * 100)
             return contracts
 
         except Exception as e:
-            logger.error(f"Error reading cached contracts for {symbol}: {e}")
+            logger.error("Error reading cached contracts for %s: %s", symbol, e)
             return None
 
     async def set_cached_contracts(
@@ -66,7 +68,7 @@ class AsyncMarketStore:
         key = get_contracts_key(symbol)
         payload = {"spot_price": spot_price, "contracts": contracts}
         await self.client.setex(key, expiry_seconds, json.dumps(payload))
-        logger.debug(f"Cached {len(contracts)} contracts for {symbol} at spot {spot_price}")
+        logger.debug("Cached %d contracts for %s at spot %s", len(contracts), symbol, spot_price)
 
     async def store_derived_metrics(
         self,
@@ -95,7 +97,12 @@ class AsyncMarketStore:
         key = get_derived_metrics_key(symbol)
         await self.client.setex(key, expiry_seconds, json.dumps(payload))
         logger.info(
-            f"Stored derived metrics for {symbol}: PCR={pcr}, MaxPain={max_pain}, S={support}, R={resistance}"
+            "Stored derived metrics for %s: PCR=%s, MaxPain=%s, S=%s, R=%s",
+            symbol,
+            pcr,
+            max_pain,
+            support,
+            resistance,
         )
 
     async def store_market_breadth(
@@ -117,7 +124,9 @@ class AsyncMarketStore:
         }
         await self.client.setex(key, expiry_seconds, json.dumps(payload))
 
-    async def store_instrument_spot(self, symbol: str, price: float, expiry_seconds: int = 28800) -> None:
+    async def store_instrument_spot(
+        self, symbol: str, price: float, expiry_seconds: int = 28800
+    ) -> None:
         key = get_instrument_spot_key(symbol)
         payload = {"price": price, "updated_at": datetime.now().isoformat()}
         await self.client.setex(key, expiry_seconds, json.dumps(payload))

@@ -8,6 +8,7 @@ from .broker import (
     ExternalApiRequestResponse,
 )
 from .corporate_event import CorporateEventResponse, TradingHolidayResponse
+from .fundamental_data import FundamentalDataResponse
 from .historical_data import (
     CandleResponse,
     HistoricalEquityDataResponse,
@@ -16,10 +17,13 @@ from .historical_data import (
 )
 from .instrument import InstrumentResponse
 from .market_data import (
+    DerivativeMetricsResponse,
     FiiDiiDerivativesResponse,
     FiiDiiResponse,
+    MarketBreadthLiveResponse,
     MarketBreadthResponse,
     NewsResponse,
+    SpotPriceResponse,
 )
 from .system import SystemLogResponse, SystemMetricResponse
 from .trading import (
@@ -42,8 +46,8 @@ __all__ = [
     "TradingHolidayResponse",
     "HistoricalEquityDataResponse",
     "HistoricalIndexDataResponse",
+    "OptionChainResponse",
     "CandleResponse",
-    "InstrumentBasicResponse",
     "InstrumentResponse",
     # Market Data
     "FiiDiiDerivativesResponse",

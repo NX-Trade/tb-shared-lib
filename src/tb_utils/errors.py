@@ -7,7 +7,7 @@ These exceptions provide more specific error handling than standard Python excep
 from enum import Enum
 
 
-class TbErrorCode(str, Enum):
+class TbErrorCode(Enum):
     INVALID_SECURITY = "INVALID_SECURITY"
     DUPLICATE_RECORD = "DUPLICATE_RECORD"
     VALIDATION_FAILED = "VALIDATION_FAILED"

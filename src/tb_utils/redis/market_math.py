@@ -1,5 +1,6 @@
 """Pure mathematical calculations for market options data."""
 
+
 def get_strikes_within_range(
     spot_price: float, strikes: list[float], percentage: float = 0.05
 ) -> list[float]:
@@ -12,11 +13,13 @@ def get_strikes_within_range(
 
     return sorted([s for s in strikes if lower_bound <= s <= upper_bound])
 
+
 def calculate_pcr(ce_oi_total: float, pe_oi_total: float) -> float | None:
     """Put-Call Ratio = Total Put OI / Total Call OI"""
     if ce_oi_total == 0:
         return None
     return round(pe_oi_total / ce_oi_total, 4)
+
 
 def calculate_max_pain(
     strikes: list[float], option_chain_data: dict[float, dict[str, float]]
@@ -54,8 +57,9 @@ def calculate_max_pain(
     best_strike = min(pain_values, key=lambda x: x[1])[0]
     return best_strike
 
+
 def calculate_support_resistance(
-    option_chain_data: dict[float, dict[str, float]]
+    option_chain_data: dict[float, dict[str, float]],
 ) -> tuple[float | None, float | None]:
     """Rudimentary S/R based on highest Open Interest.
     Returns (support_strike, resistance_strike).

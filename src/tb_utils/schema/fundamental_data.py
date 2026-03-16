@@ -7,6 +7,7 @@ from .base import BaseSchema
 
 class FundamentalDataResponse(BaseSchema):
     """Response schema for instrument fundamental data."""
+
     fundamental_id: int
     instrument_id: int | None = None
     symbol: str

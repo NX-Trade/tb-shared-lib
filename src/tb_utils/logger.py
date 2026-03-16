@@ -15,8 +15,7 @@ from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 # More detailed formatter including process ID and line number for debugging
 DETAILED_FORMAT = (
-    "%(asctime)s - %(name)s - %(levelname)s - [%(process)d] "
-    "- %(pathname)s:%(lineno)d - %(message)s"
+    "%(asctime)s - %(name)s - %(levelname)s - [%(process)d] - %(pathname)s:%(lineno)d - %(message)s"
 )
 
 # Default log file name with date (evaluated at runtime, not at import)

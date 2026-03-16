@@ -28,7 +28,7 @@ class SyncMarketStore:
     ) -> list[dict[str, Any]] | None:
         key = get_contracts_key(symbol)
         data = self.client.get(key)
-        
+
         if not data:
             return None
 
@@ -44,16 +44,18 @@ class SyncMarketStore:
             deviation = abs(current_spot - cached_spot) / cached_spot
             if deviation > deviation_threshold:
                 logger.debug(
-                    f"Cache miss for {symbol}: spot deviated {deviation*100:.2f}% "
-                    f"(Threshold: {deviation_threshold*100}%)"
+                    "Cache miss for %s: spot deviated %.2f%% (Threshold: %s%%)",
+                    symbol,
+                    deviation * 100,
+                    deviation_threshold * 100,
                 )
                 return None
 
-            logger.debug(f"Cache hit for {symbol} contracts (Spot dev: {deviation*100:.4f}%).")
+            logger.debug("Cache hit for %s contracts (Spot dev: %.4f%%).", symbol, deviation * 100)
             return contracts
 
         except Exception as e:
-            logger.error(f"Error reading cached contracts for {symbol}: {e}")
+            logger.error("Error reading cached contracts for %s: %s", symbol, e)
             return None
 
     def set_cached_contracts(
@@ -66,7 +68,7 @@ class SyncMarketStore:
         key = get_contracts_key(symbol)
         payload = {"spot_price": spot_price, "contracts": contracts}
         self.client.setex(key, expiry_seconds, json.dumps(payload))
-        logger.debug(f"Cached {len(contracts)} contracts for {symbol} at spot {spot_price}")
+        logger.debug("Cached %d contracts for %s at spot %s", len(contracts), symbol, spot_price)
 
     def store_derived_metrics(
         self,
@@ -95,7 +97,12 @@ class SyncMarketStore:
         key = get_derived_metrics_key(symbol)
         self.client.setex(key, expiry_seconds, json.dumps(payload))
         logger.info(
-            f"Stored derived metrics for {symbol}: PCR={pcr}, MaxPain={max_pain}, S={support}, R={resistance}"
+            "Stored derived metrics for %s: PCR=%s, MaxPain=%s, S=%s, R=%s",
+            symbol,
+            pcr,
+            max_pain,
+            support,
+            resistance,
         )
 
     def store_market_breadth(

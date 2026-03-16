@@ -8,7 +8,7 @@ These rules apply to all repositories and workspaces. The AI assistant should st
 - **Completeness**: Add return types and argument types to all new methods and functions.
 
 ## 2. Logging
-- **Lazy Formatting**: ALWAYS use lazy `%s` string formatting in logging functions. 
+- **Lazy Formatting**: ALWAYS use lazy `%s` string formatting in logging functions.
   - *Correct*: `logger.info("Processing order %s for user %s", order_id, user_id)`
   - *Incorrect*: `logger.info(f"Processing order {order_id} for user {user_id}")`
 - **Error Logging**: When catching exceptions, use `logger.exception("...")` to automatically capture the stack trace instead of manually logging the error string.

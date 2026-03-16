@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+
 from tb_utils.utils.enums import SourceEnum
 
 from .base import Base, PostgresUpsertMixin
