@@ -22,7 +22,9 @@ from .market_data import (
     FiiDiiResponse,
     MarketBreadthLiveResponse,
     MarketBreadthResponse,
+    NewsCreate,
     NewsResponse,
+    NewsUpdate,
     SpotPriceResponse,
 )
 from .system import SystemLogResponse, SystemMetricResponse
@@ -56,7 +58,9 @@ __all__ = [
     "MarketBreadthLiveResponse",
     "SpotPriceResponse",
     "DerivativeMetricsResponse",
+    "NewsCreate",
     "NewsResponse",
+    "NewsUpdate",
     "FundamentalDataResponse",
     "SystemMetricResponse",
     "SystemLogResponse",

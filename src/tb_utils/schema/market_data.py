@@ -1,6 +1,7 @@
 """Pydantic schemas for Market Data."""
 
 from datetime import date, datetime
+from typing import Optional
 
 from .base import BaseSchema
 
@@ -59,6 +60,30 @@ class NewsResponse(BaseSchema):
     symbols: str | None = None
     published_at: datetime | None = None
     fetched_at: datetime
+
+
+class NewsCreate(BaseSchema):
+    """Schema for creating a news headline."""
+
+    headline: str
+    summary: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+    category: Optional[str] = None
+    symbols: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
+class NewsUpdate(BaseSchema):
+    """Schema for partial-updating a news headline."""
+
+    headline: Optional[str] = None
+    summary: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+    category: Optional[str] = None
+    symbols: Optional[str] = None
+    published_at: Optional[datetime] = None
 
 
 class MarketBreadthResponse(BaseSchema):
