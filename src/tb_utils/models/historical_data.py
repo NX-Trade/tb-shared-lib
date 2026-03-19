@@ -59,6 +59,8 @@ class HistoricalIndexData(Base, PostgresUpsertMixin):
     low = Column(Numeric(10, 2), nullable=False)
     close = Column(Numeric(10, 2), nullable=False)
     adj_close = Column(Numeric(10, 2))
+    shares_traded = Column(BigInteger)
+    turnover_cr = Column(Numeric(14, 2))
     # SourceEnum can be ICICI, IB, NSE
     source_id = Column(SmallInteger, nullable=False, default=SourceEnum.NSE.value)
 
