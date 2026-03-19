@@ -31,3 +31,8 @@ These rules apply to all repositories and workspaces. The AI assistant should st
 
 ## 6. Response Formatting (FastAPI)
 - **Standardized Responses**: Always use the defined `APIResponse` models and the `success_response()` wrappers for API endpoint returns. Don't return raw dictionaries from routers.
+
+
+## 7. Versioning
+- After every change, give a humanised commit message
+- Update the patch or minor version for the library as neccessary
