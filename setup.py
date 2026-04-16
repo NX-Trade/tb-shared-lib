@@ -44,7 +44,7 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
@@ -52,7 +52,7 @@ setup(
         "Topic :: Office/Business :: Financial :: Investment",
     ],
     packages=find_packages(where="src"),
-    python_requires=">=3.13",
+    python_requires=">=3.12",
     install_requires=[
         "fastapi>=0.135.1",
         "uvicorn>=0.41.0",
