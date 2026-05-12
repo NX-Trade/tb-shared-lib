@@ -36,6 +36,7 @@ class CorporateEvent(Base, PostgresUpsertMixin):
     event_date = Column(DateTime(timezone=True), nullable=False, index=True)
     ex_date = Column(DateTime(timezone=True))
     record_date = Column(DateTime(timezone=True))
+    purpose = Column(String(50))
     description = Column(Text)
     subject = Column(Text)
     isin = Column(String(20))
