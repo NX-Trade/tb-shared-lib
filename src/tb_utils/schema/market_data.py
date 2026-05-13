@@ -15,9 +15,9 @@ class FiiDiiResponse(BaseSchema):
     buy_value: float
     sell_value: float
     net_value: float
-    net_action: str | None = None
-    net_view: str | None = None
-    net_view_strength: str | None = None
+    net_action: Optional[str] = None
+    net_view: Optional[str] = None
+    net_view_strength: Optional[str] = None
     created_at: datetime
 
 
@@ -27,38 +27,38 @@ class FiiDiiDerivativesResponse(BaseSchema):
     source: str
     instrument_type: str
     category: str
-    net_oi: float | None = None
-    outstanding_oi: float | None = None
-    net_action: str | None = None
-    net_view: str | None = None
-    net_view_strength: str | None = None
-    stock_net_oi: float | None = None
-    stock_outstanding_oi: float | None = None
-    stock_net_action: str | None = None
-    stock_net_view: str | None = None
-    stock_net_view_strength: str | None = None
-    options_net_oi: float | None = None
-    options_net_oi_change: float | None = None
-    options_net_oi_change_action: str | None = None
-    options_net_oi_change_view: str | None = None
-    options_net_oi_change_view_strength: str | None = None
-    nifty: float | None = None
-    nifty_change_pct: float | None = None
-    banknifty: float | None = None
-    banknifty_change_pct: float | None = None
-    extras: dict | None = None
+    net_oi: Optional[float] = None
+    outstanding_oi: Optional[float] = None
+    net_action: Optional[str] = None
+    net_view: Optional[str] = None
+    net_view_strength: Optional[str] = None
+    stock_net_oi: Optional[float] = None
+    stock_outstanding_oi: Optional[float] = None
+    stock_net_action: Optional[str] = None
+    stock_net_view: Optional[str] = None
+    stock_net_view_strength: Optional[str] = None
+    options_net_oi: Optional[float] = None
+    options_net_oi_change: Optional[float] = None
+    options_net_oi_change_action: Optional[str] = None
+    options_net_oi_change_view: Optional[str] = None
+    options_net_oi_change_view_strength: Optional[str] = None
+    nifty: Optional[float] = None
+    nifty_change_pct: Optional[float] = None
+    banknifty: Optional[float] = None
+    banknifty_change_pct: Optional[float] = None
+    extras: Optional[dict] = None
     created_at: datetime
 
 
 class NewsResponse(BaseSchema):
     news_id: int
     headline: str
-    summary: str | None = None
-    url: str | None = None
-    source: str | None = None
-    category: str | None = None
-    symbols: str | None = None
-    published_at: datetime | None = None
+    summary: Optional[str] = None
+    url: Optional[str] = None
+    source: Optional[str] = None
+    category: Optional[str] = None
+    symbols: Optional[str] = None
+    published_at: Optional[datetime] = None
     fetched_at: datetime
 
 
@@ -92,9 +92,9 @@ class MarketBreadthResponse(BaseSchema):
     advances: int
     declines: int
     unchanged: int
-    advance_volume: int | None = None
-    decline_volume: int | None = None
-    ad_ratio: float | None = None
+    advance_volume: Optional[int] = None
+    decline_volume: Optional[int] = None
+    ad_ratio: Optional[float] = None
 
 
 # ── Live Redis Responses ─────────────────────────────────────────────────
@@ -113,10 +113,10 @@ class DerivativeMetricsResponse(BaseSchema):
 
     symbol: str
     spot_price: float
-    pcr: float | None = None
-    max_pain: float | None = None
-    support: float | None = None
-    resistance: float | None = None
+    pcr: Optional[float] = None
+    max_pain: Optional[float] = None
+    support: Optional[float] = None
+    resistance: Optional[float] = None
     total_ce_oi: float = 0.0
     total_pe_oi: float = 0.0
     updated_at: datetime
@@ -129,5 +129,23 @@ class MarketBreadthLiveResponse(BaseSchema):
     advances: int
     declines: int
     unchanged: int
-    ad_ratio: float | None = None
+    ad_ratio: Optional[float] = None
     updated_at: datetime
+
+
+class DerivativeTickResponse(BaseSchema):
+    """Response schema for high-frequency tick data."""
+
+    id: int
+    timestamp: datetime
+    symbol: str
+    contract_type: str
+    strike: Optional[float] = None
+    expiry: date
+    price: Optional[float] = None
+    bid: Optional[float] = None
+    ask: Optional[float] = None
+    volume: Optional[int] = None
+    open_interest: Optional[int] = None
+    implied_vol: Optional[float] = None
+    created_at: datetime

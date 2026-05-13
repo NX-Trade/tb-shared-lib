@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.6"
+__version__ = "1.6.1"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
@@ -15,14 +15,19 @@ from .models import (
     BrokerHealthLog,
     Candle,
     CorporateEvent,
+    DerivativeTick,
     ExternalApiRequest,
     FiiDii,
     FiiDiiDerivatives,
+    FnoExpiry,
+    FundamentalData,
     HistoricalEquityData,
     HistoricalIndexData,
+    IndexConstituent,
     Instrument,
     MarketBreadth,
     News,
+    NseIndex,
     OptionChain,
     Position,
     SystemLog,
@@ -74,14 +79,19 @@ __all__ = [
     "BrokerHealthLog",
     "Candle",
     "CorporateEvent",
+    "DerivativeTick",
     "ExternalApiRequest",
     "FiiDii",
     "FiiDiiDerivatives",
+    "FnoExpiry",
+    "FundamentalData",
     "HistoricalEquityData",
     "HistoricalIndexData",
+    "IndexConstituent",
     "Instrument",
     "MarketBreadth",
     "News",
+    "NseIndex",
     "OptionChain",
     "Position",
     "SystemLog",
