@@ -1,6 +1,7 @@
 """Pydantic schemas for Instruments."""
 
 from datetime import datetime
+from typing import Optional
 
 from .base import BaseSchema
 
@@ -10,8 +11,8 @@ class InstrumentResponse(BaseSchema):
     isin: str
     symbol: str
     ib_symbol: str
-    company_name: str | None = None
-    sector: str | None = None
+    company_name: Optional[str] = None
+    sector: Optional[str] = None
     is_fno: int = 0
     is_index: int = 0
     is_nifty_50: int = 0
