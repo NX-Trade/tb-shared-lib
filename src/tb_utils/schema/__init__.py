@@ -33,7 +33,7 @@ from .nse_reference import (
     IndexConstituentResponse,
     NseIndexResponse,
 )
-from .system import SystemLogResponse, SystemMetricResponse
+from .system import SystemLogResponse, SystemMetricResponse, TaskLogSchema
 from .trading import (
     PositionResponse,
     TradeResponse,
@@ -74,6 +74,7 @@ __all__ = [
     "FnoExpiryResponse",
     "SystemMetricResponse",
     "SystemLogResponse",
+    "TaskLogSchema",
     "TradingSignalCreate",
     "TradingSignalResponse",
     "TradingOrderCreate",

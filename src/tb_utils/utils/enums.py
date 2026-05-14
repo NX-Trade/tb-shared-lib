@@ -94,3 +94,11 @@ class FiiDiiCategoryEnum(Enum):
     FII_DEBT = "FII DEBT"
     PRO = "PRO"
     CLIENT = "CLIENT"
+
+
+class TaskLogStatusEnum(IntEnum):
+    PENDING = 0
+    STARTED = 1
+    SUCCESS = 2
+    FAILED = 3
+    RETRY = 4

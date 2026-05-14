@@ -34,3 +34,18 @@ class SystemLog(Base):
     event_type = Column(String(50), nullable=False)
     message = Column(Text, nullable=False)
     metadata_ = Column("metadata", JSON, default={})  # _ suffix to avoid SQLAlchemy conflict
+
+
+class TaskLog(Base):
+    """Logs for Celery Tasks execution status."""
+
+    __tablename__ = "celery_task_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String(255), unique=True, index=True, nullable=False)
+    task_name = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=False)  # e.g., 'SUCCESS', 'FAILED'
+    error_message = Column(Text, nullable=True)
+    traceback = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
