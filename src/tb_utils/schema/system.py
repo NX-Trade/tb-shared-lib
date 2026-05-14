@@ -28,3 +28,14 @@ class SystemLogResponse(BaseSchema):
     event_type: str
     message: str
     metadata_: Optional[dict[str, Any]] = Field(default=None, alias="metadata")
+
+
+class TaskLogSchema(BaseSchema):
+    id: int
+    task_id: str
+    task_name: Optional[str] = None
+    status: str
+    error_message: Optional[str] = None
+    traceback: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
