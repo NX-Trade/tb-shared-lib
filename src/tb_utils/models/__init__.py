@@ -13,7 +13,7 @@ from .historical_data import (
 from .instrument import Instrument
 from .market_data import DerivativeTick, FiiDii, FiiDiiDerivatives, MarketBreadth, News
 from .nse_reference import FnoExpiry, IndexConstituent, NseIndex
-from .system import SystemLog, SystemMetric
+from .system import SystemLog, SystemMetric, TaskLog
 from .trading import Position, Trade, TradingOrder, TradingSignal
 
 __all__ = [
@@ -37,6 +37,7 @@ __all__ = [
     "FundamentalData",
     "SystemLog",
     "SystemMetric",
+    "TaskLog",
     "Position",
     "Trade",
     "TradingOrder",
