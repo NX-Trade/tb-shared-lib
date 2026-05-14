@@ -74,4 +74,5 @@ class OptionChainResponse(BaseSchema):
     ask_price: Optional[float] = None
     bid_qty: Optional[int] = None
     ask_qty: Optional[int] = None
+    underlying_value: Optional[float] = None
     source: str

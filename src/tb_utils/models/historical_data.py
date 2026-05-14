@@ -121,4 +121,5 @@ class OptionChain(Base, PostgresUpsertMixin):
     ask_price = Column(Numeric(14, 4))
     bid_qty = Column(Integer)
     ask_qty = Column(Integer)
+    underlying_value = Column(Numeric(14, 2))
     source = Column(String(10), nullable=False, default="NSE")
