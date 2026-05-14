@@ -105,6 +105,8 @@ class SpotPriceResponse(BaseSchema):
 
     symbol: str
     price: float
+    change: Optional[float] = None
+    p_change: Optional[float] = None
     updated_at: datetime
 
 
