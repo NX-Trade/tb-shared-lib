@@ -147,9 +147,8 @@ class DerivativeTick(Base, PostgresUpsertMixin):
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
 
     # Contract Details
-    symbol = Column(
-        String(50), nullable=False, index=True
-    )  # Underlying symbol (e.g., NIFTY, RELIANCE)
+    # Underlying symbol (e.g., NIFTY, RELIANCE)
+    symbol = Column(String(50), nullable=False, index=True)
     contract_type = Column(String(10), nullable=False)  # FUT, CE, PE
     strike = Column(Numeric(18, 2))  # Null for FUT
     expiry = Column(Date, nullable=False, index=True)

@@ -124,7 +124,18 @@ class SyncMarketStore:
         }
         self.client.setex(key, expiry_seconds, json.dumps(payload))
 
-    def store_instrument_spot(self, symbol: str, price: float, expiry_seconds: int = 28800) -> None:
+    def store_instrument_spot(
+        self,
+        symbol: str,
+        price: float,
+        change: float | None = None,
+        p_change: float | None = None,
+        expiry_seconds: int = 28800,
+    ) -> None:
         key = get_instrument_spot_key(symbol)
         payload = {"price": price, "updated_at": datetime.now().isoformat()}
+        if change is not None:
+            payload["change"] = change
+        if p_change is not None:
+            payload["p_change"] = p_change
         self.client.setex(key, expiry_seconds, json.dumps(payload))
