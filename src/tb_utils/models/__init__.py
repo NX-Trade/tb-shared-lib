@@ -11,7 +11,15 @@ from .historical_data import (
     OptionChain,
 )
 from .instrument import Instrument
-from .market_data import DerivativeTick, FiiDii, FiiDiiDerivatives, MarketBreadth, News
+from .market_data import (
+    BlockDeal,
+    BulkDeal,
+    DerivativeTick,
+    FiiDii,
+    FiiDiiDerivatives,
+    MarketBreadth,
+    News,
+)
 from .nse_reference import FnoExpiry, IndexConstituent, NseIndex
 from .system import SystemLog, SystemMetric, TaskLog
 from .trading import Position, Trade, TradingOrder, TradingSignal
@@ -34,6 +42,8 @@ __all__ = [
     "MarketBreadth",
     "DerivativeTick",
     "News",
+    "BlockDeal",
+    "BulkDeal",
     "FundamentalData",
     "SystemLog",
     "SystemMetric",

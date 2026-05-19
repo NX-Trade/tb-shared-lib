@@ -173,3 +173,61 @@ class DerivativeTick(Base, PostgresUpsertMixin):
             name="uq_deriv_tick_ts_sym_typ_strk_exp",
         ),
     )
+
+
+class BlockDeal(Base, PostgresUpsertMixin):
+    """Block Deal Data."""
+
+    __tablename__ = "block_deals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(Date, nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)
+    security_name = Column(String(200))
+    client_name = Column(String(200), index=True)
+    buy_sell = Column(String(10))  # BUY / SELL
+    quantity_traded = Column(BigInteger)
+    trade_price = Column(Numeric(18, 4))
+    remarks = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "date",
+            "symbol",
+            "client_name",
+            "buy_sell",
+            "trade_price",
+            "quantity_traded",
+            name="uq_block_deal",
+        ),
+    )
+
+
+class BulkDeal(Base, PostgresUpsertMixin):
+    """Bulk Deal Data."""
+
+    __tablename__ = "bulk_deals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(Date, nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)
+    security_name = Column(String(200))
+    client_name = Column(String(200), index=True)
+    buy_sell = Column(String(10))  # BUY / SELL
+    quantity_traded = Column(BigInteger)
+    trade_price = Column(Numeric(18, 4))
+    remarks = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "date",
+            "symbol",
+            "client_name",
+            "buy_sell",
+            "trade_price",
+            "quantity_traded",
+            name="uq_bulk_deal",
+        ),
+    )

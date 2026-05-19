@@ -151,3 +151,29 @@ class DerivativeTickResponse(BaseSchema):
     open_interest: Optional[int] = None
     implied_vol: Optional[float] = None
     created_at: datetime
+
+
+class BlockDealResponse(BaseSchema):
+    id: int
+    date: date
+    symbol: str
+    security_name: Optional[str] = None
+    client_name: Optional[str] = None
+    buy_sell: Optional[str] = None
+    quantity_traded: Optional[int] = None
+    trade_price: Optional[float] = None
+    remarks: Optional[str] = None
+    created_at: datetime
+
+
+class BulkDealResponse(BaseSchema):
+    id: int
+    date: date
+    symbol: str
+    security_name: Optional[str] = None
+    client_name: Optional[str] = None
+    buy_sell: Optional[str] = None
+    quantity_traded: Optional[int] = None
+    trade_price: Optional[float] = None
+    remarks: Optional[str] = None
+    created_at: datetime

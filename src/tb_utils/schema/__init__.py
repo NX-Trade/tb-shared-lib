@@ -17,6 +17,8 @@ from .historical_data import (
 )
 from .instrument import InstrumentResponse
 from .market_data import (
+    BlockDealResponse,
+    BulkDealResponse,
     DerivativeMetricsResponse,
     DerivativeTickResponse,
     FiiDiiDerivativesResponse,
@@ -62,12 +64,14 @@ __all__ = [
     "FiiDiiResponse",
     "MarketBreadthResponse",
     "MarketBreadthLiveResponse",
+    "DerivativeMetricsResponse",
     "DerivativeTickResponse",
     "SpotPriceResponse",
-    "DerivativeMetricsResponse",
-    "NewsCreate",
     "NewsResponse",
+    "NewsCreate",
     "NewsUpdate",
+    "BlockDealResponse",
+    "BulkDealResponse",
     "FundamentalDataResponse",
     "NseIndexResponse",
     "IndexConstituentResponse",
