@@ -15,3 +15,8 @@ def get_market_breadth_key(exchange: str) -> str:
 
 def get_instrument_spot_key(symbol: str) -> str:
     return f"market_data:spot:{symbol}"
+
+
+def get_fno_ban_list_key() -> str:
+    return "market_data:fno_ban_list"
+

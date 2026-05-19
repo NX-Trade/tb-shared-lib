@@ -71,3 +71,23 @@ class FnoExpiry(Base, PostgresUpsertMixin):
             name="uix_fno_expiry_type_sym_date",
         ),
     )
+
+
+class FnoBanList(Base, PostgresUpsertMixin):
+    """F&O Ban List Daily Data."""
+
+    __tablename__ = "fno_ban_list"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trade_date = Column(Date, nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "trade_date",
+            "symbol",
+            name="uq_fno_ban_list_date_symbol",
+        ),
+    )
+

@@ -37,3 +37,11 @@ class FnoExpiryResponse(BaseSchema):
     expiry_date: date
     is_active: int
     created_at: datetime
+
+
+class FnoBanListResponse(BaseSchema):
+    id: int
+    trade_date: date
+    symbol: str
+    created_at: datetime
+

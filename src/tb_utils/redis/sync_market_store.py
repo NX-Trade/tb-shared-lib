@@ -139,3 +139,24 @@ class SyncMarketStore:
         if p_change is not None:
             payload["p_change"] = p_change
         self.client.setex(key, expiry_seconds, json.dumps(payload))
+
+    def store_fno_ban_list(self, banned_symbols: list[str], expiry_seconds: int = 86400) -> None:
+        """Store the list of banned F&O symbols."""
+        from tb_utils.redis.keys import get_fno_ban_list_key
+        key = get_fno_ban_list_key()
+        self.client.setex(key, expiry_seconds, json.dumps(banned_symbols))
+        logger.info("Stored F&O ban list: %s", banned_symbols)
+
+    def get_fno_ban_list(self) -> list[str]:
+        """Retrieve the list of banned F&O symbols."""
+        from tb_utils.redis.keys import get_fno_ban_list_key
+        key = get_fno_ban_list_key()
+        data = self.client.get(key)
+        if not data:
+            return []
+        try:
+            return json.loads(data)
+        except Exception as e:
+            logger.error("Error reading F&O ban list: %s", e)
+            return []
+
