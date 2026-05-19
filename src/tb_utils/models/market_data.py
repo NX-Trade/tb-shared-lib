@@ -81,6 +81,11 @@ class FiiDiiDerivatives(Base, PostgresUpsertMixin):
     options_net_oi_change_view = Column(String(10))
     options_net_oi_change_view_strength = Column(String(10))
 
+    # ── Derivatives Volume fields ─────────────────────────────────────────
+    net_volume = Column(Numeric(18, 2), default=0)
+    stock_net_volume = Column(Numeric(18, 2), default=0)
+    options_net_volume = Column(Numeric(18, 2), default=0)
+
     # ── Keep Market snapshot ───────────────────────────────────────────────────
     nifty = Column(Numeric(12, 2))
     nifty_change_pct = Column(Numeric(8, 4))

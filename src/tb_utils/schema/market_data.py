@@ -42,6 +42,9 @@ class FiiDiiDerivativesResponse(BaseSchema):
     options_net_oi_change_action: Optional[str] = None
     options_net_oi_change_view: Optional[str] = None
     options_net_oi_change_view_strength: Optional[str] = None
+    net_volume: Optional[float] = None
+    stock_net_volume: Optional[float] = None
+    options_net_volume: Optional[float] = None
     nifty: Optional[float] = None
     nifty_change_pct: Optional[float] = None
     banknifty: Optional[float] = None
