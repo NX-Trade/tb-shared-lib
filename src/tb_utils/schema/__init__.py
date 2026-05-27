@@ -15,7 +15,7 @@ from .historical_data import (
     HistoricalIndexDataResponse,
     OptionChainResponse,
 )
-from .instrument import InstrumentResponse
+from .instrument import InstrumentCreate, InstrumentResponse, InstrumentUpdate
 from .market_data import (
     BlockDealResponse,
     BulkDealResponse,
@@ -71,6 +71,8 @@ __all__ = [
     "OptionChainResponse",
     "CandleResponse",
     "InstrumentResponse",
+    "InstrumentCreate",
+    "InstrumentUpdate",
     # Market Data
     "FiiDiiResponse",
     "IndiaVIXResponse",
