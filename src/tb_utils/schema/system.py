@@ -39,3 +39,21 @@ class TaskLogSchema(BaseSchema):
     traceback: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+class RegimeLogResponse(BaseSchema):
+    timestamp: datetime
+    symbol: str
+    predicted_state: int
+    state_probability: list[float]
+    confidence: Optional[float] = None
+    created_at: datetime
+
+
+class WatchlistFocusResponse(BaseSchema):
+    timestamp: datetime
+    symbol: str
+    xgboost_prob: float
+    technical_score: Optional[float] = None
+    features_json: Optional[dict[str, Any]] = None
+    created_at: datetime

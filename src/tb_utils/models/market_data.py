@@ -45,69 +45,6 @@ class FiiDii(Base, PostgresUpsertMixin):
     )
 
 
-class FiiDiiDerivatives(Base, PostgresUpsertMixin):
-    """FII/DII/PRO/Client Derivatives (Futures + Options) Daily Data.
-
-    Sourced from Sensibull API. One row per participant per instrument
-    type per trading date.
-    """
-
-    __tablename__ = "fiidii_derivatives"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    trade_date = Column(Date, nullable=False)
-    source = Column(String(20), nullable=False)  # NSE or SENSIBULL from SOURCE_ENUM
-    instrument_type = Column(String(20), nullable=False)  # FUTURES or OPTIONS
-    category = Column(String(10), nullable=False)  # FII, DII, PRO, CLIENT
-
-    # ── Futures fields ────────────────────────────────────────────────────
-    net_oi = Column(Numeric(18, 2), default=0)
-    outstanding_oi = Column(Numeric(18, 2), default=0)
-    net_action = Column(String(10))  # BUY / SELL
-    net_view = Column(String(10))  # BULLISH / BEARISH
-    net_view_strength = Column(String(10))  # Strong / Medium / Mild
-
-    # ── Stock futures ─────────────────────────────────────────────────────
-    stock_net_oi = Column(Numeric(18, 2), default=0)
-    stock_outstanding_oi = Column(Numeric(18, 2), default=0)
-    stock_net_action = Column(String(10))
-    stock_net_view = Column(String(10))
-    stock_net_view_strength = Column(String(10))
-
-    # ── Options — overall ─────────────────────────────────────────────────
-    options_net_oi = Column(Numeric(18, 2), default=0)
-    options_net_oi_change = Column(Numeric(18, 2), default=0)
-    options_net_oi_change_action = Column(String(10))
-    options_net_oi_change_view = Column(String(10))
-    options_net_oi_change_view_strength = Column(String(10))
-
-    # ── Derivatives Volume fields ─────────────────────────────────────────
-    net_volume = Column(Numeric(18, 2), default=0)
-    stock_net_volume = Column(Numeric(18, 2), default=0)
-    options_net_volume = Column(Numeric(18, 2), default=0)
-
-    # ── Keep Market snapshot ───────────────────────────────────────────────────
-    nifty = Column(Numeric(12, 2))
-    nifty_change_pct = Column(Numeric(8, 4))
-    banknifty = Column(Numeric(12, 2))
-    banknifty_change_pct = Column(Numeric(8, 4))
-
-    # ── JSONB catch-all ────────────────────────────────────────────────────
-    extras = Column(JSONB, default={})
-
-    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
-
-    __table_args__ = (
-        UniqueConstraint(
-            "trade_date",
-            "source",
-            "category",
-            "instrument_type",
-            name="fiidii_deriv_date_src_cat_inst_key",
-        ),
-    )
-
-
 class News(Base):
     """News Headlines."""
 
@@ -236,3 +173,109 @@ class BulkDeal(Base, PostgresUpsertMixin):
             name="uq_bulk_deal",
         ),
     )
+
+
+class IndiaVIX(Base, PostgresUpsertMixin):
+    """India VIX Daily historical values."""
+
+    __tablename__ = "india_vix"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    open = Column(Numeric(10, 4), nullable=False)
+    high = Column(Numeric(10, 4), nullable=False)
+    low = Column(Numeric(10, 4), nullable=False)
+    close = Column(Numeric(10, 4), nullable=False)
+    prev_close = Column(Numeric(10, 4))
+    change = Column(Numeric(10, 4))
+    pct_change = Column(Numeric(10, 4))
+
+
+class FuturesOI(Base, PostgresUpsertMixin):
+    """Daily stock and index futures open interest."""
+
+    __tablename__ = "futures_oi"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(50), primary_key=True)
+    expiry_date = Column(Date, primary_key=True)
+    open_interest = Column(BigInteger, nullable=False, default=0)
+    change_in_oi = Column(BigInteger, nullable=False, default=0)
+    volume = Column(BigInteger, nullable=False, default=0)
+    close = Column(Numeric(18, 4), nullable=False)
+
+
+class ParticipantOI(Base, PostgresUpsertMixin):
+    """Participant-wise Open Interest (OI) daily derivatives data."""
+
+    __tablename__ = "participant_oi"
+
+    trade_date = Column(Date, primary_key=True)
+    category = Column(String(20), primary_key=True)  # FII, DII, PRO, CLIENT
+    source = Column(String(20), primary_key=True)  # NSE, SENSIBULL
+
+    # Futures Index
+    futures_idx_long = Column(BigInteger, default=0)
+    futures_idx_short = Column(BigInteger, default=0)
+    futures_idx_net = Column(BigInteger, default=0)
+    futures_idx_outstanding = Column(BigInteger, default=0)
+
+    # Futures Stock
+    futures_stk_long = Column(BigInteger, default=0)
+    futures_stk_short = Column(BigInteger, default=0)
+    futures_stk_net = Column(BigInteger, default=0)
+    futures_stk_outstanding = Column(BigInteger, default=0)
+
+    # Index Call Option
+    option_call_long_oi = Column(BigInteger, default=0)
+    option_call_long_oi_change = Column(BigInteger, default=0)
+    option_call_short_oi = Column(BigInteger, default=0)
+    option_call_short_oi_change = Column(BigInteger, default=0)
+    option_call_net_oi = Column(BigInteger, default=0)
+    option_call_net_oi_change = Column(BigInteger, default=0)
+
+    # Index Put Option
+    option_put_long_oi = Column(BigInteger, default=0)
+    option_put_long_oi_change = Column(BigInteger, default=0)
+    option_put_short_oi = Column(BigInteger, default=0)
+    option_put_short_oi_change = Column(BigInteger, default=0)
+    option_put_net_oi = Column(BigInteger, default=0)
+    option_put_net_oi_change = Column(BigInteger, default=0)
+
+    # Options Overall
+    option_overall_net_oi = Column(BigInteger, default=0)
+    option_overall_net_oi_change = Column(BigInteger, default=0)
+
+    # Index-wise Futures
+    nifty_fut_net_oi = Column(BigInteger, default=0)
+    banknifty_fut_net_oi = Column(BigInteger, default=0)
+    finnifty_fut_net_oi = Column(BigInteger, default=0)
+    midcpnifty_fut_net_oi = Column(BigInteger, default=0)
+    niftynxt50_fut_net_oi = Column(BigInteger, default=0)
+
+    # Sentiment views
+    futures_net_view = Column(String(20))
+    futures_net_action = Column(String(20))
+    futures_stk_net_view = Column(String(20))
+    futures_stk_net_action = Column(String(20))
+    options_net_view = Column(String(20))
+    options_net_action = Column(String(20))
+
+    # Market close snapshots
+    nifty_close = Column(Numeric(18, 4))
+    banknifty_close = Column(Numeric(18, 4))
+
+    extras = Column(JSONB, default={})
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+
+class DeliveryData(Base, PostgresUpsertMixin):
+    """Daily spot delivery positions and percentages."""
+
+    __tablename__ = "delivery_data"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(50), primary_key=True)
+    traded_qty = Column(BigInteger, nullable=False, default=0)
+    deliverable_qty = Column(BigInteger, nullable=False, default=0)
+    delivery_pct = Column(Numeric(6, 3), nullable=False, default=0.0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())

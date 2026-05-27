@@ -21,35 +21,76 @@ class FiiDiiResponse(BaseSchema):
     created_at: datetime
 
 
-class FiiDiiDerivativesResponse(BaseSchema):
-    id: int
+class IndiaVIXResponse(BaseSchema):
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    prev_close: Optional[float] = None
+    change: Optional[float] = None
+    pct_change: Optional[float] = None
+
+
+class FuturesOIResponse(BaseSchema):
+    timestamp: datetime
+    symbol: str
+    expiry_date: date
+    open_interest: int
+    change_in_oi: int
+    volume: int
+    close: float
+
+
+class ParticipantOIResponse(BaseSchema):
     trade_date: date
-    source: str
-    instrument_type: str
     category: str
-    net_oi: Optional[float] = None
-    outstanding_oi: Optional[float] = None
-    net_action: Optional[str] = None
-    net_view: Optional[str] = None
-    net_view_strength: Optional[str] = None
-    stock_net_oi: Optional[float] = None
-    stock_outstanding_oi: Optional[float] = None
-    stock_net_action: Optional[str] = None
-    stock_net_view: Optional[str] = None
-    stock_net_view_strength: Optional[str] = None
-    options_net_oi: Optional[float] = None
-    options_net_oi_change: Optional[float] = None
-    options_net_oi_change_action: Optional[str] = None
-    options_net_oi_change_view: Optional[str] = None
-    options_net_oi_change_view_strength: Optional[str] = None
-    net_volume: Optional[float] = None
-    stock_net_volume: Optional[float] = None
-    options_net_volume: Optional[float] = None
-    nifty: Optional[float] = None
-    nifty_change_pct: Optional[float] = None
-    banknifty: Optional[float] = None
-    banknifty_change_pct: Optional[float] = None
+    source: str
+    futures_idx_long: int
+    futures_idx_short: int
+    futures_idx_net: int
+    futures_idx_outstanding: int
+    futures_stk_long: int
+    futures_stk_short: int
+    futures_stk_net: int
+    futures_stk_outstanding: int
+    option_call_long_oi: int
+    option_call_long_oi_change: int
+    option_call_short_oi: int
+    option_call_short_oi_change: int
+    option_call_net_oi: int
+    option_call_net_oi_change: int
+    option_put_long_oi: int
+    option_put_long_oi_change: int
+    option_put_short_oi: int
+    option_put_short_oi_change: int
+    option_put_net_oi: int
+    option_put_net_oi_change: int
+    option_overall_net_oi: int
+    option_overall_net_oi_change: int
+    nifty_fut_net_oi: int
+    banknifty_fut_net_oi: int
+    finnifty_fut_net_oi: int
+    midcpnifty_fut_net_oi: int
+    niftynxt50_fut_net_oi: int
+    futures_net_view: Optional[str] = None
+    futures_net_action: Optional[str] = None
+    futures_stk_net_view: Optional[str] = None
+    futures_stk_net_action: Optional[str] = None
+    options_net_view: Optional[str] = None
+    options_net_action: Optional[str] = None
+    nifty_close: Optional[float] = None
+    banknifty_close: Optional[float] = None
     extras: Optional[dict] = None
+    created_at: datetime
+
+
+class DeliveryDataResponse(BaseSchema):
+    timestamp: datetime
+    symbol: str
+    traded_qty: int
+    deliverable_qty: int
+    delivery_pct: float
     created_at: datetime
 
 

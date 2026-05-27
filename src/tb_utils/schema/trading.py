@@ -1,7 +1,8 @@
 """Pydantic schemas for Trading."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Optional
+from uuid import UUID
 
 from pydantic import Field
 
@@ -82,3 +83,26 @@ class TradeResponse(BaseSchema):
     commission: float
     slippage: float
     status: str
+
+
+class RecommendationCreate(BaseSchema):
+    timestamp: datetime
+    source: str
+    asset_class: str
+    symbol: str
+    option_type: Optional[str] = None
+    strike_price: Optional[float] = None
+    expiry_date: Optional[date] = None
+    direction: str
+    entry_price_range: str
+    target_price: float
+    stop_loss: float
+    duration: Optional[int] = None
+    status: Optional[str] = "PENDING"
+    execution_signal_id: Optional[int] = None
+
+
+class RecommendationResponse(RecommendationCreate):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime

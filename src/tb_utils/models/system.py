@@ -1,9 +1,10 @@
 """System Configuration, Metrics, and Log Models."""
 
-from sqlalchemy import JSON, Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSON, JSONB
 from sqlalchemy.sql import func
 
-from .base import Base
+from .base import Base, PostgresUpsertMixin
 
 
 class SystemMetric(Base):
@@ -49,3 +50,29 @@ class TaskLog(Base):
     traceback = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RegimeLog(Base, PostgresUpsertMixin):
+    """Daily market volatility regime classifications."""
+
+    __tablename__ = "regime_log"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(50), primary_key=True)  # e.g. NIFTY, BANKNIFTY
+    predicted_state = Column(Integer, nullable=False)
+    state_probability = Column(ARRAY(DOUBLE_PRECISION), nullable=False)
+    confidence = Column(Numeric(5, 4))
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+
+class WatchlistFocus(Base, PostgresUpsertMixin):
+    """System-generated daily watchlist focus stocks."""
+
+    __tablename__ = "watchlist_focus"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(50), primary_key=True)
+    xgboost_prob = Column(Numeric(5, 4), nullable=False)
+    technical_score = Column(Numeric(5, 2))
+    features_json = Column(JSONB, default={})
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())

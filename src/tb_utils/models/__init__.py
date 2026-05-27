@@ -14,15 +14,18 @@ from .instrument import Instrument
 from .market_data import (
     BlockDeal,
     BulkDeal,
+    DeliveryData,
     DerivativeTick,
     FiiDii,
-    FiiDiiDerivatives,
+    FuturesOI,
+    IndiaVIX,
     MarketBreadth,
     News,
+    ParticipantOI,
 )
-from .nse_reference import FnoExpiry, IndexConstituent, NseIndex, FnoBanList
-from .system import SystemLog, SystemMetric, TaskLog
-from .trading import Position, Trade, TradingOrder, TradingSignal
+from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, NseIndex
+from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
+from .trading import Position, Recommendation, Trade, TradingOrder, TradingSignal
 
 __all__ = [
     "Base",
@@ -38,20 +41,26 @@ __all__ = [
     "OptionChain",
     "Instrument",
     "FiiDii",
-    "FiiDiiDerivatives",
     "MarketBreadth",
     "DerivativeTick",
     "News",
     "BlockDeal",
     "BulkDeal",
+    "IndiaVIX",
+    "FuturesOI",
+    "ParticipantOI",
+    "DeliveryData",
     "FundamentalData",
     "SystemLog",
     "SystemMetric",
     "TaskLog",
+    "RegimeLog",
+    "WatchlistFocus",
     "Position",
     "Trade",
     "TradingOrder",
     "TradingSignal",
+    "Recommendation",
     "NseIndex",
     "IndexConstituent",
     "FnoExpiry",
