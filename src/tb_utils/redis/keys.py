@@ -20,3 +20,14 @@ def get_instrument_spot_key(symbol: str) -> str:
 def get_fno_ban_list_key() -> str:
     return "market_data:fno_ban_list"
 
+
+def get_regime_current_key() -> str:
+    return "signal_bot:regime:current"
+
+
+def get_regime_channel() -> str:
+    return "signal_bot:regime:transitions"
+
+
+def get_watchlist_key() -> str:
+    return "signal_bot:watchlist:focus"

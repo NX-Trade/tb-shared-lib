@@ -6,6 +6,9 @@ from tb_utils.redis.keys import (
     get_derived_metrics_key,
     get_instrument_spot_key,
     get_market_breadth_key,
+    get_regime_channel,
+    get_regime_current_key,
+    get_watchlist_key,
 )
 from tb_utils.redis.market_math import (
     calculate_max_pain,
@@ -26,4 +29,7 @@ __all__ = [
     "calculate_support_resistance",
     "SyncMarketStore",
     "AsyncMarketStore",
+    "get_regime_current_key",
+    "get_regime_channel",
+    "get_watchlist_key",
 ]

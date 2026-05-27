@@ -10,8 +10,12 @@ from redis import Redis
 from tb_utils.redis.keys import (
     get_contracts_key,
     get_derived_metrics_key,
+    get_fno_ban_list_key,
     get_instrument_spot_key,
     get_market_breadth_key,
+    get_regime_channel,
+    get_regime_current_key,
+    get_watchlist_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,14 +146,60 @@ class SyncMarketStore:
 
     def store_fno_ban_list(self, banned_symbols: list[str], expiry_seconds: int = 86400) -> None:
         """Store the list of banned F&O symbols."""
-        from tb_utils.redis.keys import get_fno_ban_list_key
         key = get_fno_ban_list_key()
         self.client.setex(key, expiry_seconds, json.dumps(banned_symbols))
         logger.info("Stored F&O ban list: %s", banned_symbols)
 
+    def store_regime_state(
+        self,
+        symbol: str,
+        state_label: str,
+        state_index: int,
+        state_probabilities: list[float],
+        confidence: float,
+        allocation_multiplier: float,
+        expiry_seconds: int = 86400,
+    ) -> None:
+        """Store the current market regime state and publish a transition event."""
+        payload = {
+            "symbol": symbol,
+            "state_label": state_label,
+            "state_index": state_index,
+            "state_probabilities": state_probabilities,
+            "confidence": confidence,
+            "allocation_multiplier": allocation_multiplier,
+            "updated_at": datetime.now().isoformat(),
+        }
+        serialized = json.dumps(payload)
+        self.client.setex(get_regime_current_key(), expiry_seconds, serialized)
+        self.client.publish(get_regime_channel(), serialized)
+        logger.info(
+            "Stored regime state for %s: %s (conf=%.3f, alloc=%.1fx)",
+            symbol,
+            state_label,
+            confidence,
+            allocation_multiplier,
+        )
+
+    def store_watchlist(self, entries: list[dict], expiry_seconds: int = 86400) -> None:
+        """Store the daily focus watchlist."""
+        payload = {"entries": entries, "updated_at": datetime.now().isoformat()}
+        self.client.setex(get_watchlist_key(), expiry_seconds, json.dumps(payload))
+        logger.info("Stored watchlist with %d entries.", len(entries))
+
+    def get_regime_state(self) -> dict | None:
+        """Retrieve the current regime state."""
+        data = self.client.get(get_regime_current_key())
+        if not data:
+            return None
+        try:
+            return json.loads(data)
+        except Exception as e:
+            logger.error("Error reading regime state: %s", e)
+            return None
+
     def get_fno_ban_list(self) -> list[str]:
         """Retrieve the list of banned F&O symbols."""
-        from tb_utils.redis.keys import get_fno_ban_list_key
         key = get_fno_ban_list_key()
         data = self.client.get(key)
         if not data:
@@ -159,4 +209,3 @@ class SyncMarketStore:
         except Exception as e:
             logger.error("Error reading F&O ban list: %s", e)
             return []
-
