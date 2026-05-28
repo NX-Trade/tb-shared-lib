@@ -204,6 +204,8 @@ class Recommendation(Base, PostgresUpsertMixin):
         String(20), nullable=False, default="PENDING"
     )  # PENDING, ACTIVE, FILLED, EXPIRED, CANCELLED
     execution_signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"))
+    entry_price = Column(Numeric(18, 4))
+    exit_price = Column(Numeric(18, 4))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     updated_at = Column(
         DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()

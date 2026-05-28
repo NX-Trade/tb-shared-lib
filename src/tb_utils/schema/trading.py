@@ -100,6 +100,8 @@ class RecommendationCreate(BaseSchema):
     duration: Optional[int] = None
     status: Optional[str] = "PENDING"
     execution_signal_id: Optional[int] = None
+    entry_price: Optional[float] = None
+    exit_price: Optional[float] = None
 
 
 class RecommendationResponse(RecommendationCreate):
