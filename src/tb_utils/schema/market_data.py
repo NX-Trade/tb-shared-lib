@@ -221,3 +221,11 @@ class BulkDealResponse(BaseSchema):
     trade_price: Optional[float] = None
     remarks: Optional[str] = None
     created_at: datetime
+
+
+class Nifty500SmaBreadthResponse(BaseSchema):
+    trade_date: date
+    total_stocks: int
+    above_20_sma: int
+    above_50_sma: int
+    above_200_sma: int

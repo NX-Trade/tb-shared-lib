@@ -13,7 +13,11 @@ from .historical_data import (
     CandleResponse,
     HistoricalEquityDataResponse,
     HistoricalIndexDataResponse,
+    OptionChainAnalysisResponse,
+    OptionChainMetrics,
     OptionChainResponse,
+    PcrHistoryPoint,
+    StrikeDataPoint,
 )
 from .instrument import InstrumentCreate, InstrumentResponse, InstrumentUpdate
 from .market_data import (
@@ -30,6 +34,7 @@ from .market_data import (
     NewsCreate,
     NewsResponse,
     NewsUpdate,
+    Nifty500SmaBreadthResponse,
     ParticipantOIResponse,
     SpotPriceResponse,
 )
@@ -69,6 +74,10 @@ __all__ = [
     "HistoricalEquityDataResponse",
     "HistoricalIndexDataResponse",
     "OptionChainResponse",
+    "OptionChainAnalysisResponse",
+    "OptionChainMetrics",
+    "StrikeDataPoint",
+    "PcrHistoryPoint",
     "CandleResponse",
     "InstrumentResponse",
     "InstrumentCreate",
@@ -81,6 +90,7 @@ __all__ = [
     "DeliveryDataResponse",
     "MarketBreadthResponse",
     "MarketBreadthLiveResponse",
+    "Nifty500SmaBreadthResponse",
     "DerivativeMetricsResponse",
     "DerivativeTickResponse",
     "SpotPriceResponse",

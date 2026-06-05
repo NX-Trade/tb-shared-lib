@@ -76,3 +76,39 @@ class OptionChainResponse(BaseSchema):
     ask_qty: Optional[int] = None
     underlying_value: Optional[float] = None
     source: str
+
+
+class OptionChainMetrics(BaseSchema):
+    max_ce_oi: float
+    max_pe_oi: float
+    max_ce_chg_oi: float
+    max_pe_chg_oi: float
+    ce_itm_oi: float
+    pe_itm_oi: float
+    max_pain_strike: float
+    max_ce_strike: float
+    max_pe_strike: float
+
+
+class StrikeDataPoint(BaseSchema):
+    strike: float
+    pcr: float
+    pain: float
+    ce: Optional[OptionChainResponse] = None
+    pe: Optional[OptionChainResponse] = None
+
+
+class PcrHistoryPoint(BaseSchema):
+    timestamp: str
+    pcr: float
+    put_oi: float
+    call_oi: float
+
+
+class OptionChainAnalysisResponse(BaseSchema):
+    expiries: list[str]
+    selected_expiry: str
+    spot_price: float
+    metrics: Optional[OptionChainMetrics] = None
+    strikes_data: list[StrikeDataPoint]
+    pcr_history: list[PcrHistoryPoint]
