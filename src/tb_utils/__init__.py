@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.7.1"
+__version__ = "1.8.0"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
@@ -55,6 +55,8 @@ from .schema import (
     ExternalApiRequestCreate,
     ExternalApiRequestResponse,
     FiiDiiResponse,
+    FnOBuildupResponse,
+    FnOBuildupStock,
     FuturesOIResponse,
     GenericResponseSchema,
     HistoricalEquityDataResponse,
@@ -63,12 +65,17 @@ from .schema import (
     InstrumentResponse,
     MarketBreadthResponse,
     NewsResponse,
+    Nifty500SmaBreadthResponse,
+    OptionChainAnalysisResponse,
+    OptionChainMetrics,
     OptionChainResponse,
     ParticipantOIResponse,
+    PcrHistoryPoint,
     PositionResponse,
     RecommendationCreate,
     RecommendationResponse,
     RegimeLogResponse,
+    StrikeDataPoint,
     SystemLogResponse,
     SystemMetricResponse,
     TradeResponse,
@@ -79,6 +86,7 @@ from .schema import (
     TradingSignalResponse,
     WatchlistFocusResponse,
 )
+from .utils.fno_buildup import FNO_BUILDUP_QUERY, categorize_fno_buildup
 
 __all__ = [
     # Version
@@ -101,6 +109,7 @@ __all__ = [
     "FiiDii",
     "FnoExpiry",
     "FundamentalData",
+    "FuturesOI",
     "HistoricalEquityData",
     "HistoricalIndexData",
     "IndexConstituent",
@@ -135,27 +144,54 @@ __all__ = [
     "HistoricalIndexDataResponse",
     "CandleResponse",
     "OptionChainResponse",
+    "OptionChainAnalysisResponse",
+    "OptionChainMetrics",
+    "StrikeDataPoint",
+    "PcrHistoryPoint",
     "InstrumentResponse",
+    "InstrumentCreate",
+    "InstrumentUpdate",
+    # Market Data
     "FiiDiiResponse",
+    "IndiaVIXResponse",
+    "FuturesOIResponse",
+    "ParticipantOIResponse",
+    "DeliveryDataResponse",
     "MarketBreadthResponse",
+    "MarketBreadthLiveResponse",
+    "Nifty500SmaBreadthResponse",
+    "DerivativeMetricsResponse",
+    "DerivativeTickResponse",
+    "SpotPriceResponse",
     "NewsResponse",
+    "NewsCreate",
+    "NewsUpdate",
+    "BlockDealResponse",
+    "BulkDealResponse",
+    "FnOBuildupStock",
+    "FnOBuildupResponse",
+    "FundamentalDataResponse",
+    "NseIndexResponse",
+    "IndexConstituentResponse",
+    "FnoExpiryResponse",
+    "FnoBanListResponse",
     "SystemMetricResponse",
     "SystemLogResponse",
+    "TaskLogSchema",
+    "RegimeLogResponse",
+    "WatchlistFocusResponse",
     "TradingSignalCreate",
     "TradingSignalResponse",
     "TradingOrderCreate",
     "TradingOrderResponse",
     "PositionResponse",
     "TradeResponse",
-    "IndiaVIXResponse",
-    "FuturesOIResponse",
-    "ParticipantOIResponse",
-    "DeliveryDataResponse",
-    "RegimeLogResponse",
-    "WatchlistFocusResponse",
     "RecommendationCreate",
     "RecommendationResponse",
     # Request Maker
     "RequestMaker",
     "CircuitBreakerError",
+    # F&O Buildup Utilities
+    "FNO_BUILDUP_QUERY",
+    "categorize_fno_buildup",
 ]

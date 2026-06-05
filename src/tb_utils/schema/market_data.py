@@ -229,3 +229,20 @@ class Nifty500SmaBreadthResponse(BaseSchema):
     above_20_sma: int
     above_50_sma: int
     above_200_sma: int
+
+
+class FnOBuildupStock(BaseSchema):
+    symbol: str
+    close: float
+    p_change: float
+    open_interest: int
+    oi_change: float
+    buildup_type: str
+
+
+class FnOBuildupResponse(BaseSchema):
+    timestamp: datetime
+    long_buildup: list[FnOBuildupStock]
+    short_buildup: list[FnOBuildupStock]
+    long_unwinding: list[FnOBuildupStock]
+    short_covering: list[FnOBuildupStock]
