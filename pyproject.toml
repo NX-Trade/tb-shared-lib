@@ -34,6 +34,8 @@ dependencies = [
     "requests>=2.32.5",
     "urllib3>=2.6.3",
     "redis>=6.0.0",
+    "ib-async>=2.0.0",
+    "breeze-connect>=1.0.0",
 ]
 
 [project.urls]
