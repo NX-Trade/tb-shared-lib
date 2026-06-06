@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from .base import BaseSchema
 
@@ -27,7 +27,11 @@ class SystemLogResponse(BaseSchema):
     level: str
     event_type: str
     message: str
-    metadata_: Optional[dict[str, Any]] = Field(default=None, alias="metadata")
+    metadata_: Optional[dict[str, Any]] = Field(
+        default=None,
+        serialization_alias="metadata",
+        validation_alias=AliasChoices("metadata_", "metadata"),
+    )
 
 
 class TaskLogSchema(BaseSchema):
