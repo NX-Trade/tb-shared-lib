@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.8.0"
+__version__ = "1.9.0"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
@@ -86,6 +86,7 @@ from .schema import (
     TradingSignalResponse,
     WatchlistFocusResponse,
 )
+from .telegram import TelegramNotifier, send_telegram_alert
 from .utils.fno_buildup import FNO_BUILDUP_QUERY, categorize_fno_buildup
 
 __all__ = [
@@ -194,4 +195,7 @@ __all__ = [
     # F&O Buildup Utilities
     "FNO_BUILDUP_QUERY",
     "categorize_fno_buildup",
+    # Telegram Utilities
+    "TelegramNotifier",
+    "send_telegram_alert",
 ]

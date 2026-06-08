@@ -9,6 +9,7 @@ import requests
 from sqlalchemy.orm import Session
 
 from tb_utils.models.broker import ExternalApiRequest
+from tb_utils.telegram import send_telegram_alert
 
 logger = logging.getLogger("tb-utils.requests.request_maker")
 
@@ -67,6 +68,16 @@ class RequestMaker:
         """Record a successful request to reset circuit breaker."""
         if self.state in ["OPEN", "HALF_OPEN"]:
             logger.info("Circuit breaker reset to CLOSED state.")
+            try:
+                from tb_utils.telegram import send_telegram_alert
+
+                send_telegram_alert(
+                    f"🟢 <b>Circuit Breaker Reset</b>\n"
+                    f"<b>Provider:</b> {self.api_provider_id}\n"
+                    f"<b>State:</b> CLOSED"
+                )
+            except Exception as tg_err:
+                logger.error("Failed to send circuit breaker Telegram alert: %s", tg_err)
         self.failure_count = 0
         self.state = "CLOSED"
         self.last_failure_time = None
@@ -82,6 +93,15 @@ class RequestMaker:
                 "Circuit breaker tripped to OPEN state after %s failures.",
                 self.failure_count,
             )
+            try:
+                send_telegram_alert(
+                    f"🔴 <b>Circuit Breaker Tripped</b>\n"
+                    f"<b>Provider:</b> {self.api_provider_id}\n"
+                    f"<b>State:</b> OPEN\n"
+                    f"<b>Failures:</b> {self.failure_count}"
+                )
+            except Exception as tg_err:
+                logger.error("Failed to send circuit breaker Telegram alert: %s", tg_err)
 
     def request(
         self,
