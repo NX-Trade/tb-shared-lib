@@ -19,3 +19,9 @@ pre-commit run --all-files
 - **API Client**: Use `RequestMaker` for circuit breaking logic on external requests.
 
 For detailed model structures and usage, refer to `README.md`.
+
+## 🤖 Agent Guidelines (Shared Lib)
+- **Execution**: Coding only. Nothing runs locally; all runs on algoserver.
+- **Git**: Separate repo. Commit locally (2-3+ lines descriptive message), push, pull on algoserver. No scp.
+- **DB/Schemas**: Source of truth for SQLAlchemy models (`tb_utils/models/`) and Pydantic schemas. Re-install in services after changes.
+- **Alerting**: Contains `tb_utils/notifications/telegram.py`. Use this for all Telegram bot notifications.
