@@ -1,4 +1,5 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 
 from .enums import DateFormatEnum
 
@@ -87,3 +88,25 @@ def parse_dates_to_str_old(data, key, fmt=DateFormatEnum.TB_DATE.value):
     if data and key in data[0].keys():
         return [{**item, key: item.get(key).strftime(fmt)} for item in data]
     return data
+
+
+def is_market_hours(current_time: Optional[datetime] = None) -> bool:
+    """Check if the current time (or current_time) is within Indian market hours (9:00 AM - 4:00 PM IST, Mon-Fri)."""
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+
+    if current_time is None:
+        current_time = datetime.now(ist_tz)
+    else:
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=ist_tz)
+        else:
+            current_time = current_time.astimezone(ist_tz)
+
+    # Check weekday (Monday=0, ..., Friday=4, Saturday=5, Sunday=6)
+    if current_time.weekday() >= 5:
+        return False
+
+    market_start = current_time.replace(hour=9, minute=0, second=0, microsecond=0)
+    market_end = current_time.replace(hour=16, minute=0, second=0, microsecond=0)
+
+    return market_start <= current_time <= market_end
