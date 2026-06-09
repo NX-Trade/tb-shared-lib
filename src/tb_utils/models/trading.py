@@ -167,7 +167,10 @@ class Trade(Base):
     entry_time = Column(DateTime(timezone=True), nullable=False)
     exit_time = Column(DateTime(timezone=True))
 
+    stop_loss = Column(Numeric(10, 2))
+    target = Column(Numeric(10, 2))
     realized_pnl = Column(Numeric(10, 2))
+    net_pnl = Column(Numeric(10, 2))          # realized_pnl minus commission (round-trip)
     commission = Column(Numeric(10, 2), default=0)
     slippage = Column(Numeric(10, 2), default=0)
 
@@ -176,6 +179,7 @@ class Trade(Base):
         default="OPEN",
         index=True,
     )
+    exit_reason = Column(String(20))           # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL"
 
     broker = relationship("Broker", back_populates="trades")
     entry_order = relationship("TradingOrder", foreign_keys=[entry_order_id])
