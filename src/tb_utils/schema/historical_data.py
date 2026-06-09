@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Optional
 
+from pydantic import model_validator
+
 from .base import BaseSchema
 
 
@@ -34,8 +36,17 @@ class HistoricalIndexDataResponse(BaseSchema):
     close: float
     adj_close: Optional[float] = None
     shares_traded: Optional[int] = None
+    # Map shares_traded to volume for index charts compatibility on the frontend
+    volume: Optional[int] = None
     turnover_cr: Optional[float] = None
     source_id: int  # SourceEnum can be ICICI, IB, NSE
+
+    @model_validator(mode="after")
+    def populate_volume(self) -> "HistoricalIndexDataResponse":
+        # Ensure volume is set to shares_traded for frontend charts
+        if self.volume is None and self.shares_traded is not None:
+            self.volume = self.shares_traded
+        return self
 
 
 class CandleResponse(BaseSchema):
