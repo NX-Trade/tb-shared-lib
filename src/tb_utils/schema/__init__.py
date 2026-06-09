@@ -7,7 +7,12 @@ from .broker import (
     ExternalApiRequestCreate,
     ExternalApiRequestResponse,
 )
-from .corporate_event import CorporateEventResponse, TradingHolidayResponse
+from .corporate_event import (
+    CorporateAnnouncementCreate,
+    CorporateAnnouncementResponse,
+    CorporateEventResponse,
+    TradingHolidayResponse,
+)
 from .fundamental_data import FundamentalDataResponse
 from .historical_data import (
     CandleResponse,
@@ -72,6 +77,8 @@ __all__ = [
     "ExternalApiRequestCreate",
     "ExternalApiRequestResponse",
     "CorporateEventResponse",
+    "CorporateAnnouncementCreate",
+    "CorporateAnnouncementResponse",
     "TradingHolidayResponse",
     "HistoricalEquityDataResponse",
     "HistoricalIndexDataResponse",

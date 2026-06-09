@@ -2,7 +2,7 @@
 
 from .base import Base, PostgresUpsertMixin
 from .broker import Broker, BrokerHealthLog, ExternalApiRequest
-from .corporate_event import CorporateEvent, TradingHoliday
+from .corporate_event import CorporateAnnouncement, CorporateEvent, TradingHoliday
 from .fundamental_data import FundamentalData
 from .historical_data import (
     Candle,
@@ -34,6 +34,7 @@ __all__ = [
     "BrokerHealthLog",
     "ExternalApiRequest",
     "CorporateEvent",
+    "CorporateAnnouncement",
     "TradingHoliday",
     "HistoricalEquityData",
     "HistoricalIndexData",

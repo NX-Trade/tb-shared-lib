@@ -27,3 +27,32 @@ class TradingHolidayResponse(BaseSchema):
     holiday_type: str
     week_day: Optional[str] = None
     created_at: datetime
+
+
+class CorporateAnnouncementCreate(BaseSchema):
+    seq_id: str
+    symbol: str
+    company_name: Optional[str] = None
+    industry: Optional[str] = None
+    category: Optional[str] = None
+    subject: Optional[str] = None
+    announcement_text: Optional[str] = None
+    announcement_date: datetime
+    attachment_url: Optional[str] = None
+    isin: Optional[str] = None
+
+
+class CorporateAnnouncementResponse(BaseSchema):
+    id: int
+    seq_id: str
+    symbol: str
+    company_name: Optional[str] = None
+    industry: Optional[str] = None
+    category: Optional[str] = None
+    subject: Optional[str] = None
+    announcement_text: Optional[str] = None
+    announcement_date: datetime
+    attachment_url: Optional[str] = None
+    isin: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime

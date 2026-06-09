@@ -67,3 +67,33 @@ class TradingHoliday(Base):
 
     def __repr__(self):
         return f"<TradingHoliday(date={self.holiday_date}, name={self.holiday_name})>"
+
+
+class CorporateAnnouncement(Base, PostgresUpsertMixin):
+    """Corporate announcements table for tracking NSE filings."""
+
+    __tablename__ = "corporate_announcement"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    seq_id = Column(String(50), nullable=False, unique=True, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    company_name = Column(String(200))
+    industry = Column(String(200))
+    category = Column(String(200))
+    subject = Column(Text)
+    announcement_text = Column(Text)
+    announcement_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    attachment_url = Column(String(500))
+    isin = Column(String(20))
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (UniqueConstraint("seq_id", name="uq_corporate_announcement_seq_id"),)
+
+    def __repr__(self):
+        return (
+            f"<CorporateAnnouncement(symbol={self.symbol}, "
+            f"seq_id={self.seq_id}, "
+            f"date={self.announcement_date})>"
+        )
