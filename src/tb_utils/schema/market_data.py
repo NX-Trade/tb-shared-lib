@@ -246,3 +246,18 @@ class FnOBuildupResponse(BaseSchema):
     short_buildup: list[FnOBuildupStock]
     long_unwinding: list[FnOBuildupStock]
     short_covering: list[FnOBuildupStock]
+
+
+class MacroIndicatorResponse(BaseSchema):
+    timestamp: datetime
+    symbol: str
+    indicator_type: str
+    price: float
+    open: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    prev_close: Optional[float] = None
+    change: Optional[float] = None
+    pct_change: Optional[float] = None
+    source: str = "YAHOO"
+    created_at: datetime
