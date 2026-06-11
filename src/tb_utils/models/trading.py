@@ -28,8 +28,13 @@ class TradingSignal(Base):
     __tablename__ = "trading_signal"
 
     signal_id = Column(Integer, primary_key=True, autoincrement=True)
-    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"))
+    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=True)
     strategy_name = Column(String(100), nullable=False)
+    # Derivatives classification — NULL for plain equity signals
+    instrument_type = Column(String(10), nullable=True)   # EQUITY, FUT, CE, PE
+    strategy_type = Column(String(40), nullable=True)     # LONG_BUILDUP, PCR_REVERSAL, …
+    strike_price = Column(Numeric(14, 2), nullable=True)  # options only
+    expiry_date = Column(Date, nullable=True)             # futures / options
 
     action = Column(
         ENUM("BUY", "SELL", "EXIT", name="signal_action", create_type=False),

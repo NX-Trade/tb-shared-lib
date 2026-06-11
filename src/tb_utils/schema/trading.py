@@ -10,8 +10,12 @@ from .base import BaseSchema
 
 
 class TradingSignalCreate(BaseSchema):
-    instrument_id: int
+    instrument_id: Optional[int] = None
     strategy_name: str
+    instrument_type: Optional[str] = None   # EQUITY, FUT, CE, PE
+    strategy_type: Optional[str] = None     # LONG_BUILDUP, PCR_REVERSAL, …
+    strike_price: Optional[float] = None
+    expiry_date: Optional[date] = None
     action: str
     timeframe: str
     entry_price: float
