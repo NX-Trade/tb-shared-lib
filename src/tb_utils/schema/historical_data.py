@@ -1,11 +1,21 @@
 """Pydantic schemas for Historical Data."""
 
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any, Optional
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 
 from .base import BaseSchema
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def to_ist(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(IST)
 
 
 class HistoricalEquityDataResponse(BaseSchema):
@@ -21,6 +31,19 @@ class HistoricalEquityDataResponse(BaseSchema):
     adj_close: Optional[float] = None
     volume: int
     source_id: int  # SourceEnum can be ICICI, IB, NSE
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def localize_timestamp(cls, v: Any) -> Any:
+        if isinstance(v, datetime):
+            return to_ist(v)
+        if isinstance(v, str):
+            try:
+                dt = datetime.fromisoformat(v)
+                return to_ist(dt)
+            except ValueError:
+                pass
+        return v
 
 
 class HistoricalIndexDataResponse(BaseSchema):
@@ -40,6 +63,19 @@ class HistoricalIndexDataResponse(BaseSchema):
     volume: Optional[int] = None
     turnover_cr: Optional[float] = None
     source_id: int  # SourceEnum can be ICICI, IB, NSE
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def localize_timestamp(cls, v: Any) -> Any:
+        if isinstance(v, datetime):
+            return to_ist(v)
+        if isinstance(v, str):
+            try:
+                dt = datetime.fromisoformat(v)
+                return to_ist(dt)
+            except ValueError:
+                pass
+        return v
 
     @model_validator(mode="after")
     def populate_volume(self) -> "HistoricalIndexDataResponse":

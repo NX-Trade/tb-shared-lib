@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from redis import Redis
@@ -17,6 +17,8 @@ from tb_utils.redis.keys import (
     get_regime_current_key,
     get_watchlist_key,
 )
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +97,7 @@ class SyncMarketStore:
             "resistance": resistance,
             "total_ce_oi": total_ce_oi,
             "total_pe_oi": total_pe_oi,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(IST).isoformat(),
         }
 
         key = get_derived_metrics_key(symbol)
@@ -124,7 +126,7 @@ class SyncMarketStore:
             "declines": declines,
             "unchanged": unchanged,
             "ad_ratio": ad_ratio,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(IST).isoformat(),
         }
         self.client.setex(key, expiry_seconds, json.dumps(payload))
 
@@ -137,7 +139,7 @@ class SyncMarketStore:
         expiry_seconds: int = 28800,
     ) -> None:
         key = get_instrument_spot_key(symbol)
-        payload = {"price": price, "updated_at": datetime.now().isoformat()}
+        payload = {"price": price, "updated_at": datetime.now(IST).isoformat()}
         if change is not None:
             payload["change"] = change
         if p_change is not None:
@@ -168,7 +170,7 @@ class SyncMarketStore:
             "state_probabilities": state_probabilities,
             "confidence": confidence,
             "allocation_multiplier": allocation_multiplier,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(IST).isoformat(),
         }
         serialized = json.dumps(payload)
         self.client.setex(get_regime_current_key(), expiry_seconds, serialized)
@@ -183,7 +185,7 @@ class SyncMarketStore:
 
     def store_watchlist(self, entries: list[dict], expiry_seconds: int = 86400) -> None:
         """Store the daily focus watchlist."""
-        payload = {"entries": entries, "updated_at": datetime.now().isoformat()}
+        payload = {"entries": entries, "updated_at": datetime.now(IST).isoformat()}
         self.client.setex(get_watchlist_key(), expiry_seconds, json.dumps(payload))
         logger.info("Stored watchlist with %d entries.", len(entries))
 

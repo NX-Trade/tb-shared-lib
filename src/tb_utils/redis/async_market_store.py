@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from redis.asyncio import Redis
@@ -13,6 +13,8 @@ from tb_utils.redis.keys import (
     get_instrument_spot_key,
     get_market_breadth_key,
 )
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +93,7 @@ class AsyncMarketStore:
             "resistance": resistance,
             "total_ce_oi": total_ce_oi,
             "total_pe_oi": total_pe_oi,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(IST).isoformat(),
         }
 
         key = get_derived_metrics_key(symbol)
@@ -120,7 +122,7 @@ class AsyncMarketStore:
             "declines": declines,
             "unchanged": unchanged,
             "ad_ratio": ad_ratio,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(IST).isoformat(),
         }
         await self.client.setex(key, expiry_seconds, json.dumps(payload))
 
@@ -133,7 +135,7 @@ class AsyncMarketStore:
         expiry_seconds: int = 28800,
     ) -> None:
         key = get_instrument_spot_key(symbol)
-        payload = {"price": price, "updated_at": datetime.now().isoformat()}
+        payload = {"price": price, "updated_at": datetime.now(IST).isoformat()}
         if change is not None:
             payload["change"] = change
         if p_change is not None:
