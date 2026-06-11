@@ -12,6 +12,7 @@ from tb_utils.redis.keys import (
     get_derived_metrics_key,
     get_fno_ban_list_key,
     get_instrument_spot_key,
+    get_macro_indicator_key,
     get_market_breadth_key,
     get_regime_channel,
     get_regime_current_key,
@@ -182,6 +183,33 @@ class SyncMarketStore:
             confidence,
             allocation_multiplier,
         )
+
+    def store_macro_indicator(
+        self,
+        symbol: str,
+        indicator_type: str,
+        price: float,
+        change: float | None = None,
+        pct_change: float | None = None,
+        expiry_seconds: int = 7200,  # 2 hours — refreshed hourly
+    ) -> None:
+        """Cache a macro indicator snapshot (Crude Oil / USD-INR).
+
+        Key: market_data:macro:{symbol}  e.g. market_data:macro:CL=F
+        """
+        key = get_macro_indicator_key(symbol)
+        payload = {
+            "symbol": symbol,
+            "indicator_type": indicator_type,
+            "price": price,
+            "updated_at": datetime.now(IST).isoformat(),
+        }
+        if change is not None:
+            payload["change"] = change
+        if pct_change is not None:
+            payload["pct_change"] = pct_change
+        self.client.setex(key, expiry_seconds, json.dumps(payload))
+        logger.info("Stored macro indicator %s (%s): %.4f", indicator_type, symbol, price)
 
     def store_watchlist(self, entries: list[dict], expiry_seconds: int = 86400) -> None:
         """Store the daily focus watchlist."""

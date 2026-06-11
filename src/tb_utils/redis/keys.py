@@ -31,3 +31,7 @@ def get_regime_channel() -> str:
 
 def get_watchlist_key() -> str:
     return "signal_bot:watchlist:focus"
+
+
+def get_macro_indicator_key(symbol: str) -> str:
+    return f"market_data:macro:{symbol}"

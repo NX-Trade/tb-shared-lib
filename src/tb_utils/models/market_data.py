@@ -279,3 +279,28 @@ class DeliveryData(Base, PostgresUpsertMixin):
     deliverable_qty = Column(BigInteger, nullable=False, default=0)
     delivery_pct = Column(Numeric(6, 3), nullable=False, default=0.0)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+
+class MacroIndicator(Base, PostgresUpsertMixin):
+    """Hourly macro indicator snapshots — Crude Oil (WTI/Brent) and USD/INR.
+
+    Sourced from Yahoo Finance via yfinance (no API key required).
+    Symbols: CL=F (WTI Crude), BZ=F (Brent Crude), USDINR=X (USD/INR spot).
+    """
+
+    __tablename__ = "macro_indicator"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(20), primary_key=True)  # CL=F, BZ=F, USDINR=X
+    indicator_type = Column(String(20), nullable=False)  # CRUDE_WTI, CRUDE_BRENT, USDINR
+    price = Column(Numeric(14, 4), nullable=False)
+    open = Column(Numeric(14, 4))
+    high = Column(Numeric(14, 4))
+    low = Column(Numeric(14, 4))
+    prev_close = Column(Numeric(14, 4))
+    change = Column(Numeric(14, 4))
+    pct_change = Column(Numeric(10, 4))
+    source = Column(String(20), nullable=False, default="YAHOO")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (UniqueConstraint("timestamp", "symbol", name="uq_macro_indicator_ts_sym"),)
