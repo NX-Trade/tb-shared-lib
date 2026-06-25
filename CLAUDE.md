@@ -1,27 +1,80 @@
-# tb-shared-lib
+# TB-Shared-Lib
 
-A shared Python library for the nx-trade platform providing SQLAlchemy ORM models, Pydantic schemas, and external API clients.
+Single source of truth for all SQLAlchemy models, Pydantic schemas, Alembic migrations, Redis key helpers, and the Telegram notifier. Every Python service depends on this library.
 
-## Test and Build Commands
+## Commands
+
 ```bash
-# Run tests
-pytest
+venv/bin/pytest                                                 # tests
+venv/bin/pre-commit run --all-files                             # lint + format
+venv/bin/alembic revision --autogenerate -m "describe change"  # generate migration
+venv/bin/alembic upgrade head                                   # apply migration
 
-# Code formatting and linting
-pre-commit run --all-files
+# Re-install in a service after changes
+pip install -e ../../libs/tb-shared-lib   # run inside service venv
 ```
 
-## Critical Pointers
-- **Database**: Uses PostgreSQL + SQLAlchemy. All models inherit from `DeclarativeBase` (or `Base` with `PostgresUpsertMixin`).
-- **Migrations**: Uses Alembic. Schema is in `docs/DATABASE_SCHEMA.sql` or `alembic/versions`.
-- **Validation**: Pydantic v2 schemas. Responses use `from_attributes=True`.
-- **Session Management**: Fastapi dependency via `get_db()`.
-- **API Client**: Use `RequestMaker` for circuit breaking logic on external requests.
+## Key Modules
 
-For detailed model structures and usage, refer to `README.md`.
+```
+src/tb_utils/
+├── models/             SQLAlchemy ORM models (source of truth for all tables)
+├── schemas/            Pydantic v2 schemas — use ConfigDict(from_attributes=True)
+├── config/
+│   ├── db_session.py   get_session_factory() + get_db() FastAPI dependency
+│   └── settings.py     Base env-var config
+├── redis/
+│   ├── keys.py         Redis key builders — always use these, never hardcode strings
+│   └── sync_market_store.py  store_regime_state(), store_watchlist(), get_regime_state()
+└── notifications/
+    └── telegram.py     The ONLY Telegram alert path across all services
+```
 
-## 🤖 Agent Guidelines (Shared Lib)
-- **Execution**: Coding only. Nothing runs locally; all runs on algoserver.
-- **Git**: Separate repo. Commit locally (2-3+ lines descriptive message), push, pull on algoserver. No scp.
-- **DB/Schemas**: Source of truth for SQLAlchemy models (`tb_utils/models/`) and Pydantic schemas. Re-install in services after changes.
-- **Alerting**: Contains `tb_utils/notifications/telegram.py`. Use this for all Telegram bot notifications.
+## Adding a Model
+
+```python
+# src/tb_utils/models/my_model.py
+from sqlalchemy import Column, Integer, String, Date
+from tb_utils.models.base import Base, PostgresUpsertMixin
+
+class MyModel(Base, PostgresUpsertMixin):
+    __tablename__ = "my_table"
+    id = Column(Integer, primary_key=True)
+    # ...
+```
+
+## Migration Workflow
+
+```bash
+# 1. Modify model in src/tb_utils/models/
+# 2. Generate
+venv/bin/alembic revision --autogenerate -m "add my_table"
+# 3. Review the generated file in alembic/versions/ — always review before applying
+# 4. Apply
+venv/bin/alembic upgrade head
+# 5. Re-install in all affected services
+```
+
+## Session Lifecycle (non-FastAPI)
+
+```python
+session = get_session_factory()()
+try:
+    session.commit()
+except Exception:
+    session.rollback()
+    raise
+finally:
+    session.close()
+```
+
+## Hard Rules
+
+- All services import models from here — never define models locally in a service
+- After every model change → generate + review + apply an Alembic migration
+- Redis keys → add builders to `redis/keys.py` — never hardcode in services
+- Telegram → `notifications/telegram.py` is the only alert path
+
+## Git
+
+Separate sub-repo. Commit locally → push → `ssh algoserver "cd /home/abhi-trade/nx-trade/libs/tb-shared-lib && git pull"`.
