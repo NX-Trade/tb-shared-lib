@@ -35,3 +35,11 @@ def get_watchlist_key() -> str:
 
 def get_macro_indicator_key(symbol: str) -> str:
     return f"market_data:macro:{symbol}"
+
+
+def sentiment_rolling(symbol: str) -> str:
+    return f"sentiment:rolling:{symbol}"
+
+
+def get_sentiment_rolling_key(symbol: str) -> str:
+    return f"sentiment:rolling:{symbol}"

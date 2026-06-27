@@ -2,11 +2,13 @@
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     Date,
     DateTime,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -59,6 +61,23 @@ class News(Base):
     symbols = Column(String(200))  # comma-separated
     published_at = Column(DateTime(timezone=True), index=True)
     fetched_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    # Article full-text fetching
+    full_text = Column(Text)
+    full_text_status = Column(String(20))  # ok | paywall | short | fetch_error | timeout
+    full_text_fetched_at = Column(DateTime(timezone=True))
+
+    # LLM sentiment scoring
+    sentiment_direction = Column(SmallInteger)  # -1, 0, 1
+    sentiment_magnitude = Column(String(10))  # low/medium/high
+    sentiment_horizon = Column(String(10))  # intraday/short/medium
+    sentiment_is_material = Column(Boolean)
+    sentiment_confidence = Column(Numeric(4, 3))  # 0.000–1.000
+    sentiment_score = Column(Numeric(6, 4))  # -1.0000 to +1.0000
+    sentiment_reasoning = Column(Text)
+    sentiment_scored_at = Column(DateTime(timezone=True))
+    sentiment_model = Column(String(50))  # e.g. "qwen2.5:7b"
+    sentiment_input = Column(String(10))  # "full_text" | "summary"
 
 
 class MarketBreadth(Base, PostgresUpsertMixin):
