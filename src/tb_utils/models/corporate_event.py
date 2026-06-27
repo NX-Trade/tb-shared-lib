@@ -1,6 +1,17 @@
 """Corporate Event and Trading Holiday Models."""
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.sql import func
 
@@ -96,4 +107,34 @@ class CorporateAnnouncement(Base, PostgresUpsertMixin):
             f"<CorporateAnnouncement(symbol={self.symbol}, "
             f"seq_id={self.seq_id}, "
             f"date={self.announcement_date})>"
+        )
+
+
+class CorporateSentiment(Base):
+    """LLM Sentiment scores for corporate announcements."""
+
+    __tablename__ = "corporate_sentiment"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    announcement_id = Column(
+        Integer,
+        ForeignKey("corporate_announcement.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol = Column(String(20), nullable=False, index=True)
+    sentiment_direction = Column(SmallInteger)  # -1, 0, 1
+    sentiment_magnitude = Column(String(10))  # low/medium/high
+    sentiment_horizon = Column(String(10))  # intraday/short/medium
+    sentiment_is_material = Column(Boolean)
+    sentiment_confidence = Column(Numeric(4, 3))  # 0.000-1.000
+    sentiment_score = Column(Numeric(6, 4))  # -1.0000 to +1.0000
+    sentiment_reasoning = Column(Text)
+    sentiment_model = Column(String(50))  # e.g. "qwen2.5:7b"
+    scored_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), index=True)
+
+    def __repr__(self):
+        return (
+            f"<CorporateSentiment(symbol={self.symbol}, "
+            f"announcement_id={self.announcement_id}, "
+            f"score={self.sentiment_score})>"
         )
