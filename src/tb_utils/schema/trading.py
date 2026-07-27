@@ -27,7 +27,6 @@ class TradingSignalCreate(BaseSchema):
     metadata_: Optional[dict[str, Any]] = Field(
         default=None,
         serialization_alias="metadata",
-        validation_alias=AliasChoices("metadata_", "metadata"),
     )
 
 
