@@ -17,6 +17,12 @@ class OrderSide(StrEnum):
 class OrderType(StrEnum):
     LIMIT = "LMT"
     MARKET = "MKT"
+    STOP = "STP"
+
+
+class TimeInForce(StrEnum):
+    DAY = "DAY"
+    GTC = "GTC"
 
 
 class OrderStatus(StrEnum):
@@ -35,6 +41,8 @@ class OrderRequest:
     order_type: OrderType
     quantity: int
     limit_price: float | None = None  # required for LIMIT orders
+    stop_price: float | None = None  # required for STOP orders
+    time_in_force: TimeInForce = TimeInForce.DAY
     strategy_id: str = ""
 
 

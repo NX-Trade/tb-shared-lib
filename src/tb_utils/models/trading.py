@@ -31,10 +31,10 @@ class TradingSignal(Base):
     instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=True)
     strategy_name = Column(String(100), nullable=False)
     # Derivatives classification — NULL for plain equity signals
-    instrument_type = Column(String(10), nullable=True)   # EQUITY, FUT, CE, PE
-    strategy_type = Column(String(40), nullable=True)     # LONG_BUILDUP, PCR_REVERSAL, …
+    instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
+    strategy_type = Column(String(40), nullable=True)  # LONG_BUILDUP, PCR_REVERSAL, …
     strike_price = Column(Numeric(14, 2), nullable=True)  # options only
-    expiry_date = Column(Date, nullable=True)             # futures / options
+    expiry_date = Column(Date, nullable=True)  # futures / options
 
     action = Column(
         ENUM("BUY", "SELL", "EXIT", name="signal_action", create_type=False),
@@ -161,6 +161,7 @@ class Trade(Base):
 
     entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
     exit_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
+    stop_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
 
     side = Column(
         ENUM("BUY", "SELL", "HOLD", name="order_side", create_type=False),
@@ -175,7 +176,7 @@ class Trade(Base):
     stop_loss = Column(Numeric(10, 2))
     target = Column(Numeric(10, 2))
     realized_pnl = Column(Numeric(10, 2))
-    net_pnl = Column(Numeric(10, 2))          # realized_pnl minus commission (round-trip)
+    net_pnl = Column(Numeric(10, 2))  # realized_pnl minus commission (round-trip)
     commission = Column(Numeric(10, 2), default=0)
     slippage = Column(Numeric(10, 2), default=0)
 
@@ -184,11 +185,12 @@ class Trade(Base):
         default="OPEN",
         index=True,
     )
-    exit_reason = Column(String(20))           # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL"
+    exit_reason = Column(String(20))  # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL"
 
     broker = relationship("Broker", back_populates="trades")
     entry_order = relationship("TradingOrder", foreign_keys=[entry_order_id])
     exit_order = relationship("TradingOrder", foreign_keys=[exit_order_id])
+    stop_order = relationship("TradingOrder", foreign_keys=[stop_order_id])
 
 
 class Recommendation(Base, PostgresUpsertMixin):

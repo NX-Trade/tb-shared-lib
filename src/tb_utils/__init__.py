@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.10.1"
+__version__ = "1.10.2"
 
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
@@ -47,26 +47,40 @@ from .models import (
 )
 from .request_maker import CircuitBreakerError, RequestMaker
 from .schema import (
+    BlockDealResponse,
     BrokerHealthLogResponse,
     BrokerResponse,
+    BulkDealResponse,
     CandleResponse,
     CorporateEventResponse,
     DeliveryDataResponse,
+    DerivativeMetricsResponse,
+    DerivativeTickResponse,
     ExternalApiRequestCreate,
     ExternalApiRequestResponse,
     FiiDiiResponse,
+    FnoBanListResponse,
     FnOBuildupResponse,
     FnOBuildupStock,
+    FnoExpiryResponse,
+    FundamentalDataResponse,
     FuturesOIResponse,
     GenericResponseSchema,
     HistoricalEquityDataResponse,
     HistoricalIndexDataResponse,
+    IndexConstituentResponse,
     IndiaVIXResponse,
+    InstrumentCreate,
     InstrumentResponse,
+    InstrumentUpdate,
     MacroIndicatorResponse,
+    MarketBreadthLiveResponse,
     MarketBreadthResponse,
+    NewsCreate,
     NewsResponse,
+    NewsUpdate,
     Nifty500SmaBreadthResponse,
+    NseIndexResponse,
     OptionChainAnalysisResponse,
     OptionChainMetrics,
     OptionChainResponse,
@@ -76,9 +90,11 @@ from .schema import (
     RecommendationCreate,
     RecommendationResponse,
     RegimeLogResponse,
+    SpotPriceResponse,
     StrikeDataPoint,
     SystemLogResponse,
     SystemMetricResponse,
+    TaskLogSchema,
     TradeResponse,
     TradingHolidayResponse,
     TradingOrderCreate,
