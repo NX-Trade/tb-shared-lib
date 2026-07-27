@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from .base import BaseSchema
 
@@ -100,6 +100,7 @@ class TradeResponse(BaseSchema):
     broker_id: int
     entry_order_id: Optional[int] = None
     exit_order_id: Optional[int] = None
+    stop_order_id: Optional[int] = None
     side: str
     quantity: int
     entry_price: float
