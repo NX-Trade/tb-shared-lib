@@ -29,11 +29,12 @@ from .market_data import (
     News,
     ParticipantOI,
 )
-from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, NseIndex
+from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, NseIndex, Nifty500AsOfDate
 from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import Position, Recommendation, Trade, TradingOrder, TradingSignal
 
 __all__ = [
+    "Nifty500AsOfDate",
     "Base",
     "PostgresUpsertMixin",
     "Broker",
