@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from .base import BaseSchema
 
@@ -12,8 +12,8 @@ from .base import BaseSchema
 class TradingSignalCreate(BaseSchema):
     instrument_id: Optional[int] = None
     strategy_name: str
-    instrument_type: Optional[str] = None   # EQUITY, FUT, CE, PE
-    strategy_type: Optional[str] = None     # LONG_BUILDUP, PCR_REVERSAL, …
+    instrument_type: Optional[str] = None  # EQUITY, FUT, CE, PE
+    strategy_type: Optional[str] = None  # LONG_BUILDUP, PCR_REVERSAL, …
     strike_price: Optional[float] = None
     expiry_date: Optional[date] = None
     action: str
@@ -24,7 +24,11 @@ class TradingSignalCreate(BaseSchema):
     confidence: float = Field(..., ge=0, le=1)
     reason: Optional[str] = None
     indicators: Optional[dict[str, Any]] = None
-    metadata_: Optional[dict[str, Any]] = Field(default=None, alias="metadata")
+    metadata_: Optional[dict[str, Any]] = Field(
+        default=None,
+        serialization_alias="metadata",
+        validation_alias=AliasChoices("metadata_", "metadata"),
+    )
 
 
 class TradingSignalResponse(TradingSignalCreate):
