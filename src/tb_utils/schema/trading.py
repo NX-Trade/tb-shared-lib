@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 
 from .base import BaseSchema
 
@@ -28,6 +28,19 @@ class TradingSignalCreate(BaseSchema):
         default=None,
         serialization_alias="metadata",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_orm(cls, data: Any) -> Any:
+        if hasattr(data, "__table__"):
+            d = {}
+            for col in data.__table__.columns.keys():
+                if col == "metadata":
+                    d["metadata_"] = getattr(data, "metadata_", None) or {}
+                else:
+                    d[col] = getattr(data, col, None)
+            return d
+        return data
 
 
 class TradingSignalResponse(TradingSignalCreate):
