@@ -16,6 +16,14 @@ from tb_utils.broker.base import (
     PortfolioPosition,
     TimeInForce,
 )
+from tb_utils.broker.execution_db import (
+    _insert_order,
+    _update_order,
+    _upsert_position,
+    insert_order,
+    update_order,
+    upsert_position,
+)
 
 __all__ = [
     "BrokerAdapter",
@@ -26,4 +34,11 @@ __all__ = [
     "OrderType",
     "PortfolioPosition",
     "TimeInForce",
+    "insert_order",
+    "update_order",
+    "upsert_position",
+    "_insert_order",
+    "_update_order",
+    "_upsert_position",
 ]
+
