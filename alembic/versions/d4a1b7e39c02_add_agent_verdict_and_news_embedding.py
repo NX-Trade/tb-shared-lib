@@ -74,7 +74,7 @@ def upgrade() -> None:
         sa.Column(
             'news_id',
             sa.Integer(),
-            sa.ForeignKey('news.id', ondelete='SET NULL'),
+            sa.ForeignKey('news.news_id', ondelete='SET NULL'),
             nullable=True,
         ),
         sa.Column('source', sa.String(length=50), nullable=False),

@@ -43,9 +43,9 @@ class AgentVerdict(Base):
     trade_date = Column(DateTime(timezone=True), nullable=False, index=True)
 
     # ── Agent identification ───────────────────────────────────────────────
-    agent_name = Column(String(50), nullable=False)   # e.g. "signal_auditor"
+    agent_name = Column(String(50), nullable=False)  # e.g. "signal_auditor"
     model_name = Column(String(100), nullable=False)  # e.g. "qwen3:8b"
-    node = Column(String(50), nullable=False)         # e.g. "optiplex", "macbook"
+    node = Column(String(50), nullable=False)  # e.g. "optiplex", "macbook"
 
     # ── Decision ───────────────────────────────────────────────────────────
     approved = Column(Boolean, nullable=False)
@@ -53,8 +53,8 @@ class AgentVerdict(Base):
     reasoning = Column(Text)
 
     # ── Context (for audit / replay) ──────────────────────────────────────
-    input_context = Column(JSONB, default={})   # serialized input sent to agent
-    output_json = Column(JSONB, default={})     # raw structured output from agent
+    input_context = Column(JSONB, default={})  # serialized input sent to agent
+    output_json = Column(JSONB, default={})  # raw structured output from agent
 
     # ── Observability ─────────────────────────────────────────────────────
     latency_ms = Column(Integer)  # inference time in milliseconds
@@ -94,11 +94,11 @@ class NewsEmbedding(Base):
     )
     news_id = Column(
         Integer,
-        ForeignKey("news.id", ondelete="SET NULL"),
+        ForeignKey("news.news_id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    source = Column(String(50), nullable=False)   # "bse_filing", "moneycontrol", etc.
+    source = Column(String(50), nullable=False)  # "bse_filing", "moneycontrol", etc.
     symbol = Column(String(20), nullable=False, index=True)
     chunk_text = Column(Text, nullable=False)
 

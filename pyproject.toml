@@ -38,9 +38,6 @@ dependencies = [
     "breeze-connect>=1.0.0",
 ]
 
-[project.optional-dependencies.agents]
-pgvector = ["pgvector>=0.3.0"]
-
 [project.urls]
 "Homepage" = "https://github.com/letspython3x/tb_utils"
 "Bug Tracker" = "https://github.com/letspython3x/tb_utils/issues"
@@ -48,6 +45,7 @@ pgvector = ["pgvector>=0.3.0"]
 "Source Code" = "https://github.com/letspython3x/tb_utils"
 
 [project.optional-dependencies]
+agents = ["pgvector>=0.3.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
