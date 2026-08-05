@@ -1,5 +1,10 @@
 """Pydantic API Validation Schemas (tb-utils)."""
 
+from .agent import (
+    AgentClusterNodeStatus,
+    AgentClusterStatusResponse,
+    AgentVerdictResponse,
+)
 from .base import BaseSchema, GenericResponseSchema
 from .broker import (
     BrokerHealthLogResponse,
@@ -73,6 +78,9 @@ from .trading import (
 __all__ = [
     "BaseSchema",
     "GenericResponseSchema",
+    "AgentVerdictResponse",
+    "AgentClusterNodeStatus",
+    "AgentClusterStatusResponse",
     "BrokerResponse",
     "BrokerHealthLogResponse",
     "ExternalApiRequestCreate",
