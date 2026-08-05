@@ -36,6 +36,7 @@ dependencies = [
     "redis>=6.0.0",
     "ib-async>=2.0.0",
     "breeze-connect>=1.0.0",
+    "pgvector>=0.3.0",
 ]
 
 [project.urls]
@@ -45,7 +46,6 @@ dependencies = [
 "Source Code" = "https://github.com/letspython3x/tb_utils"
 
 [project.optional-dependencies]
-agents = ["pgvector>=0.3.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",

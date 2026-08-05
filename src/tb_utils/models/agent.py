@@ -6,6 +6,7 @@ embeddings for RAG-powered news retrieval.
 See ``docs/AGENTIC_AI_WORKFLOW_ARCHITECTURE.md`` for full architecture.
 """
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     Column,
@@ -102,12 +103,10 @@ class NewsEmbedding(Base):
     symbol = Column(String(20), nullable=False, index=True)
     chunk_text = Column(Text, nullable=False)
 
-    # ── Vector column ─────────────────────────────────────────────────────
-    # The pgvector ``Vector`` type is registered via the Alembic migration.
-    # We store the column spec here as a raw string type so that the model
-    # file does not force a hard dependency on pgvector at import time.
-    # The actual column type is ``vector(768)`` in PostgreSQL.
-    # embedding = Column(Vector(768))  # — set via migration, not ORM
+    # 768-dim embedding from nomic-embed-text. Column already exists in the DB
+    # (added via raw SQL in the Alembic migration, alongside the HNSW index) —
+    # this just gives the ORM a typed view of it.
+    embedding = Column(Vector(768))
 
     published_at = Column(DateTime(timezone=True))
     created_at = Column(
