@@ -217,6 +217,17 @@ class SyncMarketStore:
         self.client.setex(get_watchlist_key(), expiry_seconds, json.dumps(payload))
         logger.info("Stored watchlist with %d entries.", len(entries))
 
+    def get_watchlist_focus(self) -> list[dict]:
+        """Retrieve the daily focus watchlist entries stored by ``store_watchlist``."""
+        data = self.client.get(get_watchlist_key())
+        if not data:
+            return []
+        try:
+            return json.loads(data).get("entries", [])
+        except Exception as e:
+            logger.error("Error reading watchlist focus: %s", e)
+            return []
+
     def get_regime_state(self) -> dict | None:
         """Retrieve the current regime state."""
         data = self.client.get(get_regime_current_key())
