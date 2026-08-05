@@ -1,5 +1,6 @@
 """SQLAlchemy Object Relational Models (tb-utils)."""
 
+from .agent import AgentVerdict, NewsEmbedding
 from .base import Base, PostgresUpsertMixin
 from .broker import Broker, BrokerHealthLog, ExternalApiRequest
 from .corporate_event import (
@@ -34,6 +35,8 @@ from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import Position, Recommendation, Trade, TradingOrder, TradingSignal
 
 __all__ = [
+    "AgentVerdict",
+    "NewsEmbedding",
     "Nifty500AsOfDate",
     "Base",
     "PostgresUpsertMixin",
