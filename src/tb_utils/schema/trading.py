@@ -46,6 +46,9 @@ class TradingSignalCreate(BaseSchema):
                     d["metadata_"] = getattr(data, "metadata_", None) or {}
                 else:
                     d[col] = getattr(data, col, None)
+            indicators = getattr(data, "indicators", {}) or {}
+            if isinstance(indicators, dict) and "symbol" in indicators and "symbol" not in d:
+                d["symbol"] = indicators["symbol"]
             return d
         return data
 
@@ -54,6 +57,7 @@ class TradingSignalResponse(TradingSignalCreate):
     signal_id: int
     is_executed: bool
     created_at: datetime
+    symbol: Optional[str] = None
 
 
 class TradingOrderCreate(BaseSchema):
