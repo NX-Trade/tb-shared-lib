@@ -47,3 +47,7 @@ def get_sentiment_rolling_key(symbol: str) -> str:
 
 def get_trading_holidays_key(year: int) -> str:
     return f"market_data:trading_holidays:{year}"
+
+
+def get_instruments_master_key() -> str:
+    return "market_data:instruments:master"
