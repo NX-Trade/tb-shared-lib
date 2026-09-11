@@ -1,241 +1,97 @@
 # tb-utils — Trading Bot Shared Library
 
-A shared Python library for the NX-Trade. Provides SQLAlchemy ORM models, Pydantic schemas, PostgreSQL session management, and a circuit-breaker HTTP client for external APIs (NSE, BSE, MoneyControl).
+A shared Python library for NX-Trade. Provides SQLAlchemy ORM models, Pydantic schemas, PostgreSQL session management, Redis market data stores, and a circuit-breaker HTTP client for external financial APIs.
 
 ---
 
-## Tech Stack
+## 🏛 Architecture Decisions & Conventions
 
-| Concern       | Old (`v0.x`)          | New (`v1.0.0`)                   |
-| ------------- | --------------------- | -------------------------------- |
-| Web Framework | Flask, Flask-RESTful  | FastAPI                          |
-| Database      | MongoDB, MongoEngine  | PostgreSQL + TimescaleDB         |
-| ORM           | MongoEngine Documents | SQLAlchemy `DeclarativeBase`     |
-| Validation    | Marshmallow           | Pydantic v2                      |
-| Migrations    | None                  | Alembic                          |
-| External HTTP | Bare `requests`       | `RequestMaker` (circuit breaker) |
+- **ADR 001 — Single Migration Path**: All SQLAlchemy models live exclusively in `libs/tb-shared-lib/src/tb_utils/models/`. Never define SQLAlchemy models inside service directories (`tb-backend`, `tb-collector`, `tb-signal-bot`, `tb-execution`). After any model change, generate an Alembic migration from `tb-shared-lib`.
+- **ADR 005 — Golden Record Retention**: Records at `timestamp = 15:30:00` in `option_chain` and `derivative_tick` are never deleted.
+- **Singular Table Names**: All database tables in `nx_trade_db` use **singular** names (`trading_signal`, `trading_order`, `position`, `instrument`, `delivery_data`, `bulk_deals`, `block_deals`).
 
 ---
 
-## Installation
+## 🗄 Core Database Models & Singular Tables
 
-```bash
-pip install tb-utils
+| Table Name | Model Class | Key Columns & Notes |
+|---|---|---|
+| `trading_signal` | `TradingSignal` | `signal_id`, `instrument_id`, `strategy_name`, `strategy_type`, `action` (`BUY`/`SELL`/`EXIT`), `timeframe`, `entry_price`, `confidence`, `indicators` (JSON), `metadata` (JSON) |
+| `trading_order` | `TradingOrder` | `order_id`, `instrument_id`, `broker_id`, `symbol`, `side` (`BUY`/`SELL`), `order_type`, `status` (`PENDING`/`FILLED`/`REJECTED`/`CANCELLED`), `product` (`D`/`I`) |
+| `position` | `Position` | `position_id`, `instrument_id`, `broker_id`, `net_quantity`, `average_price`, `unrealized_pnl`, `realized_pnl` |
+| `instrument` | `Instrument` | `symbol`, `isin`, `ib_symbol`, `company_name` (**not `name`**), `sector`, `is_fno`, `is_index`, `is_nifty_50`, `is_nifty_100`, `is_nifty_500` |
+| `delivery_data` | `DeliveryData` | `timestamp` (**date column is `timestamp`, not `trade_date`**), `symbol`, `traded_qty`, `deliverable_qty`, `delivery_pct` |
+| `bulk_deals` | `BulkDeals` | `date`, `symbol`, `client_name`, `buy_sell`, `quantity_traded`, `trade_price` |
+| `block_deals` | `BlockDeals` | `date`, `symbol`, `client_name`, `buy_sell`, `quantity_traded`, `trade_price` |
+| `historical_equity_data` | `HistoricalEquityData` | `instrument_id`, `symbol`, `timeframe` (`1 day`, `1 week`), `timestamp`, `open`, `high`, `low`, `close`, `adj_close`, `volume` |
+| `historical_index_data` | `HistoricalIndexData` | `instrument_id`, `symbol`, `timeframe`, `timestamp`, `open`, `high`, `low`, `close`, `volume` |
+| `option_chain` | `OptionChain` | `timestamp`, `instrument_id`, `strike_price`, `option_type`, `open_interest`, `iv`, `delta` |
+| `fiidii` | `FiiDii` | `trade_date`, `category` (`DII`/`FII`), `buy_value`, `sell_value`, `net_value` |
+| `participant_oi` | `ParticipantOi` | `trade_date`, `client_type` (`Client`/`DII`/`FII`/`Pro`), `future_index_long`, `future_index_short`, etc. |
+
+---
+
+## 📦 Package Structure
+
+```text
+src/tb_utils/
+├── __init__.py           # Public API surface
+├── config/
+│   ├── database.py       # DatabaseConfig (pydantic-settings)
+│   └── db_session.py     # SQLAlchemy engine + session factory
+├── models/               # SQLAlchemy Declarative Models (ADR 001)
+│   ├── base.py           # Base, PostgresUpsertMixin
+│   ├── broker.py         # Broker, ExternalApiRequest
+│   ├── deals.py          # BulkDeals, BlockDeals
+│   ├── delivery.py       # DeliveryData
+│   ├── historical_data.py# HistoricalEquityData, HistoricalIndexData, OptionChain
+│   ├── instrument.py     # Instrument, NseIndex, IndexConstituent
+│   ├── market_data.py    # FiiDii, ParticipantOi, News
+│   └── trading.py        # TradingSignal, TradingOrder, Position
+├── redis/                # Redis Market Data Hub Helpers
+│   ├── async_market_store.py  # AsyncMarketDataStore for FastAPI/asyncpg
+│   ├── sync_market_store.py   # SyncMarketDataStore for Celery/workers
+│   └── keys.py           # Standardized Redis key namespaces
+├── schema/               # Pydantic v2 validation and API schemas
+├── utils/
+│   ├── dtu.py            # Date/time and IST timezone utilities
+│   └── enums.py          # Domain enums (OrderSide, StrategyType, SecurityType)
+└── requests.py           # RequestMaker (circuit breaker + telemetry)
 ```
 
-Or in development mode from the monorepo root:
+---
 
+## 🚀 Installation & Usage
+
+### 1. Installation
+In development mode from monorepo:
 ```bash
 pip install -e libs/tb-shared-lib
 ```
 
-### Environment Variables
-
-| Variable            | Default      | Description       |
-| ------------------- | ------------ | ----------------- |
-| `DB_USER`     | `postgres`   | Database user     |
-| `DB_PASS` | `postgres`   | Database password |
-| `DB_HOST`     | `127.0.0.1`  | Database host     |
-| `DB_PORT`     | `5432`       | Database port     |
-| `DB_NAME`       | `nx_trade_db` | Database name     |
-
----
-
-## Package Structure
-
-```
-src/tb-utils/
-├── __init__.py           # Public API surface (version 1.0.0)
-├── apiwrapper/
-│   └── tbapi.py          # Internal TradingBot HTTP API client
-├── config/
-│   ├── apiconfig.py      # NSE, TbApi URL config
-│   ├── database.py       # DatabaseConfig (pydantic-settings)
-│   └── db_session.py     # SQLAlchemy engine + session factory
-├── errors.py             # Custom exceptions
-├── logger.py             # Logging helpers
-├── models/
-│   ├── base.py            # Base, PostgresUpsertMixin
-│   ├── broker.py          # Broker, BrokerHealthLog, ExternalApiRequest
-│   ├── corporate_event.py # CorporateEvent, TradingHoliday
-│   ├── historical_data.py # HistoricalEquityData, HistoricalIndexData, Candle, OptionChain
-│   ├── instrument.py      # Instrument
-│   ├── market_data.py     # FiiDii, News, MarketBreadth
-│   ├── system.py          # SystemMetric, SystemLog
-│   └── trading.py         # TradingSignal, TradingOrder, Position, Trade
-├── requests.py            # RequestMaker (circuit breaker + telemetry)
-├── schema/
-│   ├── base.py            # BaseSchema, GenericResponseSchema
-│   ├── broker.py          # BrokerResponse, ExternalApiRequestResponse, ...
-│   ├── corporate_event.py # CorporateEventResponse, TradingHolidayResponse
-│   ├── historical_data.py # CandleResponse, OptionChainResponse, ...
-│   ├── instrument.py      # InstrumentResponse
-│   ├── market_data.py     # FiiDiiResponse, MarketBreadthResponse, NewsResponse
-│   ├── system.py          # SystemMetricResponse, SystemLogResponse
-│   └── trading.py         # TradingSignalCreate/Response, TradingOrderCreate/Response, ...
-└── utils/
-    ├── common.py
-    ├── dtu.py             # Date/time utilities
-    └── enums.py           # Domain enumerations
-```
-
----
-
-## Usage
-
-### 1. Database Session
-
-Use `get_db()` as a FastAPI dependency or call `SessionLocal()` directly in scripts.
-
+### 2. Database Sessions
 ```python
 from tb_utils import get_db, SessionLocal
 
-# FastAPI
-from fastapi import Depends
-from sqlalchemy.orm import Session
+# Context manager pattern (standard in workers & scripts):
+with SessionLocal() as db:
+    instruments = db.query(Instrument).filter(Instrument.is_nifty_50 == 1).all()
 
-def my_route(db: Session = Depends(get_db)):
+# FastAPI dependency injection:
+def my_endpoint(db: Session = Depends(get_db)):
     ...
-
-# Script / Celery task
-db = SessionLocal()
-try:
-    ...
-finally:
-    db.close()
 ```
 
-### 2. SQLAlchemy Models
-
-All models use `Integer` auto-increment PKs and are mapped to the schema in `docs/DATABASE_SCHEMA.sql`.
-
+### 3. Redis Market Data Hub Store
 ```python
-from tb_utils import Instrument, Candle, TradingOrder
+from tb_utils.redis.sync_market_store import SyncMarketDataStore
 
-# Query
-from tb_utils import SessionLocal
-from sqlalchemy import select
+store = SyncMarketDataStore(redis_url="redis://localhost:6379/0")
 
-db = SessionLocal()
-instruments = db.execute(select(Instrument).where(Instrument.is_fno == 1)).scalars().all()
-```
-
-### 3. UPSERT (PostgreSQL native)
-
-Models that inherit `PostgresUpsertMixin` expose a class method `upsert_native()`:
-
-```python
-from tb_utils import FiiDii, get_db
-
-db = next(get_db())
-FiiDii.upsert_native(
-    session=db,
-    constraint_name="fiidii_trade_date_category_segment_key",
-    data=[{"trade_date": "2025-02-20", "category": "FII", "segment": "CASH", ...}],
-    update_fields=["buy_value", "sell_value", "net_value"],
-)
-db.commit()
-```
-
-### 4. Pydantic Schemas
-
-All response schemas are configured with `from_attributes=True` for direct ORM → schema conversion.
-
-```python
-from tb_utils import InstrumentResponse, CandleResponse
-from tb_utils import SessionLocal, Instrument
-from sqlalchemy import select
-
-db = SessionLocal()
-rows = db.execute(select(Instrument)).scalars().all()
-result = [InstrumentResponse.model_validate(r) for r in rows]
-```
-
-### 5. RequestMaker (Circuit Breaker)
-
-Use `RequestMaker` to call external APIs (NSE, BSE, MoneyControl). It automatically:
-
-- Opens the **circuit** after N consecutive failures.
-- Logs all request/response telemetry to the `external_api_request` table.
-- Resets automatically after a configurable timeout.
-
-```python
-from tb_utils import RequestMaker, CircuitBreakerError, get_db
-
-db = next(get_db())
-nse = RequestMaker(
-    api_provider_id=1,   # 1 = NSE
-    session=db,
-    max_failures=5,
-    reset_timeout_seconds=60
-)
-
-try:
-    response = nse.request(
-        method="GET",
-        url="https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050",
-        headers={"user-agent": "Mozilla/5.0"},
-        correlation_id="req-abc-123",
-    )
-    data = response.json()
-except CircuitBreakerError:
-    print("NSE circuit is open, skipping request.")
-```
-
-### 6. Internal API Client
-
-```python
-from tb_utils.apiwrapper.tbapi import TbApi
-
-api = TbApi()
-orders = api.get_orders()
-positions = api.get_positions()
+# Fetch cached 1m candles for technical indicators
+candles = store.get_candles(symbol="RELIANCE", security_type="EQUITY")
 ```
 
 ---
 
-## Versioning
-
-This library follows [Semantic Versioning](https://semver.org/):
-
-- `MAJOR` — breaking changes (like this `v0` → `v1` migration)
-- `MINOR` — new backwards-compatible features
-- `PATCH` — bug fixes
-
-The version is defined in `tb_utils/__init__.py`:
-
-```python
-__version__ = "1.0.0"
-```
-
----
-
-## Migration from v0.x
-
-| v0.x                                                | v1.0.0                                                          |
-| --------------------------------------------------- | --------------------------------------------------------------- |
-| `from tb_utils.config.database import MongoConfig`  | `from tb_utils import DatabaseConfig, db_settings`              |
-| `from tb_utils.models import NiftyEquityCollection` | `from tb_utils import Candle, HistoricalEquityData`             |
-| `from tb_utils.schema import OrdersSchema`          | `from tb_utils import TradingOrderCreate, TradingOrderResponse` |
-| `BaseCollection` / `MongoEngine.Document`           | `Base` / `SQLAlchemy DeclarativeBase`                           |
-| `flask-mongoengine` connection                      | `get_db()` / `SessionLocal()`                                   |
-
-> No shim or compatibility layer is provided. All old MongoDB collections must be re-mapped to the new PostgreSQL tables defined in `docs/DATABASE_SCHEMA.sql`.
-
----
-
-## Development
-
-```bash
-# Create and activate a virtual environment
-python3 -m venv venv && source venv/bin/activate
-
-# Install in editable mode with dev extras
-pip install -e ".[dev]"
-
-# Run pre-commit hooks
-pre-commit run --all-files
-
-# Run tests
-pytest
-```
+*NX-Trade Shared Library & Domain Foundation*
