@@ -97,6 +97,7 @@ class PositionResponse(BaseSchema):
     realized_pnl: float
     unrealized_pnl: float
     last_updated_at: datetime
+    symbol: Optional[str] = None
 
 
 class TradeResponse(BaseSchema):
