@@ -125,6 +125,9 @@ class TradingOrder(Base):
     # Broker rejection/error message (populated on REJECTED status)
     error_message = Column(Text, nullable=True)
 
+    # Product type: "D" = Delivery (CNC), "I" = Intraday (MIS)
+    product = Column(String(10), nullable=True, default="D")
+
     # Relationships
     broker = relationship("Broker", back_populates="orders")
     parent_order = relationship("TradingOrder", remote_side=[order_id])

@@ -74,6 +74,7 @@ class TradingOrderCreate(BaseSchema):
     trail_stop_price: Optional[float] = None
     status: str
     parent_order_id: Optional[int] = None
+    product: Optional[str] = "D"
 
 
 class TradingOrderResponse(TradingOrderCreate):

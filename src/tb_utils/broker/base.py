@@ -44,6 +44,7 @@ class OrderRequest:
     stop_price: float | None = None  # required for STOP orders
     time_in_force: TimeInForce = TimeInForce.DAY
     strategy_id: str = ""
+    product: str = "D"  # "D" = Delivery (CNC), "I" = Intraday (MIS)
 
 
 @dataclass
