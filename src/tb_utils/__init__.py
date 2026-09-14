@@ -17,6 +17,7 @@ from .broker.base import (
     PortfolioPosition,
     TimeInForce,
 )
+from .calendar import get_trading_holidays_for_year, is_trading_holiday
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
 from .greeks import calculate_greeks, calculate_iv_percentile, calculate_iv_rank
@@ -142,6 +143,9 @@ __all__ = [
     "OrderRequest",
     "OrderResult",
     "PortfolioPosition",
+    # Calendar / Trading Holidays
+    "get_trading_holidays_for_year",
+    "is_trading_holiday",
     # Config
     "DatabaseConfig",
     "db_settings",
