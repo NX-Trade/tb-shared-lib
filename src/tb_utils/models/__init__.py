@@ -34,7 +34,14 @@ from .market_data import (
 )
 from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, Nifty500AsOfDate, NseIndex
 from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
-from .trading import Position, Recommendation, Trade, TradingOrder, TradingSignal
+from .trading import (
+    Position,
+    Recommendation,
+    StrategyClusterEnum,
+    Trade,
+    TradingOrder,
+    TradingSignal,
+)
 
 __all__ = [
     "AgentVerdict",
@@ -77,6 +84,7 @@ __all__ = [
     "Trade",
     "TradingOrder",
     "TradingSignal",
+    "StrategyClusterEnum",
     "Recommendation",
     "NseIndex",
     "IndexConstituent",
