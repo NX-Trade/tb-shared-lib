@@ -7,6 +7,7 @@ engine never needs to know which broker it's talking to.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Optional
 
 
 class OrderSide(StrEnum):
@@ -63,6 +64,8 @@ class PortfolioPosition:
     avg_price: float
     market_value: float
     unrealized_pnl: float
+    realized_pnl: float = 0.0
+    exit_price: Optional[float] = None
 
 
 class BrokerAdapter(ABC):
