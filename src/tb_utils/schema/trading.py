@@ -76,6 +76,7 @@ class TradingOrderCreate(BaseSchema):
     status: str
     parent_order_id: Optional[int] = None
     product: Optional[str] = "D"
+    signal_id: Optional[int] = None
 
 
 class TradingOrderResponse(TradingOrderCreate):
