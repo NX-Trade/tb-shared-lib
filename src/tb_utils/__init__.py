@@ -117,7 +117,15 @@ from .schema import (
     TradingSignalResponse,
     WatchlistFocusResponse,
 )
-from .telegram import TelegramChannel, TelegramNotifier, send_telegram_alert
+from .telegram import (
+    TelegramChannel,
+    TelegramNotifier,
+    escape_html,
+    send_alpha_alert,
+    send_error_alert,
+    send_sync_alert,
+    send_telegram_alert,
+)
 from .utils.enums import (
     BrokerNameEnum,
     BrokerTypeEnum,
@@ -257,6 +265,10 @@ __all__ = [
     # Telegram Utilities
     "TelegramChannel",
     "TelegramNotifier",
+    "escape_html",
+    "send_alpha_alert",
+    "send_error_alert",
+    "send_sync_alert",
     "send_telegram_alert",
     # Option Greeks Utilities
     "calculate_greeks",

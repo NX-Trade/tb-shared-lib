@@ -155,3 +155,58 @@ def test_send_telegram_alert_convenience(mock_post):
             json={"chat_id": "chat_alpha", "text": "New STC Signal!", "parse_mode": "HTML"},
             timeout=10,
         )
+
+
+def test_escape_html():
+    """Verify HTML special characters are properly escaped."""
+    from tb_utils import escape_html
+
+    assert escape_html("x < 10 & y > 5") == "x &lt; 10 &amp; y &gt; 5"
+    assert escape_html(123) == "123"
+
+
+@patch("requests.post")
+def test_telegram_notifier_chunks_long_message(mock_post):
+    """Messages longer than 4000 chars are split into multiple requests."""
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.return_value = None
+    mock_post.return_value = mock_resp
+
+    long_message = "\n".join([f"Line {i}: " + "A" * 100 for i in range(50)])  # ~5000 chars
+    assert len(long_message) > 4000
+
+    notifier = TelegramNotifier(token="tok", chat_id="chat")
+    res = notifier.send(long_message)
+
+    assert res is True
+    assert mock_post.call_count >= 2
+
+
+@patch("requests.post")
+def test_send_channel_helpers(mock_post):
+    """Test send_alpha_alert, send_error_alert, send_sync_alert."""
+    from tb_utils import send_alpha_alert, send_error_alert, send_sync_alert
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.return_value = None
+    mock_post.return_value = mock_resp
+
+    env = {
+        "TG_TOKEN": "base_tok",
+        "TG_CHAT_ID": "base_chat",
+        "TG_ALPHA_TOKEN": "alpha_tok",
+        "TG_ERRORS_TOKEN": "errors_tok",
+        "TG_SYNC_TOKEN": "sync_tok",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert send_alpha_alert("Alpha trade fill") is True
+        assert send_sync_alert("Bhavcopy synced") is True
+        assert (
+            send_error_alert("Task crashed", error=ValueError("Bad <value>"), details="In pipeline")
+            is True
+        )
+
+    assert mock_post.call_count == 3
+    # Verify error alert auto-escaped bad characters
+    error_call = mock_post.call_args_list[2]
+    assert "&lt;value&gt;" in error_call[1]["json"]["text"]
