@@ -100,3 +100,50 @@ def is_trading_hours_open() -> bool:
     return bool(
         MarketTimingEnum.PRE_OPEN.value < datetime.now().time() < MarketTimingEnum.CLOSE.value
     )
+
+
+def get_instrument_map(session) -> dict[str, int]:
+    """Build a robust map of symbol/ib_symbol to instrument_id.
+
+    Handles uppercase/lowercase, trailing spaces, and ticker suffixes (.NS, -EQ).
+    """
+    from tb_utils.models import Instrument
+
+    inst_map: dict[str, int] = {}
+    instruments = session.query(
+        Instrument.instrument_id, Instrument.symbol, Instrument.ib_symbol
+    ).all()
+
+    for inst in instruments:
+        for val in (inst.symbol, inst.ib_symbol):
+            if not val:
+                continue
+            v_raw = str(val).strip()
+            v_upper = v_raw.upper()
+            v_lower = v_raw.lower()
+
+            for k in (v_raw, v_upper, v_lower):
+                inst_map[k] = inst.instrument_id
+                if "." in k:
+                    inst_map[k.split(".")[0]] = inst.instrument_id
+                if "-" in k:
+                    inst_map[k.split("-")[0]] = inst.instrument_id
+
+    return inst_map
+
+
+def resolve_instrument_id(symbol: str, inst_map: dict[str, int]) -> int | None:
+    """Resolve instrument_id for a given symbol string using the inst_map."""
+    if not symbol:
+        return None
+
+    sym_str = str(symbol)
+    if sym_str in inst_map:
+        return inst_map[sym_str]
+
+    sym_clean = sym_str.strip().upper()
+    if sym_clean in inst_map:
+        return inst_map[sym_clean]
+
+    base_sym = sym_clean.split(".")[0].split("-")[0]
+    return inst_map.get(base_sym)

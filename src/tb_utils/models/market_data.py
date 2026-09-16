@@ -323,3 +323,19 @@ class MacroIndicator(Base, PostgresUpsertMixin):
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
     __table_args__ = (UniqueConstraint("timestamp", "symbol", name="uq_macro_indicator_ts_sym"),)
+
+
+class IndexYield(Base, PostgresUpsertMixin):
+    """Daily index valuation & yield metrics (P/E, P/B, Dividend Yield %).
+
+    Sourced from NSE via nselib capital_market.index_yield_data.
+    """
+
+    __tablename__ = "index_yield"
+
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+    index_name = Column(String(50), primary_key=True)
+    pe = Column(Numeric(8, 2), nullable=False, default=0.0)
+    pb = Column(Numeric(8, 2), nullable=False, default=0.0)
+    div_yield = Column(Numeric(6, 3), nullable=False, default=0.0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())

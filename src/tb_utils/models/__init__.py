@@ -1,5 +1,6 @@
 """SQLAlchemy Object Relational Models (tb-utils)."""
 
+from .agent import AgentVerdict, NewsEmbedding
 from .base import Base, PostgresUpsertMixin
 from .broker import Broker, BrokerHealthLog, ExternalApiRequest
 from .corporate_event import (
@@ -9,6 +10,7 @@ from .corporate_event import (
     TradingHoliday,
 )
 from .fundamental_data import FundamentalData
+from .fundamental_universe import FundamentalUniverse
 from .historical_data import (
     Candle,
     HistoricalEquityData,
@@ -23,17 +25,28 @@ from .market_data import (
     DerivativeTick,
     FiiDii,
     FuturesOI,
+    IndexYield,
     IndiaVIX,
     MacroIndicator,
     MarketBreadth,
     News,
     ParticipantOI,
 )
-from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, NseIndex
+from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, Nifty500AsOfDate, NseIndex
 from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
-from .trading import Position, Recommendation, Trade, TradingOrder, TradingSignal
+from .trading import (
+    Position,
+    Recommendation,
+    StrategyClusterEnum,
+    Trade,
+    TradingOrder,
+    TradingSignal,
+)
 
 __all__ = [
+    "AgentVerdict",
+    "NewsEmbedding",
+    "Nifty500AsOfDate",
     "Base",
     "PostgresUpsertMixin",
     "Broker",
@@ -55,11 +68,13 @@ __all__ = [
     "BlockDeal",
     "BulkDeal",
     "IndiaVIX",
+    "IndexYield",
     "FuturesOI",
     "ParticipantOI",
     "DeliveryData",
     "MacroIndicator",
     "FundamentalData",
+    "FundamentalUniverse",
     "SystemLog",
     "SystemMetric",
     "TaskLog",
@@ -69,6 +84,7 @@ __all__ = [
     "Trade",
     "TradingOrder",
     "TradingSignal",
+    "StrategyClusterEnum",
     "Recommendation",
     "NseIndex",
     "IndexConstituent",

@@ -7,6 +7,7 @@ engine never needs to know which broker it's talking to.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Optional
 
 
 class OrderSide(StrEnum):
@@ -17,6 +18,12 @@ class OrderSide(StrEnum):
 class OrderType(StrEnum):
     LIMIT = "LMT"
     MARKET = "MKT"
+    STOP = "STP"
+
+
+class TimeInForce(StrEnum):
+    DAY = "DAY"
+    GTC = "GTC"
 
 
 class OrderStatus(StrEnum):
@@ -35,7 +42,10 @@ class OrderRequest:
     order_type: OrderType
     quantity: int
     limit_price: float | None = None  # required for LIMIT orders
+    stop_price: float | None = None  # required for STOP orders
+    time_in_force: TimeInForce = TimeInForce.DAY
     strategy_id: str = ""
+    product: str = "D"  # "D" = Delivery (CNC), "I" = Intraday (MIS)
 
 
 @dataclass
@@ -54,6 +64,8 @@ class PortfolioPosition:
     avg_price: float
     market_value: float
     unrealized_pnl: float
+    realized_pnl: float = 0.0
+    exit_price: Optional[float] = None
 
 
 class BrokerAdapter(ABC):

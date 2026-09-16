@@ -135,6 +135,10 @@ class OptionChainMetrics(BaseSchema):
     max_pain_strike: float
     max_ce_strike: float
     max_pe_strike: float
+    net_gamma_exposure: Optional[float] = None
+    atm_iv: Optional[float] = None
+    total_call_gex: Optional[float] = None
+    total_put_gex: Optional[float] = None
 
 
 class StrikeDataPoint(BaseSchema):

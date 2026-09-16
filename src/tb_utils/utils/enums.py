@@ -1,5 +1,5 @@
 import datetime
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, StrEnum
 
 
 class SourceEnum(IntEnum):
@@ -102,3 +102,25 @@ class TaskLogStatusEnum(IntEnum):
     SUCCESS = 2
     FAILED = 3
     RETRY = 4
+
+
+class BrokerNameEnum(StrEnum):
+    IB = "IB"
+    ICICI = "ICICI"
+    PAPER = "PAPER"
+    UPSTOX = "UPSTOX"
+
+
+class ExecutionModeEnum(StrEnum):
+    PAPER = "PAPER"
+    LIVE = "LIVE"
+
+
+class ExitReasonEnum(StrEnum):
+    STOP_LOSS = "STOP_LOSS"
+    TARGET = "TARGET"
+    TIME_BARRIER = "TIME_BARRIER"
+    TRAILING_STOP = "TRAILING_STOP"
+    BROKER_STOP_LOSS = "BROKER_STOP_LOSS"
+    LIQUIDATION = "LIQUIDATION"
+    MANUAL = "MANUAL"

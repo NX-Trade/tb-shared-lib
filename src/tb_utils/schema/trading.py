@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 
 from .base import BaseSchema
 
@@ -12,8 +12,9 @@ from .base import BaseSchema
 class TradingSignalCreate(BaseSchema):
     instrument_id: Optional[int] = None
     strategy_name: str
-    instrument_type: Optional[str] = None   # EQUITY, FUT, CE, PE
-    strategy_type: Optional[str] = None     # LONG_BUILDUP, PCR_REVERSAL, …
+    strategy_cluster: Optional[str] = None
+    instrument_type: Optional[str] = None  # EQUITY, FUT, CE, PE
+    strategy_type: Optional[str] = None  # LONG_BUILDUP, PCR_REVERSAL, …
     strike_price: Optional[float] = None
     expiry_date: Optional[date] = None
     action: str
@@ -24,13 +25,40 @@ class TradingSignalCreate(BaseSchema):
     confidence: float = Field(..., ge=0, le=1)
     reason: Optional[str] = None
     indicators: Optional[dict[str, Any]] = None
-    metadata_: Optional[dict[str, Any]] = Field(default=None, alias="metadata")
+    metadata_: Optional[dict[str, Any]] = Field(
+        default=None,
+        serialization_alias="metadata",
+    )
+
+    @field_validator("metadata_", mode="before")
+    @classmethod
+    def validate_metadata_(cls, v: Any) -> Any:
+        if type(v).__name__ == "MetaData":
+            return None
+        return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_orm(cls, data: Any) -> Any:
+        if hasattr(data, "__table__"):
+            d = {}
+            for col in data.__table__.columns.keys():
+                if col == "metadata":
+                    d["metadata_"] = getattr(data, "metadata_", None) or {}
+                else:
+                    d[col] = getattr(data, col, None)
+            indicators = getattr(data, "indicators", {}) or {}
+            if isinstance(indicators, dict) and "symbol" in indicators and "symbol" not in d:
+                d["symbol"] = indicators["symbol"]
+            return d
+        return data
 
 
 class TradingSignalResponse(TradingSignalCreate):
     signal_id: int
     is_executed: bool
     created_at: datetime
+    symbol: Optional[str] = None
 
 
 class TradingOrderCreate(BaseSchema):
@@ -47,6 +75,8 @@ class TradingOrderCreate(BaseSchema):
     trail_stop_price: Optional[float] = None
     status: str
     parent_order_id: Optional[int] = None
+    product: Optional[str] = "D"
+    signal_id: Optional[int] = None
 
 
 class TradingOrderResponse(TradingOrderCreate):
@@ -54,6 +84,7 @@ class TradingOrderResponse(TradingOrderCreate):
     filled_quantity: int
     avg_fill_price: Optional[float] = None
     commission: float
+    error_message: Optional[str] = None
     filled_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -68,6 +99,7 @@ class PositionResponse(BaseSchema):
     realized_pnl: float
     unrealized_pnl: float
     last_updated_at: datetime
+    symbol: Optional[str] = None
 
 
 class TradeResponse(BaseSchema):
@@ -77,6 +109,7 @@ class TradeResponse(BaseSchema):
     broker_id: int
     entry_order_id: Optional[int] = None
     exit_order_id: Optional[int] = None
+    stop_order_id: Optional[int] = None
     side: str
     quantity: int
     entry_price: float

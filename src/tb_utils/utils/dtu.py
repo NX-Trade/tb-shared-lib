@@ -91,7 +91,9 @@ def parse_dates_to_str_old(data, key, fmt=DateFormatEnum.TB_DATE.value):
 
 
 def is_market_hours(current_time: Optional[datetime] = None) -> bool:
-    """Check if the current time (or current_time) is within Indian market hours (9:00 AM - 4:00 PM IST, Mon-Fri)."""
+    """Check if the current time is within Indian market hours (9:00 AM - 4:00 PM IST, Mon-Fri)
+    AND not an NSE trading holiday.
+    """
     ist_tz = timezone(timedelta(hours=5, minutes=30))
 
     if current_time is None:
@@ -102,8 +104,10 @@ def is_market_hours(current_time: Optional[datetime] = None) -> bool:
         else:
             current_time = current_time.astimezone(ist_tz)
 
-    # Check weekday (Monday=0, ..., Friday=4, Saturday=5, Sunday=6)
-    if current_time.weekday() >= 5:
+    # Check trading holiday (includes weekends)
+    from tb_utils.calendar import is_trading_holiday
+
+    if is_trading_holiday(current_time.date()):
         return False
 
     market_start = current_time.replace(hour=9, minute=0, second=0, microsecond=0)

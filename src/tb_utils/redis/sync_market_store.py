@@ -14,8 +14,11 @@ from tb_utils.redis.keys import (
     get_instrument_spot_key,
     get_macro_indicator_key,
     get_market_breadth_key,
+    get_market_data_candle_key,
+    get_market_data_subscription_key,
     get_regime_channel,
     get_regime_current_key,
+    get_upstox_token_key,
     get_watchlist_key,
 )
 
@@ -147,6 +150,28 @@ class SyncMarketStore:
             payload["p_change"] = p_change
         self.client.setex(key, expiry_seconds, json.dumps(payload))
 
+    def get_instrument_spot(self, symbol: str) -> dict | None:
+        """Retrieve instrument spot data payload from Redis."""
+        key = get_instrument_spot_key(symbol)
+        data = self.client.get(key)
+        if not data:
+            return None
+        try:
+            return json.loads(data)
+        except Exception as e:
+            logger.error("Error reading spot data for %s: %s", symbol, e)
+            return None
+
+    def get_spot_price(self, symbol: str) -> float | None:
+        """Retrieve latest spot price for symbol from Redis."""
+        data = self.get_instrument_spot(symbol)
+        if data and "price" in data:
+            try:
+                return float(data["price"])
+            except (ValueError, TypeError):
+                return None
+        return None
+
     def store_fno_ban_list(self, banned_symbols: list[str], expiry_seconds: int = 86400) -> None:
         """Store the list of banned F&O symbols."""
         key = get_fno_ban_list_key()
@@ -217,6 +242,17 @@ class SyncMarketStore:
         self.client.setex(get_watchlist_key(), expiry_seconds, json.dumps(payload))
         logger.info("Stored watchlist with %d entries.", len(entries))
 
+    def get_watchlist_focus(self) -> list[dict]:
+        """Retrieve the daily focus watchlist entries stored by ``store_watchlist``."""
+        data = self.client.get(get_watchlist_key())
+        if not data:
+            return []
+        try:
+            return json.loads(data).get("entries", [])
+        except Exception as e:
+            logger.error("Error reading watchlist focus: %s", e)
+            return []
+
     def get_regime_state(self) -> dict | None:
         """Retrieve the current regime state."""
         data = self.client.get(get_regime_current_key())
@@ -239,3 +275,89 @@ class SyncMarketStore:
         except Exception as e:
             logger.error("Error reading F&O ban list: %s", e)
             return []
+
+    # ─── Market Data Hub: Subscriptions & 1m Candle Cache ─────────────────────
+
+    def subscribe_market_data(
+        self,
+        symbol: str,
+        security_type: str = "EQUITY",
+        isin: str = "",
+        instrument_key: str = "",
+        subscriber: str = "unknown",
+        expiry_seconds: int = 86400,
+    ) -> None:
+        """Register active demand subscription for market data in Redis."""
+        key = get_market_data_subscription_key(symbol, security_type)
+        if not instrument_key and isin:
+            instrument_key = f"NSE_EQ|{isin}" if security_type == "EQUITY" else f"NSE_FO|{isin}"
+        elif not instrument_key:
+            instrument_key = symbol
+
+        payload = {
+            "symbol": symbol,
+            "security_type": security_type,
+            "isin": isin,
+            "instrument_key": instrument_key,
+            "subscriber": subscriber,
+            "subscribed_at": datetime.now(IST).isoformat(),
+        }
+        self.client.setex(key, expiry_seconds, json.dumps(payload))
+        logger.debug("Subscribed to market data for %s (%s).", symbol, security_type)
+
+    def get_active_market_subscriptions(self) -> list[dict[str, Any]]:
+        """Scan and retrieve all active market data subscriptions from Redis."""
+        subscriptions = []
+        try:
+            for key in self.client.scan_iter("market_data:sub:*"):
+                data = self.client.get(key)
+                if data:
+                    subscriptions.append(json.loads(data))
+        except Exception as e:
+            logger.error("Error retrieving market data subscriptions: %s", e)
+        return subscriptions
+
+    def get_cached_market_candles(
+        self, symbol: str, security_type: str = "EQUITY"
+    ) -> dict[str, Any] | None:
+        """Retrieve cached 1-minute candle document for a symbol."""
+        key = get_market_data_candle_key(symbol, security_type)
+        data = self.client.get(key)
+        if not data:
+            return None
+        try:
+            return json.loads(data)
+        except Exception as e:
+            logger.error("Error reading cached market candles for %s: %s", symbol, e)
+            return None
+
+    def set_cached_market_candles(
+        self,
+        symbol: str,
+        security_type: str = "EQUITY",
+        candles: list[list[Any]] | None = None,
+        instrument_key: str = "",
+        expiry_seconds: int = 172800,
+    ) -> None:
+        """Cache 1-minute candle payload in Redis with 2-day TTL."""
+        key = get_market_data_candle_key(symbol, security_type)
+        payload = {
+            "symbol": symbol,
+            "security_type": security_type,
+            "instrument_key": instrument_key,
+            "updated_at": datetime.now(IST).isoformat(),
+            "candles": candles or [],
+        }
+        self.client.setex(key, expiry_seconds, json.dumps(payload))
+        logger.debug("Cached %d candles for %s (%s).", len(candles or []), symbol, security_type)
+
+    def get_upstox_access_token(self) -> str | None:
+        """Retrieve shared Upstox OAuth2 access token."""
+        raw = self.client.get(get_upstox_token_key())
+        if raw:
+            return raw if isinstance(raw, str) else raw.decode("utf-8")
+        return None
+
+    def set_upstox_access_token(self, token: str, expiry_seconds: int = 86400) -> None:
+        """Store shared Upstox OAuth2 access token."""
+        self.client.setex(get_upstox_token_key(), expiry_seconds, token)

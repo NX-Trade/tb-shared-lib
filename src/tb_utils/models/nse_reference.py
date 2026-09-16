@@ -73,6 +73,23 @@ class FnoExpiry(Base, PostgresUpsertMixin):
     )
 
 
+class Nifty500AsOfDate(Base, PostgresUpsertMixin):
+    """Historical Nifty 500 membership index for survivorship bias mitigation."""
+
+    __tablename__ = "nifty_500_as_of_date"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    as_of_date = Column(Date, nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)
+    is_member = Column(Integer, nullable=False, default=1)
+    weight = Column(String(50), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("as_of_date", "symbol", name="uix_nifty_500_as_of_date_sym"),
+    )
+
+
 class FnoBanList(Base, PostgresUpsertMixin):
     """F&O Ban List Daily Data."""
 
@@ -90,4 +107,3 @@ class FnoBanList(Base, PostgresUpsertMixin):
             name="uq_fno_ban_list_date_symbol",
         ),
     )
-
