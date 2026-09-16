@@ -210,3 +210,22 @@ def test_send_channel_helpers(mock_post):
     # Verify error alert auto-escaped bad characters
     error_call = mock_post.call_args_list[2]
     assert "&lt;value&gt;" in error_call[1]["json"]["text"]
+
+
+@patch("requests.post")
+def test_telegram_notifier_handles_http_error(mock_post):
+    """Verify HTTPError with response body is handled gracefully without crashing."""
+    import requests
+
+    mock_resp = MagicMock()
+    mock_resp.text = '{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}'
+    mock_resp.status_code = 400
+    mock_err = requests.exceptions.HTTPError(response=mock_resp)
+    mock_resp.raise_for_status.side_effect = mock_err
+    mock_post.return_value = mock_resp
+
+    notifier = TelegramNotifier(token="tok", chat_id="invalid_chat", channel=TelegramChannel.ALPHA)
+    success = notifier.send("Test message")
+
+    assert success is False
+    assert mock_post.called

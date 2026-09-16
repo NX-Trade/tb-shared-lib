@@ -122,9 +122,15 @@ class TelegramNotifier:
             try:
                 response = requests.post(self.api_url, json=payload, timeout=10)
                 response.raise_for_status()
-            except requests.exceptions.RequestException:
+            except requests.exceptions.RequestException as exc:
+                resp_text = ""
+                if hasattr(exc, "response") and exc.response is not None:
+                    resp_text = f" | Response: {exc.response.text}"
                 logger.exception(
-                    "Failed to send Telegram notification to channel %s.", self.channel
+                    "Failed to send Telegram notification to channel %s (chat_id=%s)%s",
+                    self.channel,
+                    self.chat_id,
+                    resp_text,
                 )
                 overall_success = False
 
