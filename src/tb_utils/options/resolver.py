@@ -52,6 +52,9 @@ TARGET_DELTA: float = 0.45  # slightly-OTM-of-ATM directional exposure
 DELTA_TOLERANCE_WARN: float = 0.15  # log if best available delta is this far from target
 PREMIUM_TARGET_RATIO: float = 1.30  # +30% premium take-profit (long-option economics)
 PREMIUM_STOP_RATIO: float = 0.80  # -20% premium stop-loss (cut theta-bleed losers fast)
+MIN_INTRADAY_OPTION_TARGET_MOVE_PCT: float = (
+    2.0  # minimum 2.0% Target 1 vs Entry move to offer intraday option trade
+)
 
 OPTION_CONTRACTS_QUERY = text("""
 WITH latest_snapshot AS (
@@ -211,6 +214,9 @@ def resolve_option_contract(
     action: str,
     target_delta: float = TARGET_DELTA,
     redis_store: Optional[SyncMarketStore] = None,
+    underlying_entry_price: Optional[float] = None,
+    underlying_target_price: Optional[float] = None,
+    min_target_move_pct: float = MIN_INTRADAY_OPTION_TARGET_MOVE_PCT,
 ) -> Optional[ResolvedContract]:
     """Resolve a concrete, liquid option contract for a directional (BUY/SELL) signal.
 
@@ -223,10 +229,35 @@ def resolve_option_contract(
             resolver does not support option-writing strategies.
         target_delta: Desired absolute delta of the selected contract.
         redis_store: Optional SyncMarketStore instance. If None, checks default store.
+        underlying_entry_price: Optional entry price of the underlying signal.
+        underlying_target_price: Optional target 1 price of the underlying signal.
+        min_target_move_pct: Minimum required percentage difference between Target 1
+            and Entry (default: 2.0%) to offer an intraday option trade.
 
     Returns:
-        ResolvedContract, or None if no liquid contract could be resolved.
+        ResolvedContract, or None if no liquid contract could be resolved or if
+        the underlying move is insufficient (< 2.0%) for options.
     """
+    # Guard: Require >= 2.0% expected move in underlying before offering option trade
+    if (
+        underlying_entry_price is not None
+        and underlying_target_price is not None
+        and underlying_entry_price > 0
+    ):
+        target_move_pct = (
+            abs(underlying_target_price - underlying_entry_price) / underlying_entry_price * 100.0
+        )
+        if target_move_pct < min_target_move_pct:
+            logger.info(
+                "[resolve_option_contract] Skipping %s for %s: Target move (%.2f%%) < %.1f%% "
+                "minimum threshold (option premium does not move sufficiently).",
+                action,
+                symbol,
+                target_move_pct,
+                min_target_move_pct,
+            )
+            return None
+
     option_type = "CE" if action.upper() == "BUY" else "PE"
     store = redis_store if redis_store is not None else get_default_redis_store()
     candidates: list[_OptionCandidate] = []

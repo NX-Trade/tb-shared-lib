@@ -3,6 +3,7 @@
 from tb_utils.options.resolver import (
     DELTA_TOLERANCE_WARN,
     MIN_DTE_DAYS,
+    MIN_INTRADAY_OPTION_TARGET_MOVE_PCT,
     MIN_OPEN_INTEREST,
     MIN_VOLUME,
     PREMIUM_STOP_RATIO,
@@ -16,6 +17,7 @@ from tb_utils.options.resolver import (
 __all__ = [
     "DELTA_TOLERANCE_WARN",
     "MIN_DTE_DAYS",
+    "MIN_INTRADAY_OPTION_TARGET_MOVE_PCT",
     "MIN_OPEN_INTEREST",
     "MIN_VOLUME",
     "PREMIUM_STOP_RATIO",
