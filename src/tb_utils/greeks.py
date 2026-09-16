@@ -27,34 +27,63 @@ except ImportError:
 DEFAULT_RISK_FREE_RATE = 0.0675
 
 
+class GreeksResult(dict):
+    """Dictionary subclass supporting attribute-style access for Greeks.
+
+    Supports both dictionary access (greeks['delta'], greeks.get('delta'))
+    and attribute access (greeks.delta, greeks.theta).
+    """
+
+    def __getattr__(self, name: str) -> Optional[float]:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(f"'GreeksResult' object has no attribute '{name}'") from None
+
+    def __setattr__(self, name: str, value: Optional[float]) -> None:
+        self[name] = value
+
+
 def calculate_greeks(
     spot: float,
     strike: float,
-    tte_days: float,
-    iv_pct: float,
+    tte_days: Optional[float] = None,
+    iv_pct: Optional[float] = None,
     rate: float = DEFAULT_RISK_FREE_RATE,
     option_type: str = "CE",
-) -> dict[str, Optional[float]]:
+    *,
+    dte_days: Optional[float] = None,
+    iv: Optional[float] = None,
+) -> GreeksResult:
     """Calculate Black-Scholes Option Greeks for a single contract.
 
     Args:
         spot: Current underlying spot price (must be > 0).
         strike: Option strike price (must be > 0).
         tte_days: Time to expiration in calendar days (must be > 0).
+            Can also be supplied via keyword alias `dte_days`.
         iv_pct: Implied volatility in percentage (e.g., 22.5 for 22.5%).
+            Can also be supplied via keyword alias `iv`.
         rate: Annual risk-free interest rate (default: 0.0675).
         option_type: "CE" for Call or "PE" for Put.
+        dte_days: Keyword alias for `tte_days`.
+        iv: Keyword alias for `iv_pct`.
 
     Returns:
-        dict: {
+        GreeksResult (dict): {
             "delta": float or None,
             "gamma": float or None,
             "theta": float or None,
             "vega": float or None,
         }
     """
-    if spot <= 0 or strike <= 0 or tte_days <= 0 or iv_pct <= 0:
-        return {"delta": None, "gamma": None, "theta": None, "vega": None}
+    if tte_days is None:
+        tte_days = dte_days
+    if iv_pct is None:
+        iv_pct = iv
+
+    if any(val is None or val <= 0 for val in (spot, strike, tte_days, iv_pct)):
+        return GreeksResult({"delta": None, "gamma": None, "theta": None, "vega": None})
 
     try:
         T = tte_days / 365.0
@@ -87,17 +116,19 @@ def calculate_greeks(
                 + rate * strike * math.exp(-rate * T) * norm.cdf(-d2)
             ) / 365.0
         else:
-            return {"delta": None, "gamma": None, "theta": None, "vega": None}
+            return GreeksResult({"delta": None, "gamma": None, "theta": None, "vega": None})
 
-        return {
-            "delta": round(float(delta), 6),
-            "gamma": round(float(gamma), 6),
-            "theta": round(float(theta), 6),
-            "vega": round(float(vega), 6),
-        }
+        return GreeksResult(
+            {
+                "delta": round(float(delta), 6),
+                "gamma": round(float(gamma), 6),
+                "theta": round(float(theta), 6),
+                "vega": round(float(vega), 6),
+            }
+        )
 
     except (ValueError, ZeroDivisionError, OverflowError):
-        return {"delta": None, "gamma": None, "theta": None, "vega": None}
+        return GreeksResult({"delta": None, "gamma": None, "theta": None, "vega": None})
 
 
 def calculate_iv_rank(current_iv: float, iv_series: Sequence[float]) -> Optional[float]:

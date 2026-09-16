@@ -1,4 +1,4 @@
-"""Unit tests for Black-Scholes Greeks calculator and IV utilities."""
+import pytest
 
 from tb_utils import calculate_greeks, calculate_iv_percentile, calculate_iv_rank
 
@@ -83,3 +83,30 @@ def test_iv_percentile():
     iv_history = [10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 24.0, 26.0, 28.0]
     p_50 = calculate_iv_percentile(19.0, iv_history)
     assert p_50 == 50.0
+
+
+def test_greeks_result_attribute_access_and_aliases():
+    """Test GreeksResult supports both dict access, attribute access, and dte_days/iv aliases."""
+    greeks = calculate_greeks(
+        spot=25000.0,
+        strike=25000.0,
+        dte_days=10.0,
+        iv=15.0,
+        rate=0.0675,
+        option_type="CE",
+    )
+
+    # Dictionary access
+    assert isinstance(greeks, dict)
+    assert greeks["delta"] is not None
+    assert greeks.get("delta") is not None
+
+    # Attribute access
+    assert greeks.delta == greeks["delta"]
+    assert greeks.gamma == greeks["gamma"]
+    assert greeks.theta == greeks["theta"]
+    assert greeks.vega == greeks["vega"]
+
+    # Invalid attribute raises AttributeError
+    with pytest.raises(AttributeError):
+        _ = greeks.non_existent_attr

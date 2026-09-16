@@ -20,6 +20,7 @@ Key Rules:
          Leg 1 (BUY): ATM Strike (Delta ~ -0.50)
          Leg 2 (SELL): OTM Strike at/near Target 1 (Delta ~ -0.25 to -0.30)
 """
+# pylint: disable=too-many-instance-attributes,too-many-locals,too-many-return-statements,too-many-branches,too-many-statements
 
 # stdlib
 import datetime as dt
@@ -98,7 +99,9 @@ def _build_leg_contract_label(
 ) -> str:
     """Format standard NSE derivative contract label, e.g. 'TATASTEEL 29OCT 185 CE'."""
     exp_str = expiry_date.strftime("%d%b").upper()
-    strike_str = f"{strike_price:.0f}" if strike_price.is_integer() else f"{strike_price:.1f}"
+    strike_str = (
+        f"{strike_price:.0f}" if float(strike_price).is_integer() else f"{strike_price:.1f}"
+    )
     return f"{symbol} {exp_str} {strike_str} {option_type}"
 
 
@@ -216,11 +219,15 @@ def build_vertical_spread_strategy(
             greeks = calculate_greeks(
                 spot=c.underlying_value,
                 strike=c.strike_price,
-                dte_days=max(c.dte, 1),
-                iv=c.implied_vol,
+                tte_days=max(float(c.dte), 1.0),
+                iv_pct=c.implied_vol,
                 option_type=c.option_type,
             )
-            enriched.append((c, greeks.delta, greeks.theta))
+            delta = greeks.get("delta")
+            theta = greeks.get("theta")
+            if delta is None or theta is None:
+                continue
+            enriched.append((c, float(delta), float(theta)))
         except Exception:
             logger.debug(
                 "[build_vertical_spread_strategy] Greeks calculation failed for %s strike %s.",
@@ -239,7 +246,8 @@ def build_vertical_spread_strategy(
 
     # Strike selection logic
     if is_bullish:
-        # Leg 1: ATM Call (strike <= entry_price, highest strike <= entry_price or closest delta to 0.50)
+        # Leg 1: ATM Call (strike <= entry_price, highest strike <= entry_price
+        # or closest delta to 0.50)
         atm_candidates = [x for x in enriched if x[0].strike_price <= entry_price]
         if not atm_candidates:
             atm_candidates = enriched
@@ -293,7 +301,8 @@ def build_vertical_spread_strategy(
     # Sanity checks: debit spread must have positive net debit < spread_width
     if net_premium <= 0 or net_premium >= spread_width:
         logger.info(
-            "[build_vertical_spread_strategy] Invalid spread pricing for %s: net_premium=%.2f, width=%.2f.",
+            "[build_vertical_spread_strategy] Invalid spread pricing for %s: "
+            "net_premium=%.2f, width=%.2f.",
             symbol,
             net_premium,
             spread_width,
