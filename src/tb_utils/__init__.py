@@ -117,7 +117,7 @@ from .schema import (
     TradingSignalResponse,
     WatchlistFocusResponse,
 )
-from .telegram import TelegramNotifier, send_telegram_alert
+from .telegram import TelegramChannel, TelegramNotifier, send_telegram_alert
 from .utils.enums import (
     BrokerNameEnum,
     BrokerTypeEnum,
@@ -255,6 +255,7 @@ __all__ = [
     "FNO_BUILDUP_QUERY",
     "categorize_fno_buildup",
     # Telegram Utilities
+    "TelegramChannel",
     "TelegramNotifier",
     "send_telegram_alert",
     # Option Greeks Utilities
