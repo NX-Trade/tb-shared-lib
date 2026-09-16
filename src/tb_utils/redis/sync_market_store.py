@@ -3,7 +3,7 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Optional
 
 from redis import Redis
 
@@ -16,6 +16,7 @@ from tb_utils.redis.keys import (
     get_market_breadth_key,
     get_market_data_candle_key,
     get_market_data_subscription_key,
+    get_option_chain_key,
     get_regime_channel,
     get_regime_current_key,
     get_upstox_token_key,
@@ -361,3 +362,32 @@ class SyncMarketStore:
     def set_upstox_access_token(self, token: str, expiry_seconds: int = 86400) -> None:
         """Store shared Upstox OAuth2 access token."""
         self.client.setex(get_upstox_token_key(), expiry_seconds, token)
+
+    def get_cached_option_chain(self, symbol: str) -> Optional[list[dict[str, Any]]]:
+        """Retrieve cached option chain records for a symbol."""
+        key = get_option_chain_key(symbol)
+        data = self.client.get(key)
+        if not data:
+            return None
+
+        try:
+            return json.loads(data)
+        except Exception:
+            logger.exception("Error reading cached option chain for %s", symbol)
+            return None
+
+    def set_cached_option_chain(
+        self,
+        symbol: str,
+        records: list[dict[str, Any]],
+        expiry_seconds: int = 21600,
+    ) -> None:
+        """Cache option chain records in Redis with a 6-hour (21,600s) default TTL."""
+        key = get_option_chain_key(symbol)
+        self.client.setex(key, expiry_seconds, json.dumps(records, default=str))
+        logger.debug(
+            "Cached %d option chain records for %s (TTL: %ds).",
+            len(records),
+            symbol,
+            expiry_seconds,
+        )

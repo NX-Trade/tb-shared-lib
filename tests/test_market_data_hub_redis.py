@@ -85,3 +85,33 @@ def test_upstox_access_token_storage():
     mock_redis.get.return_value = b"test_token_123"
     retrieved = store.get_upstox_access_token()
     assert retrieved == "test_token_123"
+
+
+def test_option_chain_cache_storage():
+    """Ensure option chain setter and getter interact with Redis correctly."""
+    mock_redis = MagicMock()
+    store = SyncMarketStore(mock_redis)
+
+    records = [
+        {
+            "symbol": "TATAMOTORS",
+            "strike_price": 980.0,
+            "option_type": "CE",
+            "ltp": 25.5,
+            "open_interest": 12000,
+            "volume": 3500,
+        }
+    ]
+
+    store.set_cached_option_chain("TATAMOTORS", records, expiry_seconds=21600)
+    mock_redis.setex.assert_called_once()
+    args = mock_redis.setex.call_args[0]
+    assert args[0] == "market_data:option_chain:TATAMOTORS"
+    assert args[1] == 21600
+    assert json.loads(args[2]) == records
+
+    mock_redis.get.return_value = json.dumps(records)
+    retrieved = store.get_cached_option_chain("TATAMOTORS")
+    assert retrieved is not None
+    assert len(retrieved) == 1
+    assert retrieved[0]["strike_price"] == 980.0
