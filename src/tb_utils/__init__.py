@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.2"
+__version__ = "1.16.3"
 
 from .broker.base import (
     BrokerAdapter,
@@ -58,6 +58,7 @@ from .models import (
     TradingSignal,
     WatchlistFocus,
 )
+from .options import ResolvedContract, resolve_option_contract
 from .request_maker import CircuitBreakerError, RequestMaker
 from .risk import ATR_STOP_MULTIPLIER, REGIME_RULES
 from .schema import (
@@ -274,4 +275,7 @@ __all__ = [
     "calculate_greeks",
     "calculate_iv_rank",
     "calculate_iv_percentile",
+    # Option Contract Resolution
+    "ResolvedContract",
+    "resolve_option_contract",
 ]
