@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 from tb_utils.redis.keys import (
     get_market_data_candle_key,
     get_market_data_subscription_key,
+    get_option_chain_key,
     get_upstox_token_key,
 )
 from tb_utils.redis.sync_market_store import SyncMarketStore
@@ -18,6 +19,7 @@ def test_market_data_keys():
     )
     assert get_market_data_candle_key("HINDALCO", "EQUITY") == "market_data:candle:EQUITY:HINDALCO"
     assert get_upstox_token_key() == "market:upstox:access_token"
+    assert get_option_chain_key("TATAMOTORS") == "market_data:option_chain:TATAMOTORS"
 
 
 def test_subscribe_market_data():

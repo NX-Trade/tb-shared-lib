@@ -66,3 +66,9 @@ def get_market_data_candle_key(symbol: str, security_type: str = "EQUITY") -> st
 def get_upstox_token_key() -> str:
     """Active Upstox OAuth2 access token in Redis."""
     return "market:upstox:access_token"
+
+
+def get_option_chain_key(symbol: str) -> str:
+    """Live option chain cache in Redis. TTL = 6 hours (21,600s)."""
+    return f"market_data:option_chain:{symbol.upper()}"
+
