@@ -66,6 +66,10 @@ from .system import (
     WatchlistFocusResponse,
 )
 from .trading import (
+    OptionStrategyCreate,
+    OptionStrategyLegCreate,
+    OptionStrategyLegResponse,
+    OptionStrategyResponse,
     PositionResponse,
     RecommendationCreate,
     RecommendationResponse,
@@ -141,4 +145,8 @@ __all__ = [
     "TradeResponse",
     "RecommendationCreate",
     "RecommendationResponse",
+    "OptionStrategyCreate",
+    "OptionStrategyResponse",
+    "OptionStrategyLegCreate",
+    "OptionStrategyLegResponse",
 ]

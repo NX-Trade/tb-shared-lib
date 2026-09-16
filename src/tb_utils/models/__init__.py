@@ -35,6 +35,8 @@ from .market_data import (
 from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, Nifty500AsOfDate, NseIndex
 from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import (
+    OptionStrategyLeg,
+    OptionStrategySignal,
     Position,
     Recommendation,
     StrategyClusterEnum,
@@ -80,6 +82,8 @@ __all__ = [
     "TaskLog",
     "RegimeLog",
     "WatchlistFocus",
+    "OptionStrategySignal",
+    "OptionStrategyLeg",
     "Position",
     "Trade",
     "TradingOrder",

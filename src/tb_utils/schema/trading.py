@@ -145,3 +145,61 @@ class RecommendationResponse(RecommendationCreate):
     id: UUID
     created_at: datetime
     updated_at: datetime
+
+
+class OptionStrategyLegCreate(BaseSchema):
+    execution_order: int
+    action: str  # BUY, SELL
+    option_type: str  # CE, PE
+    strike_price: float
+    symbol: str
+    entry_premium: float
+    target_premium: Optional[float] = None
+    stop_loss_premium: Optional[float] = None
+    delta: Optional[float] = None
+    theta: Optional[float] = None
+    iv: Optional[float] = None
+    open_interest: Optional[int] = None
+    volume: Optional[int] = None
+    is_hedge: bool = False
+
+
+class OptionStrategyLegResponse(OptionStrategyLegCreate):
+    id: int
+    strategy_signal_id: int
+    created_at: datetime
+
+
+class OptionStrategyCreate(BaseSchema):
+    signal_id: Optional[int] = None
+    strategy_type: str  # BULL_CALL_SPREAD, BEAR_PUT_SPREAD, etc.
+    spread_type: str  # DEBIT, CREDIT
+    underlying_symbol: str
+    expiry_date: date
+    dte: Optional[int] = None
+    lot_size: int = 1
+    net_premium: float
+    max_profit: Optional[float] = None
+    max_loss: Optional[float] = None
+    risk_reward_ratio: Optional[float] = None
+    breakeven_price: Optional[float] = None
+    underlying_entry_price: float
+    underlying_target_price: Optional[float] = None
+    underlying_stop_loss: Optional[float] = None
+    margin_required_approx: Optional[float] = None
+    status: str = "ACTIVE"
+    metadata_: Optional[dict[str, Any]] = Field(default=None, serialization_alias="metadata")
+    legs: list[OptionStrategyLegCreate] = []
+
+    @field_validator("metadata_", mode="before")
+    @classmethod
+    def validate_metadata_(cls, v: Any) -> Any:
+        if type(v).__name__ == "MetaData":
+            return None
+        return v
+
+
+class OptionStrategyResponse(OptionStrategyCreate):
+    id: int
+    created_at: datetime
+    legs: list[OptionStrategyLegResponse] = []

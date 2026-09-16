@@ -236,3 +236,78 @@ class Recommendation(Base, PostgresUpsertMixin):
     updated_at = Column(
         DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
     )
+
+
+class OptionStrategySignal(Base, PostgresUpsertMixin):
+    """Multi-leg option strategy generated for a directional signal (e.g. Bull Call Spread)."""
+
+    __tablename__ = "option_strategy_signal"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signal_id = Column(
+        Integer,
+        ForeignKey("trading_signal.signal_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    strategy_type = Column(String(32), nullable=False)  # BULL_CALL_SPREAD, BEAR_PUT_SPREAD, etc.
+    spread_type = Column(String(10), nullable=False)  # DEBIT, CREDIT
+    underlying_symbol = Column(String(20), nullable=False, index=True)
+    expiry_date = Column(Date, nullable=False)
+    dte = Column(Integer, nullable=True)
+    lot_size = Column(Integer, nullable=False, default=1)
+    net_premium = Column(Numeric(10, 2), nullable=False)
+    max_profit = Column(Numeric(10, 2), nullable=True)
+    max_loss = Column(Numeric(10, 2), nullable=True)
+    risk_reward_ratio = Column(Numeric(6, 2), nullable=True)
+    breakeven_price = Column(Numeric(12, 2), nullable=True)
+    underlying_entry_price = Column(Numeric(14, 4), nullable=False)
+    underlying_target_price = Column(Numeric(14, 4), nullable=True)
+    underlying_stop_loss = Column(Numeric(14, 4), nullable=True)
+    margin_required_approx = Column(Numeric(12, 2), nullable=True)
+    status = Column(
+        String(20), nullable=False, default="ACTIVE"
+    )  # ACTIVE, EXECUTED, EXPIRED, CLOSED
+    metadata_ = Column("metadata", JSON, default={})
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    legs = relationship(
+        "OptionStrategyLeg",
+        back_populates="strategy",
+        cascade="all, delete-orphan",
+        order_by="OptionStrategyLeg.execution_order",
+    )
+    signal = relationship("TradingSignal", foreign_keys=[signal_id])
+
+
+class OptionStrategyLeg(Base, PostgresUpsertMixin):
+    """Individual contract leg of a multi-leg option strategy with strict deployment sequencing."""
+
+    __tablename__ = "option_strategy_leg"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    strategy_signal_id = Column(
+        Integer,
+        ForeignKey("option_strategy_signal.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    execution_order = Column(Integer, nullable=False)  # 1 = BUY/Hedge first, 2 = SELL short second
+    action = Column(String(4), nullable=False)  # BUY, SELL
+    option_type = Column(String(2), nullable=False)  # CE, PE
+    strike_price = Column(Numeric(10, 2), nullable=False)
+    symbol = Column(String(60), nullable=False)  # e.g. ICICIBANK 29OCT 1360 CE
+    entry_premium = Column(Numeric(10, 2), nullable=False)
+    target_premium = Column(Numeric(10, 2), nullable=True)
+    stop_loss_premium = Column(Numeric(10, 2), nullable=True)
+    delta = Column(Numeric(6, 4), nullable=True)
+    theta = Column(Numeric(8, 4), nullable=True)
+    iv = Column(Numeric(6, 2), nullable=True)
+    open_interest = Column(Integer, nullable=True)
+    volume = Column(Integer, nullable=True)
+    is_hedge = Column(
+        Boolean, nullable=False, default=False
+    )  # True for Leg 1 BUY that unlocks margin
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+
+    strategy = relationship("OptionStrategySignal", back_populates="legs")

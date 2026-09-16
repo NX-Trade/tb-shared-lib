@@ -13,6 +13,11 @@ from tb_utils.options.resolver import (
     get_default_redis_store,
     resolve_option_contract,
 )
+from tb_utils.options.strategy_builder import (
+    BuiltOptionLeg,
+    BuiltOptionStrategy,
+    build_vertical_spread_strategy,
+)
 
 __all__ = [
     "DELTA_TOLERANCE_WARN",
@@ -26,4 +31,7 @@ __all__ = [
     "ResolvedContract",
     "get_default_redis_store",
     "resolve_option_contract",
+    "BuiltOptionLeg",
+    "BuiltOptionStrategy",
+    "build_vertical_spread_strategy",
 ]
