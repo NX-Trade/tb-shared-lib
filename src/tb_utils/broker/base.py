@@ -102,3 +102,37 @@ class BrokerAdapter(ABC):
     @abstractmethod
     def get_last_price(self, symbol: str) -> float | None:
         """Fetch the last traded price for a symbol. Returns None on failure."""
+
+    def place_gtt_order(
+        self,
+        request: OrderRequest,
+        target_price: Optional[float] = None,
+        stop_loss_price: Optional[float] = None,
+        trailing_gap: Optional[float] = None,
+    ) -> OrderResult:
+        """Place a native multi-leg GTT / bracket order if supported by the broker."""
+        raise NotImplementedError(f"{self.__class__.__name__} does not support native GTT orders.")
+
+    def modify_gtt_order(
+        self,
+        gtt_order_id: str,
+        rules: list[dict],
+        quantity: Optional[int] = None,
+        order_type: str = "MULTIPLE",
+    ) -> bool:
+        """Modify an active GTT order if supported by the broker."""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support modifying GTT orders."
+        )
+
+    def cancel_gtt_order(self, gtt_order_id: str) -> bool:
+        """Cancel an active GTT order if supported by the broker."""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support cancelling GTT orders."
+        )
+
+    def get_gtt_order_details(self, gtt_order_id: str) -> dict:
+        """Retrieve details of an active or triggered GTT order."""
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support fetching GTT order details."
+        )

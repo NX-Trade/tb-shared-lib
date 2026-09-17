@@ -72,3 +72,7 @@ def get_option_chain_key(symbol: str) -> str:
     """Live option chain cache in Redis. TTL = 6 hours (21,600s)."""
     return f"market_data:option_chain:{symbol.upper()}"
 
+
+def get_lot_size_key(symbol: str) -> str:
+    """Market lot size cache in Redis. TTL = 1 day (86,400s)."""
+    return f"market_data:lot_size:{symbol.upper()}"

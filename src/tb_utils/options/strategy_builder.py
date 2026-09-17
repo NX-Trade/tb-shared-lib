@@ -115,7 +115,9 @@ def _get_candidate_chain(
     store = redis_store or get_default_redis_store()
     if store is not None:
         try:
-            fetch_fn = getattr(store, "get_cached_option_chain", None) or getattr(store, "get_option_chain_records", None)
+            fetch_fn = getattr(store, "get_cached_option_chain", None) or getattr(
+                store, "get_option_chain_records", None
+            )
             records = fetch_fn(symbol) if fetch_fn else None
             if records:
                 candidates = _extract_candidates_from_redis(records, option_type)
@@ -168,6 +170,27 @@ def build_vertical_spread_strategy(
             target_price,
         )
         return None
+
+    # Resolve market lot size if defaulted to 1
+    if lot_size <= DEFAULT_LOT_SIZE:
+        if redis_store is not None:
+            cached_lot = redis_store.get_lot_size(symbol)
+            if cached_lot and cached_lot > 0:
+                lot_size = cached_lot
+
+        if lot_size <= DEFAULT_LOT_SIZE and db is not None:
+            from tb_utils.models import Instrument
+
+            db_lot = (
+                db.query(Instrument.lot_size).filter(Instrument.symbol == symbol.upper()).scalar()
+            )
+            if db_lot and db_lot > 0:
+                lot_size = db_lot
+                if redis_store is not None:
+                    redis_store.set_lot_size(symbol, lot_size)
+
+        if lot_size <= 0:
+            lot_size = DEFAULT_LOT_SIZE
 
     is_bullish = action.upper() == "BUY"
     option_type = "CE" if is_bullish else "PE"

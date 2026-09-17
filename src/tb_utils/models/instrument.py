@@ -22,6 +22,7 @@ class Instrument(Base, PostgresUpsertMixin):
     is_nifty_50 = Column(SmallInteger, default=0)
     is_nifty_100 = Column(SmallInteger, default=0)
     is_nifty_500 = Column(SmallInteger, default=0)
+    lot_size = Column(Integer, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

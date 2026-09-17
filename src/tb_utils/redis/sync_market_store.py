@@ -12,6 +12,7 @@ from tb_utils.redis.keys import (
     get_derived_metrics_key,
     get_fno_ban_list_key,
     get_instrument_spot_key,
+    get_lot_size_key,
     get_macro_indicator_key,
     get_market_breadth_key,
     get_market_data_candle_key,
@@ -391,3 +392,21 @@ class SyncMarketStore:
             symbol,
             expiry_seconds,
         )
+
+    def get_lot_size(self, symbol: str) -> Optional[int]:
+        """Retrieve cached market lot size for a symbol."""
+        try:
+            val = self.client.get(get_lot_size_key(symbol))
+            if val is not None:
+                return int(val)
+
+        except Exception:
+            logger.exception("Error reading cached lot size for %s", symbol)
+        return None
+
+    def set_lot_size(self, symbol: str, lot_size: int, expiry_seconds: int = 86400) -> None:
+        """Cache market lot size in Redis with a 24-hour default TTL."""
+        try:
+            self.client.setex(get_lot_size_key(symbol), expiry_seconds, int(lot_size))
+        except Exception:
+            logger.exception("Error caching lot size for %s", symbol)
