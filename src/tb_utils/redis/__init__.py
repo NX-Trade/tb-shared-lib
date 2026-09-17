@@ -10,6 +10,7 @@ from tb_utils.redis.keys import (
     get_option_chain_key,
     get_regime_channel,
     get_regime_current_key,
+    get_trading_halted_key,
     get_watchlist_key,
 )
 from tb_utils.redis.market_math import (
@@ -35,5 +36,6 @@ __all__ = [
     "AsyncMarketStore",
     "get_regime_current_key",
     "get_regime_channel",
+    "get_trading_halted_key",
     "get_watchlist_key",
 ]

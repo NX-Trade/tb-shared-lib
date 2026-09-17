@@ -33,7 +33,7 @@ from .market_data import (
     ParticipantOI,
 )
 from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, Nifty500AsOfDate, NseIndex
-from .system import RegimeLog, SystemLog, SystemMetric, TaskLog, WatchlistFocus
+from .system import RegimeLog, SystemCommand, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import (
     OptionStrategyLeg,
     OptionStrategySignal,
@@ -78,6 +78,7 @@ __all__ = [
     "MacroIndicator",
     "FundamentalData",
     "FundamentalUniverse",
+    "SystemCommand",
     "SystemLog",
     "SystemMetric",
     "TaskLog",

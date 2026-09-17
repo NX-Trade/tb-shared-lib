@@ -7,6 +7,33 @@ from sqlalchemy.sql import func
 from .base import Base, PostgresUpsertMixin
 
 
+class SystemCommand(Base):
+    """Durable operator commands consumed by tb-execution's 15-second beat.
+
+    Replaces the fire-and-forget Redis pub/sub pattern used by the panic
+    endpoint.  tb-execution queries for PENDING rows, sets status=PROCESSING
+    while working, and writes DONE or FAILED with an acknowledged_at timestamp
+    so the UI can poll for completion.
+
+    Lifecycle:  PENDING → PROCESSING → DONE | FAILED
+    """
+
+    __tablename__ = "system_command"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    # e.g. LIQUIDATE_ALL, CANCEL_ALL
+    command_type = Column(String(50), nullable=False, index=True)
+    # PENDING | PROCESSING | DONE | FAILED
+    status = Column(String(20), nullable=False, default="PENDING", index=True)
+    issued_by = Column(String(100), nullable=True)  # operator id / service name
+    broker = Column(String(50), nullable=True)  # e.g. UPSTOX, IB
+    reason = Column(Text, nullable=True)  # human-readable reason
+    payload = Column(JSON, default={})  # arbitrary JSON context
+    issued_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), index=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    result_message = Column(Text, nullable=True)  # fill in on DONE/FAILED
+
+
 class SystemMetric(Base):
     """System-level metrics for equity curve and drawdown tracking."""
 
