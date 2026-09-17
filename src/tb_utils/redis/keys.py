@@ -76,3 +76,18 @@ def get_option_chain_key(symbol: str) -> str:
 def get_lot_size_key(symbol: str) -> str:
     """Market lot size cache in Redis. TTL = 1 day (86,400s)."""
     return f"market_data:lot_size:{symbol.upper()}"
+
+
+def get_trading_halted_key() -> str:
+    """Flag set in Redis when live trading is halted/panic initiated."""
+    return "TRADING_HALTED"
+
+
+def get_paper_order_key(broker_order_id: str) -> str:
+    """Resting (unfilled) paper-broker order state. TTL = 7 days.
+
+    Written by tb-execution's PaperBrokerAdapter so LIMIT/STOP orders that are
+    not immediately marketable persist across worker restarts and are evaluated
+    against the live spot on every status poll instead of being fabricated.
+    """
+    return f"paper:order:{broker_order_id}"
