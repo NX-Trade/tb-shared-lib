@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.4"
+__version__ = "1.16.5"
 
 from .broker.base import (
     BrokerAdapter,
@@ -139,6 +139,8 @@ from .utils.enums import (
     BrokerTypeEnum,
     ExecutionModeEnum,
     ExitReasonEnum,
+    OrderIntentEnum,
+    SignalExecutionStatusEnum,
 )
 from .utils.fno_buildup import FNO_BUILDUP_QUERY, categorize_fno_buildup
 
@@ -150,6 +152,8 @@ __all__ = [
     "BrokerTypeEnum",
     "ExecutionModeEnum",
     "ExitReasonEnum",
+    "OrderIntentEnum",
+    "SignalExecutionStatusEnum",
     "OrderSide",
     "OrderStatus",
     "OrderType",

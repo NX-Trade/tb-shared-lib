@@ -125,3 +125,31 @@ class ExitReasonEnum(StrEnum):
     LIQUIDATION = "LIQUIDATION"
     MANUAL = "MANUAL"
     AUTO_SQUARE_OFF = "AUTO_SQUARE_OFF"
+
+
+class SignalExecutionStatusEnum(StrEnum):
+    """Why a trading_signal left the pending execution queue.
+
+    Written by tb-execution to ``trading_signal.metadata["execution"]["status"]``
+    and read by tb-backend / tb-ui, so a risk rejection or a skip is never
+    mistaken for a real fill.
+    """
+
+    EXECUTED = "EXECUTED"
+    EXECUTION_FAILED = "EXECUTION_FAILED"
+    SKIPPED_DUPLICATE = "SKIPPED_DUPLICATE"
+    SKIPPED_NO_SYMBOL = "SKIPPED_NO_SYMBOL"
+    SKIPPED_NO_PRICE = "SKIPPED_NO_PRICE"
+    REJECTED_CORRELATION = "REJECTED_CORRELATION"
+    REJECTED_SIZING = "REJECTED_SIZING"
+    ERROR = "ERROR"
+
+
+class OrderIntentEnum(StrEnum):
+    """What a trading_order does to the position book."""
+
+    ENTRY = "ENTRY"
+    EXIT = "EXIT"
+    STOP = "STOP"
+    TARGET = "TARGET"
+    SPREAD_LEG = "SPREAD_LEG"
