@@ -79,13 +79,26 @@ class TelegramNotifier:
 
         # Resolve Chat ID: explicit -> TG_{CHANNEL}_CHAT_ID -> TG_CHAT_ID
         if chat_id:
-            self.chat_id = chat_id
+            resolved_id = str(chat_id).strip()
         elif self.channel != TelegramChannel.DEFAULT.value and os.getenv(
             f"TG_{self.channel}_CHAT_ID"
         ):
-            self.chat_id = os.getenv(f"TG_{self.channel}_CHAT_ID")
+            resolved_id = os.getenv(f"TG_{self.channel}_CHAT_ID", "").strip()
         else:
-            self.chat_id = os.getenv("TG_CHAT_ID")
+            resolved_id = os.getenv("TG_CHAT_ID", "").strip()
+
+        # Sanitize Telegram channel/supergroup chat IDs:
+        # Telegram channel/supergroup IDs must start with '-100' (e.g. -1001740265319).
+        # If configured without the leading '-' sign, automatically prefix it.
+        if (
+            resolved_id
+            and resolved_id.isdigit()
+            and resolved_id.startswith("100")
+            and len(resolved_id) >= 12
+        ):
+            resolved_id = f"-{resolved_id}"
+
+        self.chat_id = resolved_id
 
         self.api_url = (
             f"https://api.telegram.org/bot{self.token}/sendMessage" if self.token else None
