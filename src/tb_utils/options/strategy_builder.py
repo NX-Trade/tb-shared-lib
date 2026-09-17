@@ -115,7 +115,8 @@ def _get_candidate_chain(
     store = redis_store or get_default_redis_store()
     if store is not None:
         try:
-            records = store.get_option_chain_records(symbol)
+            fetch_fn = getattr(store, "get_cached_option_chain", None) or getattr(store, "get_option_chain_records", None)
+            records = fetch_fn(symbol) if fetch_fn else None
             if records:
                 candidates = _extract_candidates_from_redis(records, option_type)
                 if candidates:
