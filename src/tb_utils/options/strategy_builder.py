@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 # internal
 from tb_utils.greeks import calculate_greeks
+from tb_utils.models.instrument import Instrument
 from tb_utils.options.resolver import (
     OPTION_CONTRACTS_QUERY,
     _extract_candidates_from_db,
@@ -118,7 +119,9 @@ def _get_candidate_chain(
             fetch_fn = getattr(store, "get_cached_option_chain", None) or getattr(
                 store, "get_option_chain_records", None
             )
-            records = fetch_fn(symbol) if fetch_fn else None
+            records = None
+            if callable(fetch_fn):
+                records = fetch_fn(symbol)
             if records:
                 candidates = _extract_candidates_from_redis(records, option_type)
                 if candidates:
@@ -179,13 +182,11 @@ def build_vertical_spread_strategy(
                 lot_size = cached_lot
 
         if lot_size <= DEFAULT_LOT_SIZE and db is not None:
-            from tb_utils.models import Instrument
-
             db_lot = (
                 db.query(Instrument.lot_size).filter(Instrument.symbol == symbol.upper()).scalar()
             )
-            if db_lot and db_lot > 0:
-                lot_size = db_lot
+            if isinstance(db_lot, (int, float)) and db_lot > 0:
+                lot_size = int(db_lot)
                 if redis_store is not None:
                     redis_store.set_lot_size(symbol, lot_size)
 

@@ -29,6 +29,12 @@ class TradingSignalCreate(BaseSchema):
         default=None,
         serialization_alias="metadata",
     )
+    status: Optional[str] = "ACTIVE"
+    exit_price: Optional[float] = None
+    outcome_time: Optional[datetime] = None
+    pnl_pct: Optional[float] = None
+    duration_minutes: Optional[int] = None
+    duration_days: Optional[int] = None
 
     @field_validator("metadata_", mode="before")
     @classmethod
