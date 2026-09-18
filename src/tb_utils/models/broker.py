@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     SmallInteger,
     String,
     Text,
@@ -74,6 +75,19 @@ class ExternalApiRequest(Base):
     http_status_code = Column(Integer, index=True)
     response_headers = Column(Text)
     response_payload = Column(Text)
+
+    # ── Compressed payloads ────────────────────────────────────────────────
+    # Bodies are stored compressed (see tb_utils.http.telemetry): a broker order
+    # book or an option chain runs to hundreds of KB as text, and the plain
+    # columns above were truncated to 2,000 chars, which threw away exactly the
+    # part needed to debug a rejection. ``response_preview`` keeps the first few
+    # hundred characters uncompressed so LIKE/grep queries still work without
+    # decompressing. ``compression`` names the codec so it can change without a
+    # migration.
+    request_payload_z = Column(LargeBinary)
+    response_payload_z = Column(LargeBinary)
+    response_preview = Column(String(500))
+    compression = Column(String(8))
     request_timestamp = Column(
         DateTime(timezone=True), nullable=False, default=func.now(), index=True
     )
