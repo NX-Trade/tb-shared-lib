@@ -160,6 +160,15 @@ class TradingOrder(Base):
     # Product type: "D" = Delivery (CNC), "I" = Intraday (MIS)
     product = Column(String(10), nullable=True, default="D")
 
+    # How many times this order has been handed to a broker. Incremented and
+    # committed *before* the call, so an order can never be submitted twice even
+    # if the process dies before the result is recorded. Order placement is not
+    # idempotent: a duplicate is real money, whereas an un-sent order is
+    # recoverable, so the queue must claim a row before acting on it rather than
+    # after. (A missing broker_order_id previously left the row re-queueable and
+    # the same GTT was sent every 30 seconds.)
+    submit_attempts = Column(Integer, nullable=False, server_default="0", default=0)
+
     # Relationships
     broker = relationship("Broker", back_populates="orders")
     parent_order = relationship("TradingOrder", remote_side=[order_id])
