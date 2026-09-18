@@ -1,3 +1,4 @@
+# pylint: disable=R0902  # CallRecord is a flat data carrier, not behaviour
 """Persist compressed, redacted request/response telemetry.
 
 ``RequestMaker`` wrote ``str(headers)`` (leaking live bearer tokens) and

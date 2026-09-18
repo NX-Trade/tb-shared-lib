@@ -1,3 +1,6 @@
+# pylint: disable=redefined-outer-name  # pytest fixtures are injected by name
+# pylint: disable=protected-access       # patching the client's requests.Session is the seam
+# pylint: disable=unused-argument        # fixtures requested purely for their side effects
 """Centralised outbound HTTP: limiting, breaking, redaction, telemetry, errors.
 
 Replaces the guarantees RequestMaker only claimed to provide:
@@ -38,6 +41,11 @@ from tb_utils.http.providers import (
     limits_for,
 )
 from tb_utils.http.redaction import REDACTED, redact_headers, redact_payload, redact_text
+from tb_utils.http.retention import (
+    DATA_RETENTION_DAYS,
+    ORDER_AUDIT_RETENTION_DAYS,
+    purge_expired_telemetry,
+)
 from tb_utils.http.telemetry import CallRecord, build_row, compress_text, decompress
 
 CLIENT = "tb_utils.http.client"
@@ -70,7 +78,7 @@ class FakeRedis:
         self.hashes.pop(key, None)
         return 1
 
-    def expire(self, key, ttl):
+    def expire(self, _key, _ttl):
         return True
 
     # counter ops (limiter)
@@ -478,16 +486,12 @@ def test_classify_status_covers_the_families():
 
 
 def test_retention_windows_match_the_owner_decision():
-    from tb_utils.http.retention import DATA_RETENTION_DAYS, ORDER_AUDIT_RETENTION_DAYS
-
     assert DATA_RETENTION_DAYS == 30
     assert ORDER_AUDIT_RETENTION_DAYS == 365 * 5
 
 
 def test_purge_uses_two_windows_and_excludes_orders_from_the_short_one():
     """Order rows must survive the 30-day sweep — they are a 5-year audit trail."""
-    from tb_utils.http.retention import purge_expired_telemetry
-
     db = MagicMock()
     db.execute.return_value.rowcount = 7
 
