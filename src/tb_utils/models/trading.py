@@ -166,6 +166,68 @@ class TradingOrder(Base):
     parent_order = relationship("TradingOrder", remote_side=[order_id])
 
 
+class ExecutionPlan(Base):
+    """Durable state machine for a single entry execution (limit → TWAP fallback).
+
+    tb-execution used to run this inline: place a limit order, ``time.sleep(180)``
+    inside the Celery task, then hand the remainder to a daemon thread that nobody
+    joined. A worker restart lost the TWAP, and the sleep blocked the beat while
+    holding row locks. The plan is now a row advanced one step per 15-second tick
+    by ``tasks.execution_planner``, so it survives restarts and never blocks.
+
+    Lifecycle: LIMIT_ACTIVE → (COMPLETED | TWAP_ACTIVE → COMPLETED/UNFILLED)
+               with FAILED / CANCELLED as terminal error states.
+
+    Sizing outputs (stop, target, fees) are denormalised onto the row because the
+    tick that finally books the fill runs minutes after the sizer decided them.
+    """
+
+    __tablename__ = "execution_plan"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(String(20), nullable=False)
+    instrument_id = Column(
+        Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
+    )
+    broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False)
+    signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True)
+    strategy_id = Column(String(50), nullable=False)
+
+    side = Column(
+        ENUM("BUY", "SELL", "HOLD", name="order_side", create_type=False),
+        nullable=False,
+    )
+    total_quantity = Column(Integer, nullable=False)
+    limit_price = Column(Numeric(14, 4), nullable=False)
+
+    # Sizer outputs needed when the fill is finally booked
+    stop_loss_price = Column(Numeric(14, 4), nullable=False, server_default="0")
+    target_price = Column(Numeric(14, 4), nullable=False, server_default="0")
+    fee_round_trip = Column(Numeric(10, 2), nullable=False, server_default="0")
+
+    state = Column(String(20), nullable=False, default="LIMIT_ACTIVE", index=True)
+    # Limit stage
+    entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"), nullable=True)
+    limit_deadline_at = Column(DateTime(timezone=True), nullable=False)
+    # TWAP stage
+    twap_slices_total = Column(Integer, nullable=False, server_default="0")
+    twap_slices_done = Column(Integer, nullable=False, server_default="0")
+    twap_remaining_qty = Column(Integer, nullable=False, server_default="0")
+    next_slice_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Running fill totals (limit partial + TWAP slices)
+    filled_quantity = Column(Integer, nullable=False, server_default="0")
+    avg_fill_price = Column(Numeric(14, 4), nullable=False, server_default="0")
+    broker_order_ids = Column(JSON, default=list)
+
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), index=True)
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class Position(Base, PostgresUpsertMixin):
     """Current Positions table."""
 

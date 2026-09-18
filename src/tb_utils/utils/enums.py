@@ -145,6 +145,28 @@ class SignalExecutionStatusEnum(StrEnum):
     ERROR = "ERROR"
 
 
+class ExecutionPlanStateEnum(StrEnum):
+    """Lifecycle of an ``execution_plan`` row (tb-execution's entry state machine).
+
+    ``LIMIT_ACTIVE`` → resting limit order being monitored until its deadline.
+    ``TWAP_ACTIVE``  → limit cancelled, market slices being submitted one per tick.
+    Terminal states are ``COMPLETED`` (fully or partially filled and booked),
+    ``UNFILLED`` (nothing filled), ``FAILED`` and ``CANCELLED``.
+    """
+
+    LIMIT_ACTIVE = "LIMIT_ACTIVE"
+    TWAP_ACTIVE = "TWAP_ACTIVE"
+    COMPLETED = "COMPLETED"
+    UNFILLED = "UNFILLED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+    @classmethod
+    def active(cls) -> tuple["ExecutionPlanStateEnum", ...]:
+        """States the planner task still needs to advance."""
+        return (cls.LIMIT_ACTIVE, cls.TWAP_ACTIVE)
+
+
 class OrderIntentEnum(StrEnum):
     """What a trading_order does to the position book."""
 
