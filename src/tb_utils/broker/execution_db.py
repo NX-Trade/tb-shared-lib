@@ -121,9 +121,3 @@ def upsert_position(
             )
         )
         session.commit()
-
-
-# Aliases for backward compatibility with existing underscores
-_insert_order = insert_order
-_update_order = update_order
-_upsert_position = upsert_position
