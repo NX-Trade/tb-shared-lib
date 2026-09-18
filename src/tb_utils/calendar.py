@@ -19,7 +19,6 @@ task runs anyway — a spurious fetch attempt is safer than a silent data gap.
 # stdlib
 import json
 import logging
-import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -29,6 +28,7 @@ import redis
 # internal
 from tb_utils.config.db_session import get_session_factory
 from tb_utils.models.corporate_event import TradingHoliday
+from tb_utils.redis.client import get_redis
 from tb_utils.redis.keys import get_trading_holidays_key
 
 logger = logging.getLogger(__name__)
@@ -40,27 +40,17 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 # if beat fires at slightly different wall-clock times.
 _CACHE_TTL_SECONDS = 25 * 3600
 
-# Cached client instance
-_redis_client: Optional[redis.Redis] = None
-
 
 def _get_redis_client() -> Optional[redis.Redis]:
-    """Return a Redis client, creating one lazily from environment variables."""
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
+    """Return the shared Redis client, or None when one cannot be built.
 
-    redis_url = (
-        os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or "redis://localhost:6379/0"
-    )
+    Delegates to ``tb_utils.redis.get_redis``, which caches a client per
+    configuration — so this module no longer keeps its own pool or its own
+    module-level cache. The None-on-failure contract is kept because callers here
+    treat Redis purely as an optional cache.
+    """
     try:
-        _redis_client = redis.Redis.from_url(
-            redis_url,
-            decode_responses=True,
-            socket_timeout=2.0,
-            socket_connect_timeout=2.0,
-        )
-        return _redis_client
+        return get_redis()
     except Exception:
         logger.exception("Failed to connect to Redis for calendar lookup.")
         return None

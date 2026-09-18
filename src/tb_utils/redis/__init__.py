@@ -1,6 +1,11 @@
 """Market Data Redis Utilities."""
 
 from tb_utils.redis.async_market_store import AsyncMarketStore
+from tb_utils.redis.client import (
+    get_redis,
+    reset_redis_clients,
+    resolve_redis_url,
+)
 from tb_utils.redis.keys import (
     get_contracts_key,
     get_derived_metrics_key,
@@ -34,6 +39,9 @@ __all__ = [
     "calculate_support_resistance",
     "SyncMarketStore",
     "AsyncMarketStore",
+    "get_redis",
+    "reset_redis_clients",
+    "resolve_redis_url",
     "get_regime_current_key",
     "get_regime_channel",
     "get_trading_halted_key",
