@@ -9,14 +9,19 @@ Adheres to:
     - SARGable timestamp range queries ([start_utc, end_utc)) replacing non-SARGable func.date().
 """
 
+import logging
 from datetime import UTC, date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import and_
 
+from tb_utils.calendar import is_trading_holiday
+
+logger = logging.getLogger(__name__)
+
 # Canonical timezones
 IST = timezone(timedelta(hours=5, minutes=30), name="IST")
-UTC = UTC
+UTC = UTC  # pylint: disable=self-assigning-variable  # re-export for callers
 
 _DATE_FORMATS = (
     "%Y-%m-%d",
@@ -96,6 +101,47 @@ def to_utc(dt: datetime | date | str) -> datetime:
         return ist_dt.astimezone(UTC)
 
     raise TypeError(f"Expected datetime, date, or str, got {type(dt).__name__}")
+
+
+# ── NSE session boundaries ─────────────────────────────────────────────────
+# The continuous equity session. These are the times the *exchange* accepts
+# orders — distinct from the wider windows used for monitoring and
+# reconciliation, which legitimately keep running after the close.
+NSE_SESSION_OPEN = time(9, 15)
+NSE_SESSION_CLOSE = time(15, 30)
+
+
+def is_exchange_open(now: Optional[datetime] = None) -> bool:
+    """True only while NSE is accepting orders (09:15–15:30 IST, trading days).
+
+    Use this to gate anything that *submits* to a broker. ``is_market_hours()``
+    spans 09:00–16:00 and the Celery ``MarketHoursSchedule`` runs to 15:45, both
+    deliberately wider so that monitoring, reconciliation and equity snapshots
+    keep working around the edges of the session. Submitting an order in those
+    margins, though, is guaranteed rejection: on 2026-09-18 entries went out at
+    15:31, 15:32 and 15:34 and the broker refused every one.
+
+    Args:
+        now: Override the clock. A naive value is interpreted as UTC, matching
+            :func:`to_ist` — pass an aware datetime to avoid ambiguity.
+
+    Returns:
+        False on weekends, NSE holidays, and outside the continuous session.
+    """
+    moment = now_ist() if now is None else to_ist(now)
+
+    # Checked independently of the calendar: a misconfigured or empty holiday
+    # table must never be able to open a Saturday.
+    if moment.weekday() >= 5:
+        return False
+
+    try:
+        if is_trading_holiday(moment.date()):
+            return False
+    except Exception:  # pragma: no cover - the calendar is an optional cache
+        logger.exception("Holiday lookup failed; relying on the weekday check alone")
+
+    return NSE_SESSION_OPEN <= moment.time() <= NSE_SESSION_CLOSE
 
 
 def trading_day(ts: Optional[datetime | date | str] = None) -> date:

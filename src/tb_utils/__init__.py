@@ -135,7 +135,10 @@ from .telegram import (
 )
 from .time import (
     IST,
+    NSE_SESSION_CLOSE,
+    NSE_SESSION_OPEN,
     UTC,
+    is_exchange_open,
     ist_day_bounds_utc,
     now_ist,
     sql_ist_day_range,
@@ -180,6 +183,9 @@ __all__ = [
     "is_trading_holiday",
     # Time Utilities
     "IST",
+    "NSE_SESSION_CLOSE",
+    "NSE_SESSION_OPEN",
+    "is_exchange_open",
     "UTC",
     "ist_day_bounds_utc",
     "now_ist",
