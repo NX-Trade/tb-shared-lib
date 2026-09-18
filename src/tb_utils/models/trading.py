@@ -1,4 +1,3 @@
-import uuid
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -14,7 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import ENUM, UUID
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -292,36 +291,6 @@ class Trade(Base):
     entry_order = relationship("TradingOrder", foreign_keys=[entry_order_id])
     exit_order = relationship("TradingOrder", foreign_keys=[exit_order_id])
     stop_order = relationship("TradingOrder", foreign_keys=[stop_order_id])
-
-
-class Recommendation(Base, PostgresUpsertMixin):
-    """Manual/external trade recommendations ingested from web UI or external sources."""
-
-    __tablename__ = "recommendation"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = Column(DateTime(timezone=True), nullable=False, default=func.now(), index=True)
-    source = Column(String(100), nullable=False)  # Moneycontrol, ICICI iClick2Gain, etc.
-    asset_class = Column(String(20), nullable=False)  # EQUITY, FUTURES, OPTIONS
-    symbol = Column(String(50), nullable=False, index=True)
-    option_type = Column(String(10))  # CALL, PUT
-    strike_price = Column(Numeric(18, 4))
-    expiry_date = Column(Date)
-    direction = Column(String(10), nullable=False)  # BUY, SELL
-    entry_price_range = Column(String(100), nullable=False)
-    target_price = Column(Numeric(18, 4), nullable=False)
-    stop_loss = Column(Numeric(18, 4), nullable=False)
-    duration = Column(Integer)  # Target duration in days
-    status = Column(
-        String(20), nullable=False, default="PENDING"
-    )  # PENDING, ACTIVE, FILLED, EXPIRED, CANCELLED
-    execution_signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"))
-    entry_price = Column(Numeric(18, 4))
-    exit_price = Column(Numeric(18, 4))
-    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), nullable=False, default=func.now(), onupdate=func.now()
-    )
 
 
 class OptionStrategySignal(Base, PostgresUpsertMixin):

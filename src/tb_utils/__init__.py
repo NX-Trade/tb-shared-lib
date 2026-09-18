@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.6"
+__version__ = "1.16.7"
 
 from .broker.base import (
     BrokerAdapter,
@@ -56,7 +56,6 @@ from .models import (
     OptionStrategySignal,
     ParticipantOI,
     Position,
-    Recommendation,
     RegimeLog,
     SystemLog,
     SystemMetric,
@@ -110,8 +109,6 @@ from .schema import (
     ParticipantOIResponse,
     PcrHistoryPoint,
     PositionResponse,
-    RecommendationCreate,
-    RecommendationResponse,
     RegimeLogResponse,
     SpotPriceResponse,
     StrikeDataPoint,
@@ -232,7 +229,6 @@ __all__ = [
     "DeliveryData",
     "RegimeLog",
     "WatchlistFocus",
-    "Recommendation",
     "OptionStrategySignal",
     "OptionStrategyLeg",
     # Schemas
@@ -290,8 +286,6 @@ __all__ = [
     "TradingOrderResponse",
     "PositionResponse",
     "TradeResponse",
-    "RecommendationCreate",
-    "RecommendationResponse",
     # Request Maker
     "RequestMaker",
     "CircuitBreakerError",
