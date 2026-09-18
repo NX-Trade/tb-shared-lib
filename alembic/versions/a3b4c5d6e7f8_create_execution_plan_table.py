@@ -5,7 +5,7 @@ the in-process ``time.sleep(180)`` + un-joined daemon TWAP thread, so an entry
 in progress survives a worker restart and never blocks the Celery beat.
 
 Revision ID: a3b4c5d6e7f8
-Revises: f2a3b4c5d6e7
+Revises: g1b2c3d4e5f6
 Create Date: 2026-09-18 10:05:00.000000
 
 """
@@ -17,7 +17,7 @@ from sqlalchemy.dialects.postgresql import ENUM, JSON
 
 # revision identifiers, used by Alembic.
 revision: str = "a3b4c5d6e7f8"
-down_revision: Union[str, None] = "f2a3b4c5d6e7"
+down_revision: Union[str, None] = "g1b2c3d4e5f6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
