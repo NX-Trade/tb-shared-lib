@@ -8,6 +8,7 @@ import datetime as dt
 import logging
 
 from sqlalchemy.orm import Session
+
 from tb_utils.broker.base import OrderResult, OrderStatus
 from tb_utils.models import Position, TradingOrder
 
@@ -26,8 +27,30 @@ def insert_order(
     broker_order_id: str,
     strategy_id: str = "",
     stop_price: float | None = None,
+    parent_order_id: int | None = None,
 ) -> TradingOrder:
-    """Insert a new order into trading_order table."""
+    """Insert a new order into trading_order table.
+
+    Args:
+        session: Active SQLAlchemy session; the row is committed and refreshed.
+        instrument_id: FK to ``instrument``.
+        broker_id: FK to ``broker``.
+        side: "BUY" or "SELL".
+        order_type: Short DB code — "LMT", "MKT", "STP", "STP_LMT", …
+        quantity: Order quantity in shares/lots.
+        limit_price: Limit price, or None for market orders.
+        status: Initial order status value (e.g. "PENDING").
+        broker_order_id: Broker's id; empty string is stored as NULL.
+        strategy_id: Tag identifying the originating strategy or exit reason.
+        stop_price: Trigger price for stop orders.
+        parent_order_id: The entry order this one protects. Set it for
+            stop-loss / target legs so siblings can be found by foreign key
+            instead of by parsing ``strategy_id`` strings — that is what makes
+            OCO (cancel-the-other-leg-on-fill) possible.
+
+    Returns:
+        The persisted ``TradingOrder``.
+    """
     order = TradingOrder(
         instrument_id=instrument_id,
         broker_id=broker_id,
@@ -41,6 +64,7 @@ def insert_order(
         filled_quantity=0,
         broker_order_id=broker_order_id or None,
         strategy_id=strategy_id,
+        parent_order_id=parent_order_id,
     )
     session.add(order)
     session.commit()
