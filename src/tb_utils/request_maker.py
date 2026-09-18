@@ -3,15 +3,20 @@
 
 import logging
 import time
+import uuid
 from typing import Any
 
 import requests
 from sqlalchemy.orm import Session
 
-from tb_utils.models.broker import ExternalApiRequest
+from tb_utils.http.telemetry import CallRecord, save
 from tb_utils.telegram import send_telegram_alert
 
 logger = logging.getLogger("tb-utils.requests.request_maker")
+
+# Maps the internal state string onto the integer stored in
+# external_api_request.circuit_breaker_state.
+_BREAKER_STATE_CODES = {"OPEN": 0, "CLOSED": 1, "HALF_OPEN": 2}
 
 
 class CircuitBreakerError(Exception):
@@ -24,6 +29,18 @@ class RequestMaker:
     This class handles making external HTTP requests, tracking failures to open a circuit breaker
     if too many errors occur, and logging the request/response telemetry into the Database
     using the ExternalApiRequest model.
+
+    Telemetry is delegated to :mod:`tb_utils.http.telemetry`, so request and
+    response bodies are **redacted and stored compressed** (zlib, with a short
+    plain-text preview for ``LIKE`` searching) exactly as they are for
+    :class:`tb_utils.http.ExternalClient`. Previously this class wrote
+    ``str(headers)`` — which put live bearer tokens in the table — and truncated
+    bodies to 2,000 characters.
+
+    Note:
+        New code should prefer :class:`tb_utils.http.ExternalClient`, which adds
+        cross-process rate limiting and a Redis-shared breaker. This class
+        remains for callers that already hold their own session.
     """
 
     def __init__(
@@ -69,8 +86,6 @@ class RequestMaker:
         if self.state in ["OPEN", "HALF_OPEN"]:
             logger.info("Circuit breaker reset to CLOSED state.")
             try:
-                from tb_utils.telegram import send_telegram_alert
-
                 send_telegram_alert(
                     f"🟢 <b>Circuit Breaker Reset</b>\n"
                     f"<b>Provider:</b> {self.api_provider_id}\n"
@@ -135,19 +150,18 @@ class RequestMaker:
 
         start_time = time.time()
 
-        # Track logging telemetry
-        telemetry = ExternalApiRequest(
-            api_provider=self.api_provider_id,
-            api_endpoint=url,
-            http_method=method.upper(),
-            request_headers=str(headers) if headers else None,
-            request_payload=str(json_data) if json_data else None,
-            correlation_id=correlation_id,
-            circuit_breaker_state=1
-            if self.state == "CLOSED"
-            else 2
-            if self.state == "HALF_OPEN"
-            else 0,
+        # Telemetry is built through the shared module so this path gets the same
+        # treatment as ExternalClient: credential headers and secret body keys
+        # redacted, and bodies stored compressed in full rather than as a
+        # 2,000-character `str()` truncation.
+        record = CallRecord(
+            provider=self.api_provider_id,
+            url=url,
+            method=method.upper(),
+            correlation_id=correlation_id or uuid.uuid4().hex,
+            request_headers=headers,
+            request_payload=json_data if json_data is not None else params,
+            breaker_state=_BREAKER_STATE_CODES.get(self.state, 1),
         )
 
         try:
@@ -160,44 +174,43 @@ class RequestMaker:
                 timeout=timeout,
             )
 
-            end_time = time.time()
-            duration_ms = int((end_time - start_time) * 1000)
-
-            # Update Telemetry
-            telemetry.http_status_code = response.status_code
-            telemetry.response_headers = str(dict(response.headers))
-            telemetry.response_payload = (
-                response.text[:2000] if response.text else None
-            )  # Trim large responses
-            telemetry.duration_ms = duration_ms
+            record.duration_ms = int((time.time() - start_time) * 1000)
+            record.status_code = response.status_code
+            record.response_headers = dict(response.headers)
+            record.response_text = response.text or ""
 
             if response.ok:
-                telemetry.is_success = 1
+                record.success = True
                 self._record_success()
             else:
-                telemetry.is_success = 0
-                telemetry.error_code = str(response.status_code)
-                telemetry.error_message = response.reason
+                record.success = False
+                record.error_code = str(response.status_code)
+                record.error_message = response.reason or ""
                 self._record_failure()
 
-            self._log_telemetry(telemetry)
+            self._log_telemetry(record)
             return response
 
         except requests.RequestException as e:
-            end_time = time.time()
-            telemetry.duration_ms = int((end_time - start_time) * 1000)
-            telemetry.is_success = 0
-            telemetry.error_message = str(e)
+            record.duration_ms = int((time.time() - start_time) * 1000)
+            record.success = False
+            record.error_code = type(e).__name__
+            record.error_message = str(e)
 
             self._record_failure()
-            self._log_telemetry(telemetry)
+            self._log_telemetry(record)
             raise
 
-    def _log_telemetry(self, telemetry: ExternalApiRequest) -> None:
-        """Safely save telemetry to the database."""
+    def _log_telemetry(self, record: CallRecord) -> None:
+        """Persist one call record, never letting a telemetry failure surface.
+
+        Uses the caller-supplied session because this class is constructed with
+        one (unlike ``ExternalClient``, which owns its own). Rolls back on
+        failure so a broken telemetry insert cannot poison the caller's
+        transaction.
+        """
         try:
-            self.session.add(telemetry)
-            self.session.commit()
-        except Exception as e:
+            save(self.session, record)
+        except Exception as e:  # pragma: no cover — save() already guards
             self.session.rollback()
             logger.error("Failed to save external API telemetry to DB: %s", str(e))

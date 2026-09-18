@@ -22,7 +22,7 @@ import pytest
 import requests
 
 from tb_utils.http.breaker import BreakerConfig, BreakerState, RedisCircuitBreaker
-from tb_utils.http.client import ExternalClient
+from tb_utils.http.client import ExternalClient, _independent_session
 from tb_utils.http.errors import (
     CircuitOpen,
     RateLimited,
@@ -578,3 +578,55 @@ def test_guarded_call_passes_through_args_and_kwargs(redis_client):
     client.guarded_call(fn, "a", endpoint="/v2/ltp", interval="15m")
 
     fn.assert_called_once_with("a", interval="15m")
+
+
+# ── Telemetry must not touch the caller's session ──────────────────────────
+
+
+def test_telemetry_never_closes_a_scoped_session(redis_client):
+    """Regression: order_worker died with DetachedInstanceError.
+
+    SessionLocal is backed by a scoped_session, so within one thread it returns
+    the *same* Session the caller is using. _save() used to call close() on it,
+    detaching every ORM instance the caller had loaded.
+    """
+    callers_session = MagicMock(name="callers_session")
+    telemetry_session = MagicMock(name="telemetry_session")
+
+    # Mirrors scoped_session: calling the registry returns the thread-local
+    # session, while .session_factory() builds a genuinely new one.
+    registry = MagicMock(name="scoped_session_registry")
+    registry.return_value = callers_session
+    registry.session_factory.return_value = telemetry_session
+
+    client = _client(redis_client, session_factory=registry)
+    with patch.object(client._http, "request", return_value=_response()):
+        client.get("https://api.upstox.com/v2/user/profile")
+
+    telemetry_session.add.assert_called_once()
+    telemetry_session.close.assert_called_once()
+    # The caller's session is untouched — not written to and, crucially, not closed.
+    callers_session.close.assert_not_called()
+    callers_session.add.assert_not_called()
+
+
+def test_telemetry_uses_a_plain_callable_factory_directly(redis_client):
+    """A sessionmaker (no registry) already creates fresh sessions."""
+    db = MagicMock()
+    client = _client(redis_client, session_factory=lambda: db)
+
+    with patch.object(client._http, "request", return_value=_response()):
+        client.get("https://api.upstox.com/v2/user/profile")
+
+    db.add.assert_called_once()
+    db.close.assert_called_once()
+
+
+def test_independent_session_helper_unwraps_a_registry():
+    registry = MagicMock()
+    registry.session_factory.return_value = "fresh"
+    assert _independent_session(registry) == "fresh"
+
+    plain = MagicMock(spec=[])  # no session_factory attribute
+    plain.return_value = "direct"
+    assert _independent_session(plain) == "direct"

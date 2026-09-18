@@ -51,6 +51,20 @@ from tb_utils.telegram import send_telegram_alert
 
 logger = logging.getLogger(__name__)
 
+
+def _independent_session(factory: Any) -> Session:
+    """Return a Session that is not shared with the caller.
+
+    Accepts a ``scoped_session``, a ``sessionmaker``, or the lazy ``SessionLocal``
+    proxy. For anything registry-backed, the underlying ``session_factory`` is
+    used so the returned Session is genuinely new and safe to close.
+    """
+    underlying = getattr(factory, "session_factory", None)
+    if underlying is not None:
+        return underlying()
+    return factory()
+
+
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_MAX_ATTEMPTS = 3
 BACKOFF_BASE_SECONDS = 0.5
@@ -377,11 +391,25 @@ class ExternalClient:
         )
 
     def _save(self, record: CallRecord) -> None:
-        """Persist telemetry in its own short-lived session."""
+        """Persist telemetry in a session of its own.
+
+        Deliberately never uses the caller's session. ``SessionLocal`` and
+        ``get_session_factory()`` are backed by a ``scoped_session``, so inside a
+        single thread they return **the same Session** the caller is already
+        using; closing it here would detach every ORM instance the caller had
+        loaded. That is exactly what broke ``order_worker`` on 2026-09-18:
+
+            DetachedInstanceError: Instance <TradingOrder ...> is not bound to a
+            Session; attribute refresh operation cannot proceed
+
+        A ``scoped_session`` is therefore unwrapped to its underlying factory to
+        get an independent Session. Telemetry is a side channel — it must never
+        be able to damage the transaction that triggered it.
+        """
         if self._session_factory is None:
             return
         try:
-            db: Session = self._session_factory()
+            db: Session = _independent_session(self._session_factory)
         except Exception:
             logger.exception("Could not open a session for API telemetry")
             return

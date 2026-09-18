@@ -87,13 +87,26 @@ def redact_payload(payload: Any) -> Any:
 
 
 def redact_text(text: str) -> str:
-    """Redact secrets in a raw body, parsing it as JSON when possible."""
+    """Redact secrets in a raw body, preserving the original bytes when clean.
+
+    Re-serialising JSON would compact whitespace *and* rewrite numbers — a
+    broker's ``"price": 1509.00`` becomes ``1509.0``. These rows are an execution
+    audit trail kept for years, so the response is returned **unchanged** unless a
+    secret was actually found. Only a body that needed redacting is rewritten,
+    and then compactly.
+    """
     if not text:
         return ""
     try:
-        return json.dumps(redact_payload(json.loads(text)), separators=(",", ":"))
+        parsed = json.loads(text)
     except (ValueError, TypeError):
+        # Not JSON (HTML error page, plain text): only scrub bearer tokens.
         return _TOKEN_PATTERN.sub(rf"\1{REDACTED}", text)
+
+    redacted = redact_payload(parsed)
+    if redacted == parsed:
+        return text
+    return json.dumps(redacted, separators=(",", ":"))
 
 
 def to_json_text(value: Any) -> str:

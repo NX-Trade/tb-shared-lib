@@ -76,6 +76,28 @@ class _LazySessionLocal:
 SessionLocal = _LazySessionLocal()
 
 
+def new_independent_session() -> Session:
+    """Create a brand-new ``Session`` that is *not* the thread-local one.
+
+    ``SessionLocal()`` and ``get_session_factory()()`` both go through a
+    ``scoped_session`` registry, so within one thread they hand back **the same
+    Session object**. Anything that then calls ``close()`` on it closes the
+    caller's session too, detaching every ORM instance the caller had loaded —
+    which surfaces later as::
+
+        DetachedInstanceError: Instance <TradingOrder ...> is not bound to a
+        Session; attribute refresh operation cannot proceed
+
+    Side-channel writers (API telemetry, audit rows) must therefore obtain their
+    own session with this helper, never from the registry. The caller owns
+    closing what this returns.
+
+    Returns:
+        A new Session bound to the shared engine.
+    """
+    return get_session_factory().session_factory()
+
+
 def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency for injecting a database session.
 
