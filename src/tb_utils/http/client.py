@@ -24,6 +24,7 @@ tokens in the clear and truncated bodies to 2 000 characters.
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any, Optional
 
 import requests
@@ -153,6 +154,71 @@ class ExternalClient:
 
         assert last_error is not None  # loop always sets it before breaking
         raise last_error
+
+    def guarded_call(
+        self,
+        fn: Callable[..., Any],
+        *args: Any,
+        endpoint: str,
+        correlation_id: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Run a third-party SDK call under the same rate limit, breaker and telemetry.
+
+        Some providers are reached through their own client library
+        (``upstox_client``, the Ollama package, ``nselib``) which owns the socket,
+        so :meth:`request` cannot be used. Those calls still consume the
+        provider's rate budget and still deserve to trip the breaker, so wrap
+        them here instead of leaving them unguarded.
+
+        Unlike :meth:`request`, the original SDK exception is re-raised
+        unchanged — callers already handle their library's error types, and
+        guessing a mapping for every SDK would be worse than passing it through.
+        The failure is still counted against the breaker and recorded.
+
+        Args:
+            fn: The SDK function to invoke.
+            *args: Positional arguments for ``fn``.
+            endpoint: Logical endpoint used for rate-limit classification and
+                telemetry, e.g. ``"/v2/historical-candle"``.
+            correlation_id: Optional id to correlate with related calls.
+            **kwargs: Keyword arguments for ``fn``.
+
+        Returns:
+            Whatever ``fn`` returns.
+
+        Raises:
+            CircuitOpen: breaker open for this provider/endpoint class.
+            RateLimited: our budget refused the call.
+            Exception: any exception ``fn`` raised, unchanged.
+        """
+        endpoint_class = classify_endpoint(self._provider, endpoint)
+        correlation_id = correlation_id or uuid.uuid4().hex
+        breaker = self._breaker(endpoint_class)
+
+        self._check_rate_limit(endpoint_class, endpoint, correlation_id)
+        self._check_breaker(breaker, endpoint_class, endpoint, correlation_id)
+
+        record = CallRecord(
+            provider=int(self._provider),
+            url=endpoint,
+            method="SDK",
+            correlation_id=correlation_id,
+            breaker_state=int(breaker.state()),
+        )
+        started = time.time()
+        try:
+            result = fn(*args, **kwargs)
+        except Exception as exc:
+            self._finish_failure(record, started, breaker, type(exc).__name__, str(exc))
+            raise
+
+        record.duration_ms = int((time.time() - started) * 1000)
+        record.success = True
+        record.status_code = 200
+        self._save(record)
+        breaker.record_success()
+        return result
 
     def get(self, url: str, **kwargs: Any) -> requests.Response:
         return self.request("GET", url, **kwargs)

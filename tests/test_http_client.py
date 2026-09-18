@@ -504,3 +504,77 @@ def test_purge_uses_two_windows_and_excludes_orders_from_the_short_one():
     assert "NOT" not in order_sql.upper()  # order rows only
     assert result.total == 14
     db.commit.assert_called_once()
+
+
+# ── guarded_call: SDK-based providers ──────────────────────────────────────
+
+
+def test_guarded_call_returns_the_sdk_result_and_records_telemetry(redis_client):
+    db = MagicMock()
+    client = _client(redis_client, session_factory=lambda: db)
+
+    result = client.guarded_call(
+        lambda symbol: f"candles for {symbol}",
+        "INFY",
+        endpoint="/v2/historical-candle/INFY/day",
+    )
+
+    assert result == "candles for INFY"
+    db.add.assert_called_once()
+    row = db.add.call_args[0][0]
+    assert row.http_method == "SDK"
+    assert row.is_success == 1
+    assert row.duration_ms >= 0
+
+
+def test_guarded_call_reraises_the_sdk_exception_unchanged(redis_client):
+    """Callers already handle their library's error types — don't guess a mapping."""
+    client = _client(redis_client)
+
+    class ApiException(Exception):
+        pass
+
+    with pytest.raises(ApiException):
+        client.guarded_call(
+            MagicMock(side_effect=ApiException("upstream 500")),
+            endpoint="/v2/historical-candle",
+        )
+
+
+def test_guarded_call_failures_trip_the_shared_breaker(redis_client):
+    client = _client(redis_client, breaker_config=BreakerConfig(max_failures=2))
+    boom = MagicMock(side_effect=RuntimeError("sdk exploded"))
+
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            client.guarded_call(boom, endpoint="/v2/order/place")
+
+    # Third attempt is refused before reaching the SDK.
+    boom.reset_mock()
+    with pytest.raises(CircuitOpen):
+        client.guarded_call(boom, endpoint="/v2/order/place")
+    boom.assert_not_called()
+
+
+def test_guarded_call_consumes_the_endpoint_rate_budget(redis_client):
+    """SDK calls must not be able to blow the provider's published limit."""
+    client = _client(redis_client)
+    fn = MagicMock(return_value="ok")
+
+    # Historical budget is 4/s.
+    with patch("time.time", return_value=1_000_000.0):
+        for _ in range(4):
+            client.guarded_call(fn, endpoint="/v2/historical-candle/X/day")
+        with pytest.raises(RateLimited):
+            client.guarded_call(fn, endpoint="/v2/historical-candle/X/day")
+
+    assert fn.call_count == 4
+
+
+def test_guarded_call_passes_through_args_and_kwargs(redis_client):
+    client = _client(redis_client)
+    fn = MagicMock(return_value=1)
+
+    client.guarded_call(fn, "a", endpoint="/v2/ltp", interval="15m")
+
+    fn.assert_called_once_with("a", interval="15m")
