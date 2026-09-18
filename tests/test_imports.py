@@ -46,6 +46,10 @@ class TestSharedLibImports(unittest.TestCase):
             "Candle",
             "OptionChain",
             "News",
+            "NxTradeError",
+            "DataUnavailable",
+            "ExternalApiError",
+            "CircuitOpen",
         ]
         for name in expected_exports:
             with self.subTest(member=name):

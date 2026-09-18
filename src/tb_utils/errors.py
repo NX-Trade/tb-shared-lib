@@ -5,6 +5,13 @@ These exceptions provide more specific error handling than standard Python excep
 """
 
 from enum import Enum
+from typing import Any, Optional
+
+from tb_utils.http.errors import (
+    CircuitOpen,
+    ExternalApiError,
+    NxTradeError,
+)
 
 
 class TbErrorCode(Enum):
@@ -14,21 +21,24 @@ class TbErrorCode(Enum):
     CIRCUIT_BREAKER_OPEN = "CIRCUIT_BREAKER_OPEN"
 
 
-class TradingBotAPIException(Exception):
+class DataUnavailable(NxTradeError):
+    """Raised when expected data (e.g. OHLCV, ticks, regimes) is missing in DB or cache."""
+
+    code = "DATA_UNAVAILABLE"
+
+
+class TradingBotAPIException(NxTradeError):
     """General TradingBot API exception.
 
     Base exception class for all API-related errors in the library.
-
-    Attributes:
-        message: The error message
-        status_code: HTTP status code associated with the error (optional)
     """
 
-    def __init__(self, message: str, status_code: int | None = None):
-        self.message = message
-        self.error_code: TbErrorCode | None = None
+    code = "TRADING_BOT_API_ERROR"
+
+    def __init__(self, message: str, status_code: Optional[int] = None, **details: Any):
+        super().__init__(message, status_code=status_code, **details)
+        self.error_code: Optional[TbErrorCode] = None
         self.status_code = status_code
-        super().__init__(self.message)
 
 
 class InvalidSecurityError(TradingBotAPIException):
@@ -37,8 +47,10 @@ class InvalidSecurityError(TradingBotAPIException):
     Raised when an operation is attempted with an invalid security identifier.
     """
 
-    def __init__(self, message: str = "Invalid security identifier"):
-        super().__init__(message, status_code=400)
+    code = "INVALID_SECURITY"
+
+    def __init__(self, message: str = "Invalid security identifier", **details: Any):
+        super().__init__(message, status_code=400, **details)
         self.error_code = TbErrorCode.INVALID_SECURITY
 
 
@@ -48,9 +60,11 @@ class DuplicateRecordError(TradingBotAPIException):
     Raised when attempting to insert a record that already exists in the database.
     """
 
-    def __init__(self, message: str = "Record already exists"):
-        super().__init__(message, status_code=409)
-        self.error_code = "DUPLICATE_RECORD"
+    code = "DUPLICATE_RECORD"
+
+    def __init__(self, message: str = "Record already exists", **details: Any):
+        super().__init__(message, status_code=409, **details)
+        self.error_code = TbErrorCode.DUPLICATE_RECORD
 
 
 class ValidationError(TradingBotAPIException):
@@ -59,6 +73,21 @@ class ValidationError(TradingBotAPIException):
     Raised when data validation fails.
     """
 
-    def __init__(self, message: str = "Validation failed"):
-        super().__init__(message, status_code=400)
+    code = "VALIDATION_FAILED"
+
+    def __init__(self, message: str = "Validation failed", **details: Any):
+        super().__init__(message, status_code=400, **details)
         self.error_code = TbErrorCode.VALIDATION_FAILED
+
+
+__all__ = [
+    "CircuitOpen",
+    "DataUnavailable",
+    "DuplicateRecordError",
+    "ExternalApiError",
+    "InvalidSecurityError",
+    "NxTradeError",
+    "TbErrorCode",
+    "TradingBotAPIException",
+    "ValidationError",
+]

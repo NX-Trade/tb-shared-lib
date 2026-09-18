@@ -21,6 +21,7 @@ from .calendar import get_trading_holidays_for_year, is_trading_holiday
 from .config.apiconfig import UpstoxApiConfig
 from .config.database import DatabaseConfig, db_settings
 from .config.db_session import SessionLocal, get_db
+from .errors import CircuitOpen, DataUnavailable, ExternalApiError, NxTradeError
 from .greeks import (
     GreeksResult,
     calculate_greeks,
@@ -311,4 +312,9 @@ __all__ = [
     # Option Contract Resolution
     "ResolvedContract",
     "resolve_option_contract",
+    # Typed Errors
+    "NxTradeError",
+    "DataUnavailable",
+    "ExternalApiError",
+    "CircuitOpen",
 ]

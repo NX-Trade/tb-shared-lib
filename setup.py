@@ -80,11 +80,6 @@ setup(
             "sphinx-rtd-theme>=1.3.0",
         ],
     },
-    entry_points={
-        "console_scripts": [
-            "tb-utils=tb_utils.cli:main",
-        ],
-    },
     include_package_data=True,
     zip_safe=False,
 )
