@@ -22,7 +22,11 @@ class Instrument(Base, PostgresUpsertMixin):
     is_nifty_50 = Column(SmallInteger, default=0)
     is_nifty_100 = Column(SmallInteger, default=0)
     is_nifty_500 = Column(SmallInteger, default=0)
-    lot_size = Column(Integer, nullable=True)
+    # The column is NOT NULL DEFAULT 0 in Postgres. Declaring it nullable with
+    # no default meant SQLAlchemy sent an explicit NULL for any Instrument built
+    # without one, overriding the server default and failing the constraint —
+    # scripts/4_load_historical_index_data.py hit this creating a new index row.
+    lot_size = Column(Integer, nullable=False, default=0, server_default="0")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
