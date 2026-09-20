@@ -95,7 +95,14 @@ class Candle(Base, PostgresUpsertMixin):
 
 
 class OptionChain(Base, PostgresUpsertMixin):
-    """Option Chain time-series hypertable."""
+    """Live option chain snapshots.
+
+    Not a hypertable, despite what this docstring claimed until 2026-09-20 —
+    ``timescaledb_information.hypertables`` was empty. Left as a plain table:
+    intraday rows are pruned to 5 days by ADR-005 (exempting the 15:30 golden
+    records), so it does not accumulate the volume that would justify
+    partitioning.
+    """
 
     __tablename__ = "option_chain"
 
@@ -128,6 +135,13 @@ class OptionChain(Base, PostgresUpsertMixin):
 
 class IntradayCandle(Base, PostgresUpsertMixin):
     """Intraday OHLCV bars, kept apart from ``historical_equity_data``.
+
+    **TimescaleDB hypertable** — partitioned on ``timestamp`` in 1-month chunks,
+    with compression on chunks older than 90 days segmented by
+    ``(symbol, timeframe)``. See migration ``a9b0c1d2e3f4``. It is the only
+    hypertable in the schema; ``historical_equity_data`` cannot be one while it
+    keeps a surrogate primary key, since TimescaleDB requires every unique index
+    to include the partitioning column.
 
     That table has a ``timeframe`` column and would technically accept
     ``'15 minute'``, which is the trap. Three reasons it lives here instead:
