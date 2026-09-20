@@ -15,6 +15,7 @@ from .historical_data import (
     Candle,
     HistoricalEquityData,
     HistoricalIndexData,
+    IntradayCandle,
     OptionChain,
     OptionDailyMetrics,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "HistoricalEquityData",
     "HistoricalIndexData",
     "Candle",
+    "IntradayCandle",
     "OptionChain",
     "OptionDailyMetrics",
     "Instrument",

@@ -126,6 +126,51 @@ class OptionChain(Base, PostgresUpsertMixin):
     source = Column(String(10), nullable=False, default="NSE")
 
 
+class IntradayCandle(Base, PostgresUpsertMixin):
+    """Intraday OHLCV bars, kept apart from ``historical_equity_data``.
+
+    That table has a ``timeframe`` column and would technically accept
+    ``'15 minute'``, which is the trap. Three reasons it lives here instead:
+
+    * **Retention differs.** Daily bars are permanent history; intraday is
+      bulky and prunable, the same split ADR-005 already applies to intraday
+      option data.
+    * **Query isolation.** Every daily query filters ``timeframe = '1 day'``.
+      Millions of intraday rows in the same table make those filters scan a
+      far larger index — a permanent tax on the 600-bar training load and
+      every feature query.
+    * **Write cadence differs** — one EOD batch against continuous appends.
+
+    Sized for 15-minute bars over the F&O universe: 25 bars/day x ~219 symbols
+    x ~920 trading days from 2022-01 is ~5M rows. Storing 1-minute instead
+    would be ~75M for no gain, because the STC scanner derives VWAP from the
+    resampled 15-minute bars rather than from 1-minute ticks.
+    """
+
+    __tablename__ = "intraday_candle"
+
+    symbol = Column(String(50), primary_key=True)
+    # '1 minute' | '5 minute' | '15 minute' | '1 hour'
+    timeframe = Column(String(16), primary_key=True)
+    timestamp = Column(DateTime(timezone=True), primary_key=True)
+
+    # Upstox key, retained so a bar can be re-fetched or traced to its source
+    # contract — expired option contracts carry their own key.
+    instrument_key = Column(String(80), index=True)
+    segment = Column(String(10))  # EQ | FO | INDEX
+
+    open = Column(Numeric(14, 4))
+    high = Column(Numeric(14, 4))
+    low = Column(Numeric(14, 4))
+    close = Column(Numeric(14, 4))
+    volume = Column(BigInteger, default=0)
+    # NULL for cash equity; populated for futures and options.
+    open_interest = Column(BigInteger, nullable=True)
+
+    source = Column(String(20), nullable=False, default="UPSTOX")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class OptionDailyMetrics(Base, PostgresUpsertMixin):
     """EOD option-chain aggregates per underlying and expiry.
 
