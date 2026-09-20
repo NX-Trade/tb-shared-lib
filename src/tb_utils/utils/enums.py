@@ -7,6 +7,11 @@ class SourceEnum(IntEnum):
     IB = 2
     ICICI = 3
     SENSIBULL = 4
+    # Upstox candles are adjusted for splits and bonuses, unlike NSE's raw
+    # prices — RELIANCE closes 2655.70 then 1334.35 across its 2024 1:1 bonus
+    # ex-date in the NSE series. Recording the source makes the price basis of
+    # any row an explicit, queryable fact rather than an assumption.
+    UPSTOX = 5
 
 
 class BrokerTypeEnum(Enum):
