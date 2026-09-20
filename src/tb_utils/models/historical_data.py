@@ -155,10 +155,18 @@ class IntradayCandle(Base, PostgresUpsertMixin):
       every feature query.
     * **Write cadence differs** — one EOD batch against continuous appends.
 
-    Sized for 15-minute bars over the F&O universe: 25 bars/day x ~219 symbols
-    x ~920 trading days from 2022-01 is ~5M rows. Storing 1-minute instead
-    would be ~75M for no gain, because the STC scanner derives VWAP from the
-    resampled 15-minute bars rather than from 1-minute ticks.
+    Stored at **5-minute** granularity over the F&O universe: 75 bars/session x
+    ~220 symbols x ~1,170 sessions from 2022-01 is ~19M rows.
+
+    5m rather than 15m because aggregation only runs one way. OHLCV aggregation
+    is associative (open=first, high=max, low=min, close=last, volume=sum), so
+    5m -> 15m yields bars identical to resampling from 1m, and VWAP is preserved
+    because the STC path computes typical_price on the *15m* bar. 15m -> 5m is
+    impossible, so storing the coarser bar would discard optionality no later
+    strategy could recover. 1-minute was rejected as the floor: ~96M rows to
+    serve a sub-5-minute strategy that does not exist.
+
+    ``timeframe`` is part of the primary key, so several granularities coexist.
     """
 
     __tablename__ = "intraday_candle"
