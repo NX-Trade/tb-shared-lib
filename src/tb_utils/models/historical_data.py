@@ -176,5 +176,7 @@ class OptionDailyMetrics(Base, PostgresUpsertMixin):
     atm_put_iv = Column(Numeric(10, 4))
 
     contracts_used = Column(Integer, default=0)
-    source = Column(String(10), nullable=False, default="NSE_BHAVCOPY")
+    # 20, not 10: "NSE_BHAVCOPY" is 12 characters and silently failed every
+    # insert with StringDataRightTruncation on the narrower column.
+    source = Column(String(20), nullable=False, default="NSE_BHAVCOPY")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
