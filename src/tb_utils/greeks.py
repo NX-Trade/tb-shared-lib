@@ -131,6 +131,119 @@ def calculate_greeks(
         return GreeksResult({"delta": None, "gamma": None, "theta": None, "vega": None})
 
 
+def black_scholes_price(
+    spot: float,
+    strike: float,
+    tte_days: float,
+    iv_pct: float,
+    option_type: str,
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+) -> Optional[float]:
+    """Black-Scholes fair value of a European option.
+
+    Args:
+        spot: Underlying price.
+        strike: Strike price.
+        tte_days: Calendar days to expiry.
+        iv_pct: Implied volatility in percent (e.g. 22.5).
+        option_type: ``"CE"``/``"CALL"`` or ``"PE"``/``"PUT"``.
+        risk_free_rate: Annualised rate as a fraction.
+
+    Returns:
+        Theoretical premium, or ``None`` when an input is unusable.
+    """
+    if any(v is None or v <= 0 for v in (spot, strike, tte_days, iv_pct)):
+        return None
+    try:
+        sigma = iv_pct / 100.0
+        t = tte_days / 365.0
+        d1 = (math.log(spot / strike) + (risk_free_rate + 0.5 * sigma**2) * t) / (
+            sigma * math.sqrt(t)
+        )
+        d2 = d1 - sigma * math.sqrt(t)
+        discount = math.exp(-risk_free_rate * t)
+        if option_type.upper() in ("CE", "CALL", "C"):
+            return spot * norm.cdf(d1) - strike * discount * norm.cdf(d2)
+        return strike * discount * norm.cdf(-d2) - spot * norm.cdf(-d1)
+    except (ValueError, ZeroDivisionError, OverflowError):
+        return None
+
+
+def implied_volatility(
+    option_price: float,
+    spot: float,
+    strike: float,
+    tte_days: float,
+    option_type: str,
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+    max_iterations: int = 100,
+    tolerance: float = 1e-5,
+) -> Optional[float]:
+    """Invert Black-Scholes to recover implied volatility from a premium.
+
+    Needed because the NSE F&O bhavcopy publishes settlement prices but no IV,
+    so historical ATM IV — and therefore IV rank — has to be solved for rather
+    than read. Uses bisection on [0.01 %, 1000 %]: slower than Newton but it
+    cannot diverge, which matters when processing tens of thousands of
+    contracts a day unattended.
+
+    Args:
+        option_price: Observed premium (settlement or close).
+        spot: Underlying price.
+        strike: Strike price.
+        tte_days: Calendar days to expiry.
+        option_type: ``"CE"``/``"CALL"`` or ``"PE"``/``"PUT"``.
+        risk_free_rate: Annualised rate as a fraction.
+        max_iterations: Bisection iteration cap.
+        tolerance: Absolute price tolerance for convergence.
+
+    Returns:
+        Implied volatility in percent, or ``None`` when the price is outside
+        the no-arbitrage bounds or the solve does not converge. Returning
+        ``None`` rather than a boundary value keeps un-inverted contracts out
+        of an IV series instead of pinning it to 1 % or 1000 %.
+    """
+    if any(v is None or v <= 0 for v in (option_price, spot, strike, tte_days)):
+        return None
+
+    t = tte_days / 365.0
+    discount = math.exp(-risk_free_rate * t)
+    if option_type.upper() in ("CE", "CALL", "C"):
+        intrinsic = max(0.0, spot - strike * discount)
+    else:
+        intrinsic = max(0.0, strike * discount - spot)
+
+    low, high = 0.01, 1000.0
+    price_low = black_scholes_price(spot, strike, tte_days, low, option_type, risk_free_rate)
+    price_high = black_scholes_price(spot, strike, tte_days, high, option_type, risk_free_rate)
+
+    # Unsolvable in one check: below intrinsic there is no volatility that
+    # reprices the option (deep ITM contracts settling at intrinsic are the
+    # usual cause), and outside the bracket bisection has no root to find.
+    unsolvable = (
+        option_price < intrinsic - tolerance
+        or price_low is None
+        or price_high is None
+        or not price_low <= option_price <= price_high
+    )
+    if unsolvable:
+        return None
+
+    for _ in range(max_iterations):
+        mid = 0.5 * (low + high)
+        price = black_scholes_price(spot, strike, tte_days, mid, option_type, risk_free_rate)
+        if price is None:
+            return None
+        if abs(price - option_price) < tolerance:
+            return round(mid, 4)
+        if price < option_price:
+            low = mid
+        else:
+            high = mid
+
+    return None
+
+
 def calculate_iv_rank(current_iv: float, iv_series: Sequence[float]) -> Optional[float]:
     """Calculate IV Rank relative to historical IV series over a period (e.g. 252 days).
 

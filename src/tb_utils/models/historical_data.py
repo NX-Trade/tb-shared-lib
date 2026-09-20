@@ -11,6 +11,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     UniqueConstraint,
+    func,
 )
 
 from tb_utils.utils.enums import SourceEnum
@@ -123,3 +124,57 @@ class OptionChain(Base, PostgresUpsertMixin):
     ask_qty = Column(Integer)
     underlying_value = Column(Numeric(14, 2))
     source = Column(String(10), nullable=False, default="NSE")
+
+
+class OptionDailyMetrics(Base, PostgresUpsertMixin):
+    """EOD option-chain aggregates per underlying and expiry.
+
+    Derived from the NSE F&O bhavcopy, which publishes every contract daily and
+    is archived from ~2024-01 — unlike the live chain endpoint, which offers no
+    history. This is what makes PCR, ATM IV and IV rank available for training
+    and backtesting at all.
+
+    Stored as an aggregate rather than raw strikes: the full option surface is
+    ~35,000 rows a day (~15M over the archive), while one row per
+    (date, symbol, expiry) is ~245k for the same span. Raw strikes are only
+    needed for strike-level work such as max-pain curves or GEX by strike; the
+    metrics that feed the screener and the scanners are all summable here.
+
+    Keyed per expiry rather than per symbol so near/next divergence and
+    rollover are expressible — the live collector stores only the near expiry
+    for equities (105 symbols), which is why those remain unanswerable today.
+    """
+
+    __tablename__ = "option_daily_metrics"
+
+    trade_date = Column(Date, primary_key=True)
+    symbol = Column(String(30), primary_key=True)
+    expiry_date = Column(Date, primary_key=True)
+
+    underlying_close = Column(Numeric(14, 2))
+    # Rank of this expiry on the date: 1 = nearest, 2 = next, ...
+    expiry_rank = Column(Integer, index=True)
+    days_to_expiry = Column(Integer)
+
+    total_call_oi = Column(BigInteger, default=0)
+    total_put_oi = Column(BigInteger, default=0)
+    total_call_volume = Column(BigInteger, default=0)
+    total_put_volume = Column(BigInteger, default=0)
+    call_oi_change = Column(BigInteger, default=0)
+    put_oi_change = Column(BigInteger, default=0)
+
+    pcr_oi = Column(Numeric(10, 4))
+    pcr_volume = Column(Numeric(10, 4))
+    # Strike where option writers lose least — sum of ITM payoff is minimised.
+    max_pain_strike = Column(Numeric(14, 2))
+
+    atm_strike = Column(Numeric(14, 2))
+    # Mean of the ATM call and put IV, solved from settlement prices via
+    # tb_utils.greeks.implied_volatility (the bhavcopy carries no IV).
+    atm_iv = Column(Numeric(10, 4))
+    atm_call_iv = Column(Numeric(10, 4))
+    atm_put_iv = Column(Numeric(10, 4))
+
+    contracts_used = Column(Integer, default=0)
+    source = Column(String(10), nullable=False, default="NSE_BHAVCOPY")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
