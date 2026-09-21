@@ -28,6 +28,7 @@ def insert_order(
     strategy_id: str = "",
     stop_price: float | None = None,
     parent_order_id: int | None = None,
+    product: str = "D",
 ) -> TradingOrder:
     """Insert a new order into trading_order table.
 
@@ -47,6 +48,7 @@ def insert_order(
             stop-loss / target legs so siblings can be found by foreign key
             instead of by parsing ``strategy_id`` strings — that is what makes
             OCO (cancel-the-other-leg-on-fill) possible.
+        product: "D" = Delivery (CNC), "I" = Intraday (MIS).
 
     Returns:
         The persisted ``TradingOrder``.
@@ -65,6 +67,7 @@ def insert_order(
         broker_order_id=broker_order_id or None,
         strategy_id=strategy_id,
         parent_order_id=parent_order_id,
+        product=product,
     )
     session.add(order)
     session.commit()
