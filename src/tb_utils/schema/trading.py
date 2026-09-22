@@ -122,6 +122,11 @@ class TradeResponse(BaseSchema):
     trade_id: int
     strategy_id: Optional[str] = None
     signal_id: Optional[int] = None
+    # False for trades adopted from the broker (placed manually). Mirrors
+    # PositionResponse.is_algo. Without it the trade book serves manual and algo
+    # trades indistinguishably, so performance views would silently blend
+    # discretionary P&L into strategy results.
+    is_algo: bool = True
     instrument_id: int
     broker_id: int
     trading_symbol: Optional[str] = None
