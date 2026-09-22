@@ -159,18 +159,28 @@ def setup_service_logging(
     # Hook Celery signals if Celery is available in runtime
     if f_handler is not None:
         try:
-            from celery.signals import after_setup_logger, after_setup_task_logger
+            import importlib
 
-            @after_setup_logger.connect(weak=False)
-            def _on_after_setup_logger(logger, **kwargs):
-                if f_handler and f_handler not in logger.handlers:
-                    logger.addHandler(f_handler)
+            celery_signals = importlib.import_module("celery.signals")
+            after_setup_logger = getattr(celery_signals, "after_setup_logger", None)
+            after_setup_task_logger = getattr(celery_signals, "after_setup_task_logger", None)
 
-            @after_setup_task_logger.connect(weak=False)
-            def _on_after_setup_task_logger(logger, **kwargs):
-                if f_handler and f_handler not in logger.handlers:
-                    logger.addHandler(f_handler)
-        except ImportError:
+            if after_setup_logger is not None:
+
+                def _on_after_setup_logger(logger, **kwargs):
+                    if f_handler and f_handler not in logger.handlers:
+                        logger.addHandler(f_handler)
+
+                after_setup_logger.connect(_on_after_setup_logger, weak=False)
+
+            if after_setup_task_logger is not None:
+
+                def _on_after_setup_task_logger(logger, **kwargs):
+                    if f_handler and f_handler not in logger.handlers:
+                        logger.addHandler(f_handler)
+
+                after_setup_task_logger.connect(_on_after_setup_task_logger, weak=False)
+        except (ImportError, AttributeError):
             pass
 
     return root_logger
