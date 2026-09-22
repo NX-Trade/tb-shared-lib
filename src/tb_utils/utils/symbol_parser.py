@@ -26,6 +26,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from tb_utils.models import Instrument
+from tb_utils.utils.common import get_instrument_map, resolve_instrument_id
 from tb_utils.utils.enums import InstrumentTypeEnum
 
 logger = logging.getLogger(__name__)
@@ -187,7 +188,6 @@ def resolve_underlying_instrument_id(db: Session, underlying_symbol: str) -> Opt
     index aliases (``NIFTY`` → ``NIFTY50``) by trying exact match, alias map,
     and prefix match against ``instrument.symbol``.
     """
-    from tb_utils.utils.common import get_instrument_map, resolve_instrument_id
 
     # 1. Exact match
     row = db.query(Instrument.instrument_id).filter(Instrument.symbol == underlying_symbol).first()
@@ -201,7 +201,9 @@ def resolve_underlying_instrument_id(db: Session, underlying_symbol: str) -> Opt
         if resolved is not None:
             return resolved
     except Exception as exc:
-        logger.warning("Failed to resolve alias for %s via get_instrument_map: %s", underlying_symbol, exc)
+        logger.warning(
+            "Failed to resolve alias for %s via get_instrument_map: %s", underlying_symbol, exc
+        )
 
     # 3. Prefix match — the exchange truncates symbols like SONACOMSTAR → SONACOMS
     if len(underlying_symbol) >= 3:
@@ -220,4 +222,3 @@ def resolve_underlying_instrument_id(db: Session, underlying_symbol: str) -> Opt
 
     logger.warning("Could not resolve underlying symbol %s to any instrument", underlying_symbol)
     return None
-
