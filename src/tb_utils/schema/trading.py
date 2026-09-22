@@ -121,6 +121,7 @@ class PositionResponse(BaseSchema):
 class TradeResponse(BaseSchema):
     trade_id: int
     strategy_id: Optional[str] = None
+    signal_id: Optional[int] = None
     instrument_id: int
     broker_id: int
     trading_symbol: Optional[str] = None
