@@ -18,6 +18,7 @@ class InstrumentResponse(BaseSchema):
     is_nifty_50: int = 0
     is_nifty_100: int = 0
     is_nifty_500: int = 0
+    lot_size: int = 0
     created_at: datetime
     updated_at: datetime
 
