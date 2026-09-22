@@ -72,6 +72,10 @@ class TradingOrderCreate(BaseSchema):
     broker_order_id: Optional[str] = None
     broker_id: int
     symbol: Optional[str] = None
+    trading_symbol: Optional[str] = None
+    instrument_type: Optional[str] = "EQUITY"
+    strike_price: Optional[float] = None
+    expiry_date: Optional[date] = None
     side: str
     order_type: str
     quantity: int
@@ -99,8 +103,8 @@ class PositionResponse(BaseSchema):
     position_id: int
     instrument_id: int
     broker_id: int
-    trading_symbol: str
-    instrument_type: str = "EQUITY"
+    trading_symbol: Optional[str] = None
+    instrument_type: Optional[str] = "EQUITY"
     strike_price: Optional[float] = None
     expiry_date: Optional[date] = None
     is_algo: bool = True
