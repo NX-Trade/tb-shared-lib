@@ -328,6 +328,14 @@ class Trade(Base):
     strike_price = Column(Numeric(14, 2), nullable=True)
     expiry_date = Column(Date, nullable=True)
 
+    # False for trades placed outside the algo (manually at the broker, then
+    # discovered by reconciliation). Such trades MUST still reach the circuit
+    # breaker — it is the same capital at risk, so a discretionary loss has to
+    # count against the daily/weekly drawdown limits — but they must never be
+    # mixed into per-strategy expectancy. Equity/loss queries therefore do not
+    # filter on this flag, while attribution queries filter to is_algo = true.
+    is_algo = Column(Boolean, nullable=False, server_default="true", default=True, index=True)
+
     entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
     exit_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
     stop_order_id = Column(Integer, ForeignKey("trading_order.order_id"))

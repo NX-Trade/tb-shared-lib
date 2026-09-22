@@ -66,6 +66,11 @@ class PortfolioPosition:
     unrealized_pnl: float
     realized_pnl: float = 0.0
     exit_price: Optional[float] = None
+    # Quantity opened *and* closed within the session (an intraday round trip).
+    # ``quantity`` is net, so a completed round trip reports 0 and the size of
+    # the trade would otherwise be unrecoverable — which is how manually traded
+    # intraday P&L went unrecorded. Adapters that cannot report it leave it 0.
+    closed_quantity: int = 0
 
 
 class BrokerAdapter(ABC):
