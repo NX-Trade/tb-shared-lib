@@ -19,6 +19,7 @@ from .historical_data import (
     OptionChain,
     OptionDailyMetrics,
 )
+from .historical_valuation import HistoricalValuation
 from .instrument import Instrument
 from .market_data import (
     BlockDeal,
@@ -82,6 +83,7 @@ __all__ = [
     "MacroIndicator",
     "FundamentalData",
     "FundamentalUniverse",
+    "HistoricalValuation",
     "SystemCommand",
     "SystemLog",
     "SystemMetric",
