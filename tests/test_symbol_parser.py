@@ -72,7 +72,43 @@ def test_resolve_underlying_prefix_fallback():
 
 def test_resolve_underlying_not_found():
     db = MagicMock()
-    db.query.return_value.filter.return_value.first.side_effect = [None, None]
+    # exact, alias map query, prefix all fail
+    db.query.return_value.filter.return_value.first.return_value = None
+    db.query.return_value.all.return_value = []
 
     inst_id = resolve_underlying_instrument_id(db, "UNKNOWN")
     assert inst_id is None
+
+
+def test_parse_trading_symbol_weekly_option():
+    """Verify weekly options format like NIFTY2692223400PE parse correctly."""
+    parsed = parse_trading_symbol("NIFTY2692223400PE")
+    assert parsed.underlying_symbol == "NIFTY"
+    assert parsed.instrument_type == InstrumentTypeEnum.PE
+    assert parsed.trading_symbol == "NIFTY2692223400PE"
+    assert parsed.strike_price == 23400.0
+    assert parsed.option_type == "PE"
+    assert parsed.expiry_date == dt.date(2026, 9, 22)
+
+    parsed_ce = parse_trading_symbol("BANKNIFTY26O0851000CE")
+    assert parsed_ce.underlying_symbol == "BANKNIFTY"
+    assert parsed_ce.instrument_type == InstrumentTypeEnum.CE
+    assert parsed_ce.trading_symbol == "BANKNIFTY26O0851000CE"
+    assert parsed_ce.strike_price == 51000.0
+    assert parsed_ce.option_type == "CE"
+    assert parsed_ce.expiry_date == dt.date(2026, 10, 8)
+
+
+def test_resolve_underlying_index_alias():
+    """Verify NIFTY resolves to NIFTY50 instrument_id via instrument map aliases."""
+    db = MagicMock()
+    # Exact match for "NIFTY" returns None
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    # But get_instrument_map returns NIFTY50 instrument
+    mock_nifty50 = MagicMock(instrument_id=1001, symbol="NIFTY50", ib_symbol="NIFTY50")
+    db.query.return_value.all.return_value = [mock_nifty50]
+
+    inst_id = resolve_underlying_instrument_id(db, "NIFTY")
+    assert inst_id == 1001
+

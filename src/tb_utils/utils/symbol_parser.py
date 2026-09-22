@@ -51,8 +51,34 @@ _FUTURE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Weekly Option: SYMBOLYYMDDSTRIKEPE/CE  e.g. NIFTY2692223400PE, BANKNIFTY26O0851000CE
+# Month: 1-9 for Jan-Sep, O for Oct, N for Nov, D for Dec
+_WEEKLY_OPTION_RE = re.compile(
+    r"^(?P<underlying>[A-Z0-9_&]+?)"
+    r"(?P<yy>\d{2})"
+    r"(?P<m>[1-9OND])"
+    r"(?P<dd>\d{2})"
+    r"(?P<strike>\d+(?:\.\d+)?)"
+    r"(?P<opt_type>CE|PE)$",
+    re.IGNORECASE,
+)
+
 # Month abbreviation → month number
 _MONTH_MAP = {m.upper(): i for i, m in enumerate(calendar.month_abbr) if m}
+_WEEKLY_MONTH_MAP = {
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "O": 10,
+    "N": 11,
+    "D": 12,
+}
 
 
 @dataclass(frozen=True)
@@ -91,13 +117,19 @@ def parse_trading_symbol(symbol: str) -> ParsedContract:
     Returns a ``ParsedContract`` with the underlying symbol, instrument type,
     and derivative-specific fields (strike, expiry, option type) when applicable.
 
+    Supports:
+      - Monthly Options: ``SONACOMS26SEP820CE``, ``NIFTY26SEP24000PE``
+      - Weekly Options: ``NIFTY2692223400PE``, ``BANKNIFTY26O0851000CE``
+      - Futures: ``NIFTY26SEPFUT``, ``RELIANCE26OCTFUT``
+      - Equities: ``RELIANCE``, ``SONACOMS``
+
     The underlying symbol extracted here may be a truncated exchange form
-    (e.g. ``SONACOMS`` for ``SONACOMSTAR``). Use ``resolve_underlying_instrument_id``
-    to fuzzy-match against the instrument master.
+    (e.g. ``SONACOMS`` for ``SONACOMSTAR``) or index alias (``NIFTY`` for ``NIFTY50``).
+    Use ``resolve_underlying_instrument_id`` to match against the instrument master.
     """
     cleaned = symbol.strip().upper()
 
-    # Try option pattern first (more specific)
+    # 1. Try standard monthly option pattern
     m = _OPTION_RE.match(cleaned)
     if m:
         opt_type = m.group("opt_type").upper()
@@ -110,7 +142,27 @@ def parse_trading_symbol(symbol: str) -> ParsedContract:
             option_type=opt_type,
         )
 
-    # Try future pattern
+    # 2. Try weekly option pattern (e.g. NIFTY2692223400PE)
+    m = _WEEKLY_OPTION_RE.match(cleaned)
+    if m:
+        opt_type = m.group("opt_type").upper()
+        year = 2000 + int(m.group("yy"))
+        month = _WEEKLY_MONTH_MAP.get(m.group("m").upper(), 1)
+        day = int(m.group("dd"))
+        try:
+            exp_date = dt.date(year, month, day)
+        except ValueError:
+            exp_date = None
+        return ParsedContract(
+            underlying_symbol=m.group("underlying").upper(),
+            instrument_type=InstrumentTypeEnum.CE if opt_type == "CE" else InstrumentTypeEnum.PE,
+            trading_symbol=cleaned,
+            expiry_date=exp_date,
+            strike_price=float(m.group("strike")),
+            option_type=opt_type,
+        )
+
+    # 3. Try future pattern
     m = _FUTURE_RE.match(cleaned)
     if m:
         return ParsedContract(
@@ -120,7 +172,7 @@ def parse_trading_symbol(symbol: str) -> ParsedContract:
             expiry_date=_parse_expiry(m.group("yy"), m.group("mon")),
         )
 
-    # Plain equity
+    # 4. Plain equity
     return ParsedContract(
         underlying_symbol=cleaned,
         instrument_type=InstrumentTypeEnum.EQUITY,
@@ -131,15 +183,27 @@ def parse_trading_symbol(symbol: str) -> ParsedContract:
 def resolve_underlying_instrument_id(db: Session, underlying_symbol: str) -> Optional[int]:
     """Look up ``instrument_id`` for an underlying symbol.
 
-    Handles broker symbol truncations (``SONACOMS`` → ``SONACOMSTAR``) by
-    trying exact match first, then prefix match against ``instrument.symbol``.
+    Handles broker symbol truncations (``SONACOMS`` → ``SONACOMSTAR``) and
+    index aliases (``NIFTY`` → ``NIFTY50``) by trying exact match, alias map,
+    and prefix match against ``instrument.symbol``.
     """
+    from tb_utils.utils.common import get_instrument_map, resolve_instrument_id
+
     # 1. Exact match
     row = db.query(Instrument.instrument_id).filter(Instrument.symbol == underlying_symbol).first()
     if row:
         return row.instrument_id
 
-    # 2. Prefix match — the exchange truncates symbols like SONACOMSTAR → SONACOMS
+    # 2. Alias resolution (handles NIFTY -> NIFTY50, BANKNIFTY, FINNIFTY, IB symbols)
+    try:
+        inst_map = get_instrument_map(db)
+        resolved = resolve_instrument_id(underlying_symbol, inst_map)
+        if resolved is not None:
+            return resolved
+    except Exception as exc:
+        logger.warning("Failed to resolve alias for %s via get_instrument_map: %s", underlying_symbol, exc)
+
+    # 3. Prefix match — the exchange truncates symbols like SONACOMSTAR → SONACOMS
     if len(underlying_symbol) >= 3:
         row = (
             db.query(Instrument.instrument_id)
@@ -156,3 +220,4 @@ def resolve_underlying_instrument_id(db: Session, underlying_symbol: str) -> Opt
 
     logger.warning("Could not resolve underlying symbol %s to any instrument", underlying_symbol)
     return None
+
