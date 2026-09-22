@@ -29,6 +29,8 @@ from .historical_data import (
     OptionChainResponse,
     PcrHistoryPoint,
     StrikeDataPoint,
+    StrikeInsightRow,
+    StrikeInsightsResponse,
 )
 from .instrument import InstrumentCreate, InstrumentResponse, InstrumentUpdate
 from .market_data import (
@@ -98,6 +100,8 @@ __all__ = [
     "OptionChainAnalysisResponse",
     "OptionChainMetrics",
     "StrikeDataPoint",
+    "StrikeInsightRow",
+    "StrikeInsightsResponse",
     "PcrHistoryPoint",
     "CandleResponse",
     "InstrumentResponse",

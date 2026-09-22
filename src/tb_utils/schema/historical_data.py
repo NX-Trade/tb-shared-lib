@@ -163,3 +163,35 @@ class OptionChainAnalysisResponse(BaseSchema):
     metrics: Optional[OptionChainMetrics] = None
     strikes_data: list[StrikeDataPoint]
     pcr_history: list[PcrHistoryPoint]
+
+
+class StrikeInsightRow(BaseSchema):
+    """One row of the bulk Strike OI Insights scanner (tb-analyser-portal
+    Screen 2) — a symbol's whole option chain collapsed to its highest
+    CE/PE/liquidation strikes, at its nearest expiry.
+
+    Deliberately excludes futures price/%%change: that comes from
+    `/analysis/fno/buildup`, which the frontend already has and can merge
+    in by symbol — duplicating it here would mean two sources of truth
+    for the same number.
+    """
+
+    symbol: str
+    lot_size: int
+    expiry_date: str
+    spot_price: float
+    interpretation: str
+    highest_ce_strike: float
+    highest_ce_oi: int
+    highest_ce_oi_change: int
+    highest_pe_strike: float
+    highest_pe_oi: int
+    highest_pe_oi_change: int
+    highest_liquidation_strike: float
+    highest_liquidation_option_type: str
+    highest_liquidation_oi_change: int
+
+
+class StrikeInsightsResponse(BaseSchema):
+    as_of: datetime
+    rows: list[StrikeInsightRow]
