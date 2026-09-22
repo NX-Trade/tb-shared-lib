@@ -5,6 +5,7 @@ for console and file-based logging with rotation. It supports different log leve
 service-wide dual logging (stdout + rotating file), and Celery signal integration.
 """
 
+import importlib
 import logging
 import os
 import sys
@@ -159,7 +160,7 @@ def setup_service_logging(
     # Hook Celery signals if Celery is available in runtime
     if f_handler is not None:
         try:
-            import importlib
+            
 
             celery_signals = importlib.import_module("celery.signals")
             after_setup_logger = getattr(celery_signals, "after_setup_logger", None)
