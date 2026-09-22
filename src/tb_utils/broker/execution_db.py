@@ -6,34 +6,41 @@ Centralises DRY database mutations shared across tb-execution modules
 
 import datetime as dt
 import logging
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from tb_utils.broker.base import OrderResult, OrderStatus
-from tb_utils.models import Position, TradingOrder
+from tb_utils.models import Instrument, Position, TradingOrder
 
 logger = logging.getLogger(__name__)
 
 
+# pylint: disable=too-many-locals,too-many-arguments,too-many-positional-arguments
 def insert_order(
-    session: Session,
+    db: Session,
     instrument_id: int,
     broker_id: int,
     side: str,
     order_type: str,
     quantity: int,
-    limit_price: float | None,
+    limit_price: Optional[float],
     status: str,
     broker_order_id: str,
     strategy_id: str = "",
-    stop_price: float | None = None,
-    parent_order_id: int | None = None,
+    stop_price: Optional[float] = None,
+    parent_order_id: Optional[int] = None,
     product: str = "D",
+    symbol: str = "",
+    trading_symbol: Optional[str] = None,
+    instrument_type: Optional[str] = None,
+    strike_price: Optional[float] = None,
+    expiry_date: Optional[dt.date] = None,
 ) -> TradingOrder:
     """Insert a new order into trading_order table.
 
     Args:
-        session: Active SQLAlchemy session; the row is committed and refreshed.
+        db: Active SQLAlchemy session; the row is committed and refreshed.
         instrument_id: FK to ``instrument``.
         broker_id: FK to ``broker``.
         side: "BUY" or "SELL".
@@ -49,14 +56,28 @@ def insert_order(
             instead of by parsing ``strategy_id`` strings — that is what makes
             OCO (cancel-the-other-leg-on-fill) possible.
         product: "D" = Delivery (CNC), "I" = Intraday (MIS).
+        symbol: Broker order symbol.
+        trading_symbol: Derivative/trading symbol (takes precedence over symbol if provided).
+        instrument_type: EQUITY, FUT, CE, PE.
+        strike_price: Option strike price.
+        expiry_date: Contract expiry date.
 
     Returns:
         The persisted ``TradingOrder``.
     """
+    resolved_symbol = trading_symbol or symbol
+    if not resolved_symbol and instrument_id:
+        inst = db.get(Instrument, instrument_id)
+        if inst:
+            resolved_symbol = inst.symbol
+
     order = TradingOrder(
         instrument_id=instrument_id,
         broker_id=broker_id,
-        symbol="",
+        symbol=resolved_symbol or "",
+        instrument_type=instrument_type,
+        strike_price=strike_price,
+        expiry_date=expiry_date,
         side=side,
         order_type=order_type,
         quantity=quantity,
@@ -69,13 +90,13 @@ def insert_order(
         parent_order_id=parent_order_id,
         product=product,
     )
-    session.add(order)
-    session.commit()
-    session.refresh(order)
+    db.add(order)
+    db.commit()
+    db.refresh(order)
     return order
 
 
-def update_order(session: Session, order: TradingOrder, result: OrderResult) -> None:
+def update_order(db: Session, order: TradingOrder, result: OrderResult) -> None:
     """Update an existing TradingOrder row with broker fill result."""
     order.status = result.status.value
     order.filled_quantity = result.filled_quantity
@@ -83,29 +104,41 @@ def update_order(session: Session, order: TradingOrder, result: OrderResult) -> 
     order.broker_order_id = result.broker_order_id or order.broker_order_id
     if result.status == OrderStatus.FILLED:
         order.filled_at = dt.datetime.now(dt.UTC)
-    session.commit()
+    db.commit()
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def upsert_position(
-    session: Session,
+    db: Session,
     instrument_id: int,
     broker_id: int,
     qty_delta: int,
     avg_price: float,
+    trading_symbol: Optional[str] = None,
+    instrument_type: str = "EQUITY",
+    strike_price: Optional[float] = None,
+    expiry_date: Optional[dt.date] = None,
+    is_algo: bool = True,
 ) -> None:
     """Upsert a position record in position table."""
-    existing = (
-        session.query(Position)
-        .filter(
-            Position.instrument_id == instrument_id,
-            Position.broker_id == broker_id,
-        )
-        .first()
-    )
+    resolved_symbol = trading_symbol
+    if not resolved_symbol and instrument_id:
+        inst = db.get(Instrument, instrument_id)
+        if inst:
+            resolved_symbol = inst.symbol
+
+    query = db.query(Position).filter(Position.broker_id == broker_id)
+    if resolved_symbol:
+        query = query.filter(Position.trading_symbol == resolved_symbol)
+    else:
+        query = query.filter(Position.instrument_id == instrument_id)
+
+    existing = query.first()
+
     if existing:
         total_qty = existing.net_quantity + qty_delta
         if total_qty == 0:
-            session.delete(existing)
+            db.delete(existing)
         else:
             existing.average_price = round(
                 (existing.average_price * existing.net_quantity + avg_price * qty_delta)
@@ -113,14 +146,19 @@ def upsert_position(
                 2,
             )
             existing.net_quantity = total_qty
-        session.commit()
+        db.commit()
     else:
-        session.add(
+        db.add(
             Position(
                 instrument_id=instrument_id,
                 broker_id=broker_id,
+                trading_symbol=resolved_symbol or "",
+                instrument_type=instrument_type,
+                strike_price=strike_price,
+                expiry_date=expiry_date,
+                is_algo=is_algo,
                 net_quantity=qty_delta,
                 average_price=avg_price,
             )
         )
-        session.commit()
+        db.commit()
