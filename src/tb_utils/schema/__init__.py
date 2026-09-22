@@ -22,6 +22,8 @@ from .fundamental_data import FundamentalDataResponse
 from .fundamental_universe import FundamentalBasketSummary, FundamentalUniverseResponse
 from .historical_data import (
     CandleResponse,
+    FuturesOiHistoryResponse,
+    FuturesOiPoint,
     HistoricalEquityDataResponse,
     HistoricalIndexDataResponse,
     OptionChainAnalysisResponse,
@@ -102,6 +104,8 @@ __all__ = [
     "StrikeDataPoint",
     "StrikeInsightRow",
     "StrikeInsightsResponse",
+    "FuturesOiPoint",
+    "FuturesOiHistoryResponse",
     "PcrHistoryPoint",
     "CandleResponse",
     "InstrumentResponse",

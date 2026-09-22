@@ -195,3 +195,21 @@ class StrikeInsightRow(BaseSchema):
 class StrikeInsightsResponse(BaseSchema):
     as_of: datetime
     rows: list[StrikeInsightRow]
+
+
+class FuturesOiPoint(BaseSchema):
+    date: str
+    open_interest: int
+    change_in_oi: int
+    close: float
+    volume: int
+
+
+class FuturesOiHistoryResponse(BaseSchema):
+    """Daily futures OI time series for one symbol/expiry — the chart
+    behind tb-analyser-portal's Strike OI Insights preview panel."""
+
+    symbol: str
+    expiries: list[str]
+    selected_expiry: str
+    series: list[FuturesOiPoint]
