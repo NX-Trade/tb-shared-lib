@@ -134,3 +134,39 @@ def test_resolve_option_contract_from_redis_cache():
     assert contract.option_type == "CE"
     assert contract.entry_premium == 25.0
     db.execute.assert_not_called()
+
+
+def test_resolve_option_contract_resolves_index_aliases():
+    """When called with NIFTY or BANKNIFTY aliases, resolver checks all canonical aliases."""
+    expiry = dt.date.today() + dt.timedelta(days=7)
+    cached_records = [
+        {
+            "symbol": "NIFTY50",
+            "expiry_date": str(expiry),
+            "strike_price": 25000.0,
+            "option_type": "CE",
+            "ltp": 150.0,
+            "implied_vol": 14.0,
+            "open_interest": 50000,
+            "volume": 20000,
+            "underlying_value": 25000.0,
+        }
+    ]
+
+    mock_store = MagicMock()
+
+    # Cache hit on NIFTY50 when asked for NIFTY
+    def get_cache(s):
+        if s == "NIFTY50":
+            return cached_records
+        return None
+
+    mock_store.get_cached_option_chain.side_effect = get_cache
+
+    db = MagicMock()
+    contract = resolve_option_contract(db, "NIFTY", "BUY", redis_store=mock_store)
+
+    assert contract is not None
+    assert contract.strike_price == 25000.0
+    assert contract.option_type == "CE"
+    assert contract.entry_premium == 150.0

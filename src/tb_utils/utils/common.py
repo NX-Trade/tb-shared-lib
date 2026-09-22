@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 
 from .enums import MarketTimingEnum
 
@@ -105,7 +106,8 @@ def is_trading_hours_open() -> bool:
 def get_instrument_map(session) -> dict[str, int]:
     """Build a robust map of symbol/ib_symbol to instrument_id.
 
-    Handles uppercase/lowercase, trailing spaces, and ticker suffixes (.NS, -EQ).
+    Handles uppercase/lowercase, trailing spaces, ticker suffixes (.NS, -EQ),
+    and common index ticker aliases (NIFTY 50, BANK NIFTY, FINNIFTY).
     """
     from tb_utils.models import Instrument
 
@@ -129,10 +131,53 @@ def get_instrument_map(session) -> dict[str, int]:
                 if "-" in k:
                     inst_map[k.split("-")[0]] = inst.instrument_id
 
+    # Canonical index alias mappings
+    nifty_id = inst_map.get("NIFTY50") or inst_map.get("NIFTY")
+    if nifty_id:
+        for alias in (
+            "NIFTY",
+            "NIFTY 50",
+            "NIFTY50",
+            "NSE:NIFTY50",
+            "NSE_INDEX|Nifty 50",
+            "NSE_INDEX|NIFTY 50",
+        ):
+            inst_map[alias] = nifty_id
+            inst_map[alias.lower()] = nifty_id
+            inst_map[alias.upper()] = nifty_id
+
+    banknifty_id = (
+        inst_map.get("BANKNIFTY") or inst_map.get("NIFTYBANK") or inst_map.get("NIFTY BANK")
+    )
+    if banknifty_id:
+        for alias in (
+            "BANKNIFTY",
+            "NIFTYBANK",
+            "NIFTY BANK",
+            "BANK NIFTY",
+            "NSE_INDEX|Nifty Bank",
+            "NSE_INDEX|NIFTY BANK",
+        ):
+            inst_map[alias] = banknifty_id
+            inst_map[alias.lower()] = banknifty_id
+            inst_map[alias.upper()] = banknifty_id
+
+    finnifty_id = inst_map.get("FINNIFTY") or inst_map.get("NIFTY FIN SERVICE")
+    if finnifty_id:
+        for alias in (
+            "FINNIFTY",
+            "NIFTY FIN SERVICE",
+            "NIFTY FINANCIAL SERVICES",
+            "FIN NIFTY",
+        ):
+            inst_map[alias] = finnifty_id
+            inst_map[alias.lower()] = finnifty_id
+            inst_map[alias.upper()] = finnifty_id
+
     return inst_map
 
 
-def resolve_instrument_id(symbol: str, inst_map: dict[str, int]) -> int | None:
+def resolve_instrument_id(symbol: Optional[str], inst_map: dict[str, int]) -> Optional[int]:
     """Resolve instrument_id for a given symbol string using the inst_map."""
     if not symbol:
         return None

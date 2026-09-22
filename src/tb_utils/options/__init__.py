@@ -11,6 +11,7 @@ from tb_utils.options.resolver import (
     TARGET_DELTA,
     ResolvedContract,
     get_default_redis_store,
+    get_symbol_option_chain_aliases,
     resolve_option_contract,
 )
 from tb_utils.options.strategy_builder import (
@@ -30,6 +31,7 @@ __all__ = [
     "TARGET_DELTA",
     "ResolvedContract",
     "get_default_redis_store",
+    "get_symbol_option_chain_aliases",
     "resolve_option_contract",
     "BuiltOptionLeg",
     "BuiltOptionStrategy",

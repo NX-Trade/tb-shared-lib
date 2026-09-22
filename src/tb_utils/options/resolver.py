@@ -208,6 +208,25 @@ def _extract_candidates_from_db(rows: list, option_type: str) -> list[_OptionCan
     return candidates
 
 
+def get_symbol_option_chain_aliases(symbol: str) -> list[str]:
+    """Return prioritized lookup symbols for option chain searches.
+
+    Handles standard variations for indices (e.g. NIFTY50 vs NIFTY, BANKNIFTY vs NIFTY BANK).
+    """
+    if not symbol:
+        return []
+    s = str(symbol).strip().upper()
+    if s in ("NIFTY", "NIFTY50", "NIFTY 50", "NSE:NIFTY50"):
+        return ["NIFTY50", "NIFTY", "NIFTY 50"]
+    if s in ("BANKNIFTY", "NIFTYBANK", "NIFTY BANK", "BANK NIFTY"):
+        return ["BANKNIFTY", "NIFTY BANK", "NIFTYBANK", "BANK NIFTY"]
+    if s in ("FINNIFTY", "NIFTY FIN SERVICE", "NIFTY FINANCIAL SERVICES", "FIN NIFTY"):
+        return ["FINNIFTY", "NIFTY FIN SERVICE", "FIN NIFTY"]
+    if s in ("MIDCPNIFTY", "NIFTY MIDCAP SELECT", "MIDCAP NIFTY"):
+        return ["MIDCPNIFTY", "NIFTY MIDCAP SELECT", "MIDCAP NIFTY"]
+    return [s]
+
+
 def resolve_option_contract(
     db: Session,
     symbol: str,
@@ -261,23 +280,30 @@ def resolve_option_contract(
     option_type = "CE" if action.upper() == "BUY" else "PE"
     store = redis_store if redis_store is not None else get_default_redis_store()
     candidates: list[_OptionCandidate] = []
+    symbol_candidates = get_symbol_option_chain_aliases(symbol)
 
     # 1. Try Redis cache first (fresh 3-min snapshots cached with 6h TTL)
     if store is not None:
-        try:
-            cached = store.get_cached_option_chain(symbol)
-            if cached:
-                candidates = _extract_candidates_from_redis(cached, option_type)
-        except Exception as exc:
-            logger.warning("[resolve_option_contract] Redis read failed for %s: %s", symbol, exc)
+        for sym in symbol_candidates:
+            try:
+                cached = store.get_cached_option_chain(sym)
+                if cached:
+                    candidates = _extract_candidates_from_redis(cached, option_type)
+                    if candidates:
+                        break
+            except Exception as exc:
+                logger.warning("[resolve_option_contract] Redis read failed for %s: %s", sym, exc)
 
     # 2. If not in Redis, try Postgres DB
     if not candidates:
-        rows = db.execute(
-            OPTION_CONTRACTS_QUERY, {"symbol": symbol, "option_type": option_type}
-        ).fetchall()
-        if rows:
-            candidates = _extract_candidates_from_db(rows, option_type)
+        for sym in symbol_candidates:
+            rows = db.execute(
+                OPTION_CONTRACTS_QUERY, {"symbol": sym, "option_type": option_type}
+            ).fetchall()
+            if rows:
+                candidates = _extract_candidates_from_db(rows, option_type)
+                if candidates:
+                    break
 
     if not candidates:
         logger.info(
