@@ -17,7 +17,7 @@ Key changes:
 Backfills existing equity rows with ``trading_symbol`` from the instrument
 master and ``instrument_type='EQUITY'``.
 
-Revision ID: b4c5d6e7f8a9
+Revision ID: b0c1d2e3f4a5
 Revises: a9b0c1d2e3f4
 Create Date: 2026-09-22 13:00:00.000000
 
@@ -27,7 +27,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "b4c5d6e7f8a9"
+revision = "b0c1d2e3f4a5"
 down_revision = "a9b0c1d2e3f4"
 branch_labels = None
 depends_on = None
