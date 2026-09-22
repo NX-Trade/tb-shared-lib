@@ -99,12 +99,19 @@ class PositionResponse(BaseSchema):
     position_id: int
     instrument_id: int
     broker_id: int
+    trading_symbol: str
+    instrument_type: str = "EQUITY"
+    strike_price: Optional[float] = None
+    expiry_date: Optional[date] = None
+    is_algo: bool = True
     net_quantity: int
     average_price: float
     realized_pnl: float
     unrealized_pnl: float
+    last_price: Optional[float] = None
+    created_at: Optional[datetime] = None
     last_updated_at: datetime
-    symbol: Optional[str] = None
+    symbol: Optional[str] = None  # underlying symbol (from instrument join)
 
 
 class TradeResponse(BaseSchema):
@@ -112,6 +119,10 @@ class TradeResponse(BaseSchema):
     strategy_id: Optional[str] = None
     instrument_id: int
     broker_id: int
+    trading_symbol: Optional[str] = None
+    instrument_type: Optional[str] = None
+    strike_price: Optional[float] = None
+    expiry_date: Optional[date] = None
     entry_order_id: Optional[int] = None
     exit_order_id: Optional[int] = None
     stop_order_id: Optional[int] = None

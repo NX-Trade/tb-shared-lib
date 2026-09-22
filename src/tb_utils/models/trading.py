@@ -106,7 +106,12 @@ class TradingOrder(Base):
     strategy_id = Column(String(50))
     broker_order_id = Column(String(50), unique=True)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"))
-    symbol = Column(String(20))
+    symbol = Column(String(60))  # widened for derivative symbols
+
+    # ── Derivative contract columns (mirrors TradingSignal) ─────────────
+    instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
+    strike_price = Column(Numeric(14, 2), nullable=True)  # options only
+    expiry_date = Column(Date, nullable=True)  # F&O only
 
     side = Column(
         ENUM("BUY", "SELL", "HOLD", name="order_side", create_type=False),
@@ -193,13 +198,18 @@ class ExecutionPlan(Base):
     __tablename__ = "execution_plan"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    symbol = Column(String(20), nullable=False)
+    symbol = Column(String(60), nullable=False)  # trading_symbol (widened for derivatives)
     instrument_id = Column(
         Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
     )
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False)
     signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True)
     strategy_id = Column(String(50), nullable=False)
+
+    # ── Derivative contract columns ─────────────────────────────────────
+    instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
+    strike_price = Column(Numeric(14, 2), nullable=True)
+    expiry_date = Column(Date, nullable=True)
 
     side = Column(
         ENUM("BUY", "SELL", "HOLD", name="order_side", create_type=False),
@@ -237,7 +247,15 @@ class ExecutionPlan(Base):
 
 
 class Position(Base, PostgresUpsertMixin):
-    """Current Positions table."""
+    """Current Positions table.
+
+    Tracks both equity and derivative (F&O) positions in a unified book.
+    ``instrument_id`` always points to the underlying equity/index in the
+    instrument master. Derivative-specific columns (``instrument_type``,
+    ``strike_price``, ``expiry_date``) follow the same pattern as
+    ``TradingSignal``. The ``trading_symbol`` is the broker-facing string
+    used for order placement and reconciliation.
+    """
 
     __tablename__ = "position"
 
@@ -247,15 +265,35 @@ class Position(Base, PostgresUpsertMixin):
     )
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
 
+    # ── Contract identification ─────────────────────────────────────────
+    trading_symbol = Column(String(60), nullable=False, index=True)
+    instrument_type = Column(
+        String(10), nullable=False, server_default="EQUITY", default="EQUITY"
+    )  # EQUITY, FUT, CE, PE
+    strike_price = Column(Numeric(14, 2), nullable=True)  # options only
+    expiry_date = Column(Date, nullable=True)  # F&O only
+
+    # ── Operational flags ───────────────────────────────────────────────
+    is_algo = Column(Boolean, nullable=False, server_default="true", default=True)
+
+    # ── Position state ──────────────────────────────────────────────────
     net_quantity = Column(Integer, nullable=False)
     average_price = Column(Numeric(10, 2), nullable=False)
     realized_pnl = Column(Numeric(10, 2), default=0)
     unrealized_pnl = Column(Numeric(10, 2), default=0)
+    last_price = Column(Numeric(14, 4), nullable=True)
+
+    # ── Audit timestamps ────────────────────────────────────────────────
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now()
+    )
     last_updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
     broker = relationship("Broker", back_populates="positions")
 
-    __table_args__ = (UniqueConstraint("instrument_id", "broker_id", name="uix_position_key"),)
+    __table_args__ = (
+        UniqueConstraint("trading_symbol", "broker_id", name="uix_position_symbol_broker"),
+    )
 
 
 class Trade(Base):
@@ -267,6 +305,12 @@ class Trade(Base):
     strategy_id = Column(String(50), index=True)
     instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
+
+    # ── Contract identification (mirrors Position) ──────────────────────
+    trading_symbol = Column(String(60), nullable=True, index=True)
+    instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
+    strike_price = Column(Numeric(14, 2), nullable=True)
+    expiry_date = Column(Date, nullable=True)
 
     entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"))
     exit_order_id = Column(Integer, ForeignKey("trading_order.order_id"))

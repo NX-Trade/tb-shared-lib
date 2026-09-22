@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.9"
+__version__ = "1.16.10"
 
 from .broker.base import (
     BrokerAdapter,
@@ -155,6 +155,7 @@ from .utils.enums import (
     ExecutionModeEnum,
     ExecutionPlanStateEnum,
     ExitReasonEnum,
+    InstrumentTypeEnum,
     OrderIntentEnum,
     SignalExecutionStatusEnum,
 )
@@ -169,6 +170,7 @@ __all__ = [
     "ExecutionModeEnum",
     "ExecutionPlanStateEnum",
     "ExitReasonEnum",
+    "InstrumentTypeEnum",
     "OrderIntentEnum",
     "SignalExecutionStatusEnum",
     "OrderSide",

@@ -180,3 +180,16 @@ class OrderIntentEnum(StrEnum):
     STOP = "STOP"
     TARGET = "TARGET"
     SPREAD_LEG = "SPREAD_LEG"
+
+
+class InstrumentTypeEnum(StrEnum):
+    """Type of tradeable contract on a position, order, or trade row.
+
+    Values match ``TradingSignal.instrument_type`` so that signals flow
+    into execution plans and positions without a mapping step.
+    """
+
+    EQUITY = "EQUITY"
+    FUT = "FUT"
+    CE = "CE"
+    PE = "PE"
