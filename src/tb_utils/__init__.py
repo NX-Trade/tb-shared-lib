@@ -28,6 +28,12 @@ from .greeks import (
     calculate_iv_percentile,
     calculate_iv_rank,
 )
+from .logger import (
+    get_console_handler,
+    get_file_handler,
+    get_logger,
+    setup_service_logging,
+)
 from .models import (
     Base,
     BlockDeal,
@@ -324,6 +330,11 @@ __all__ = [
     # Option Contract Resolution
     "ResolvedContract",
     "resolve_option_contract",
+    # Logging Utilities
+    "get_console_handler",
+    "get_file_handler",
+    "get_logger",
+    "setup_service_logging",
     # Typed Errors
     "NxTradeError",
     "DataUnavailable",

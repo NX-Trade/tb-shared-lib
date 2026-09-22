@@ -1,8 +1,8 @@
 """Logging configuration module for tb_utils.
 
-This module provides a flexible logging setup for the library with options for
-console and file-based logging with rotation. It supports different log levels
-and custom formatting.
+This module provides a flexible logging setup for the library and services with options
+for console and file-based logging with rotation. It supports different log levels,
+service-wide dual logging (stdout + rotating file), and Celery signal integration.
 """
 
 import logging
@@ -10,10 +10,11 @@ import os
 import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from typing import Optional
 
-# Default formatter with timestamp, logger name, level, and message
+# Standard formatter across all services
+STANDARD_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-# More detailed formatter including process ID and line number for debugging
 DETAILED_FORMAT = (
     "%(asctime)s - %(name)s - %(levelname)s - [%(process)d] - %(pathname)s:%(lineno)d - %(message)s"
 )
@@ -25,13 +26,14 @@ DEFAULT_LOG_DIR = os.getenv("TBUTILSLIB_LOG_DIR", os.getcwd())
 
 
 def get_console_handler(
-    level: int = logging.INFO, formatter: logging.Formatter | None = None
+    level: int = logging.INFO,
+    formatter: Optional[logging.Formatter] = None,
 ) -> logging.StreamHandler:
     """Create a console handler for logging to stdout.
 
     Args:
         level: The logging level for the console handler (default: INFO)
-        formatter: Custom formatter for log messages (default: None, uses default formatter)
+        formatter: Custom formatter for log messages (default: None, uses standard formatter)
 
     Returns:
         A configured StreamHandler for console output
@@ -40,19 +42,19 @@ def get_console_handler(
     console_handler.setLevel(level)
 
     if formatter is None:
-        formatter = logging.Formatter(DEFAULT_FORMAT)
+        formatter = logging.Formatter(STANDARD_FORMAT)
 
     console_handler.setFormatter(formatter)
     return console_handler
 
 
 def get_file_handler(
-    log_file: str | None = None,
-    log_dir: str | None = None,
+    log_file: Optional[str] = None,
+    log_dir: Optional[str] = None,
     level: int = logging.DEBUG,
-    formatter: logging.Formatter | None = None,
+    formatter: Optional[logging.Formatter] = None,
     max_bytes: int = 10485760,  # 10MB
-    backup_count: int = 5,
+    backup_count: int = 14,
     rotation_type: str = "timed",  # "timed" or "size"
 ) -> TimedRotatingFileHandler | RotatingFileHandler:
     """Create a file handler for logging to a file with rotation.
@@ -61,9 +63,9 @@ def get_file_handler(
         log_file: Name of the log file (default: uses DEFAULT_LOG_FILE)
         log_dir: Directory to store log files (default: uses DEFAULT_LOG_DIR)
         level: The logging level for the file handler (default: DEBUG)
-        formatter: Custom formatter for log messages (default: None, uses default formatter)
+        formatter: Custom formatter for log messages (default: None, uses standard formatter)
         max_bytes: Maximum size in bytes before rotating (for size-based rotation)
-        backup_count: Number of backup files to keep
+        backup_count: Number of backup files to keep (default: 14)
         rotation_type: Type of rotation - "timed" (daily) or "size" (based on file size)
 
     Returns:
@@ -79,23 +81,105 @@ def get_file_handler(
     log_path = os.path.join(log_dir, log_file)
 
     if rotation_type.lower() == "timed":
-        file_handler = TimedRotatingFileHandler(log_path, when="midnight", backupCount=backup_count)
+        file_handler = TimedRotatingFileHandler(
+            log_path, when="midnight", interval=1, backupCount=backup_count, encoding="utf-8"
+        )
     else:  # size-based rotation
-        file_handler = RotatingFileHandler(log_path, maxBytes=max_bytes, backupCount=backup_count)
+        file_handler = RotatingFileHandler(
+            log_path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+        )
 
     file_handler.setLevel(level)
 
     if formatter is None:
-        formatter = logging.Formatter(DETAILED_FORMAT)
+        formatter = logging.Formatter(STANDARD_FORMAT)
 
     file_handler.setFormatter(formatter)
     return file_handler
 
 
+def setup_service_logging(
+    service_name: str,
+    log_dir: Optional[str] = None,
+    log_level: Optional[str] = None,
+    console: bool = True,
+    backup_count: int = 14,
+) -> logging.Logger:
+    """Configure root and Celery logging for a service with dual stdout and rotating file output.
+
+    Args:
+        service_name: Name of the service (e.g. 'collector', 'signal-bot', 'execution', 'backend').
+        log_dir: Directory where log files are stored. Defaults to $LOG_DIR environment variable.
+        log_level: Root logging level string (e.g. 'INFO', 'DEBUG'). Defaults to $LOG_LEVEL or 'INFO'.
+        console: Whether to attach stdout console handler. Defaults to True.
+        backup_count: Number of rotated daily log files to retain. Defaults to 14.
+
+    Returns:
+        The configured root logger.
+    """
+    effective_log_dir = log_dir or os.getenv("LOG_DIR")
+    level_str = log_level or os.getenv("LOG_LEVEL", "INFO").upper()
+    numeric_level = getattr(logging, level_str, logging.INFO)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    # Clear existing handlers to prevent duplicate lines
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    formatter = logging.Formatter(STANDARD_FORMAT)
+
+    if console:
+        c_handler = logging.StreamHandler(sys.stdout)
+        c_handler.setLevel(numeric_level)
+        c_handler.setFormatter(formatter)
+        root_logger.addHandler(c_handler)
+
+    f_handler: Optional[logging.Handler] = None
+    if effective_log_dir:
+        try:
+            os.makedirs(effective_log_dir, exist_ok=True)
+            log_filename = f"{service_name}.log"
+            f_handler = TimedRotatingFileHandler(
+                os.path.join(effective_log_dir, log_filename),
+                when="midnight",
+                interval=1,
+                backupCount=backup_count,
+                encoding="utf-8",
+            )
+            f_handler.setLevel(numeric_level)
+            f_handler.setFormatter(formatter)
+            root_logger.addHandler(f_handler)
+        except Exception:
+            root_logger.exception(
+                "Failed to initialize persistent file logging in %s", effective_log_dir
+            )
+
+    # Hook Celery signals if Celery is available in runtime
+    if f_handler is not None:
+        try:
+            from celery.signals import after_setup_logger, after_setup_task_logger
+
+            @after_setup_logger.connect(weak=False)
+            def _on_after_setup_logger(logger, **kwargs):
+                if f_handler and f_handler not in logger.handlers:
+                    logger.addHandler(f_handler)
+
+            @after_setup_task_logger.connect(weak=False)
+            def _on_after_setup_task_logger(logger, **kwargs):
+                if f_handler and f_handler not in logger.handlers:
+                    logger.addHandler(f_handler)
+        except ImportError:
+            pass
+
+    return root_logger
+
+
 def get_logger(
     logger_name: str,
-    log_file: str | None = None,
-    log_dir: str | None = None,
+    log_file: Optional[str] = None,
+    log_dir: Optional[str] = None,
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
     use_console: bool = True,

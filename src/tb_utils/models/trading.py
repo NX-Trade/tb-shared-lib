@@ -104,6 +104,16 @@ class TradingOrder(Base):
     order_id = Column(Integer, primary_key=True, autoincrement=True)
     instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"))
     strategy_id = Column(String(50))
+    # Denormalised attribution link back to the originating signal.
+    #
+    # The normalised path is signal → execution_plan → trading_order, but that
+    # makes "what did this order earn?" a multi-hop join through a nullable FK,
+    # and any order created outside a plan (stop legs, bracket legs, manual
+    # exits, reconciled broker fills) drops off the chain entirely. Attribution
+    # is the highest-traffic analytical join in the system and an unattributable
+    # fill is a training row we paid real money for and cannot use, so the id is
+    # carried directly. NULL means "genuinely not signal-driven" (manual trade).
+    signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True, index=True)
     broker_order_id = Column(String(50), unique=True)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"))
     symbol = Column(String(60))  # widened for derivative symbols
@@ -305,6 +315,10 @@ class Trade(Base):
 
     trade_id = Column(Integer, primary_key=True, autoincrement=True)
     strategy_id = Column(String(50), index=True)
+    # Denormalised attribution link — see the note on TradingOrder.signal_id.
+    # Propagated from the entry order when the fill is booked, so realised
+    # net_pnl / slippage / commission join to trading_signal in one hop.
+    signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
 
