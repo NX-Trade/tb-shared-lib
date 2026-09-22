@@ -14,7 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 
 from .base import Base, PostgresUpsertMixin
@@ -107,6 +107,7 @@ class TradingOrder(Base):
     broker_order_id = Column(String(50), unique=True)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"))
     symbol = Column(String(60))  # widened for derivative symbols
+    trading_symbol = synonym("symbol")
 
     # ── Derivative contract columns (mirrors TradingSignal) ─────────────
     instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
@@ -199,6 +200,7 @@ class ExecutionPlan(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String(60), nullable=False)  # trading_symbol (widened for derivatives)
+    trading_symbol = synonym("symbol")
     instrument_id = Column(
         Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
     )
