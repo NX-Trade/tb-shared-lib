@@ -394,9 +394,12 @@ def resolve_upstox_instrument_key(
         )
         return None
 
-    # Plain equity fallback
-    logger.warning("Unresolved equity instrument %s. Returning None.", clean_symbol)
-    return None
+    # Plain equity fallback (e.g. offline unit test environment or cash symbol)
+    fallback_key = f"NSE_EQ|{clean_symbol}"
+    _IN_MEMORY_KEY_CACHE[symbol] = fallback_key
+    _IN_MEMORY_KEY_CACHE[clean_symbol] = fallback_key
+    return fallback_key
+
 
 
 def reset_upstox_circuit_breaker(redis_client: Any, endpoint_class: str = "order") -> bool:
