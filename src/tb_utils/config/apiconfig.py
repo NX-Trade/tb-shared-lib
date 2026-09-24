@@ -19,6 +19,7 @@ class UpstoxApiConfig:
 
     # ── v2 endpoints ─────────────────────────────────────────────────────
     USER_PROFILE: str = "/user/profile"
+    USER_FUNDS: str = "/user/get-funds-and-margin"
     ORDER_PLACE: str = "/order/place"
     ORDER_CANCEL: str = "/order/cancel"
     ORDER_HISTORY: str = "/order/history"

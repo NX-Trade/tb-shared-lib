@@ -141,3 +141,7 @@ class BrokerAdapter(ABC):
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support fetching GTT order details."
         )
+
+    def get_account_balance(self) -> dict:
+        """Fetch live account balance and available margin. Defaults to empty dict."""
+        return {}

@@ -101,3 +101,8 @@ def get_paper_order_key(broker_order_id: str) -> str:
     against the live spot on every status poll instead of being fabricated.
     """
     return f"paper:order:{broker_order_id}"
+
+
+def get_live_intraday_switch_key() -> str:
+    """Redis key controlling the live intraday execution switch (values: 'true'/'false')."""
+    return "execution:live_intraday_switch"
