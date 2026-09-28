@@ -44,6 +44,7 @@ from .market_data import (
     ParticipantOI,
 )
 from .nse_reference import FnoBanList, FnoExpiry, IndexConstituent, Nifty500AsOfDate, NseIndex
+from .signal import SignalCandidate
 from .system import RegimeLog, SystemCommand, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import (
     ExecutionPlan,
@@ -56,6 +57,7 @@ from .trading import (
 )
 
 __all__ = [
+    "SignalCandidate",
     "AgentVerdict",
     "NewsEmbedding",
     "Nifty500AsOfDate",

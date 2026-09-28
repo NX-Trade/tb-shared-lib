@@ -67,6 +67,7 @@ from .models import (
     ParticipantOI,
     Position,
     RegimeLog,
+    SignalCandidate,
     SystemLog,
     SystemMetric,
     Trade,
@@ -76,6 +77,7 @@ from .models import (
     WatchlistFocus,
 )
 from .options import ResolvedContract, resolve_option_contract
+from .persistence import persist_approved_signals
 from .request_maker import CircuitBreakerError, RequestMaker
 from .risk import ATR_STOP_MULTIPLIER, REGIME_RULES
 from .schema import (
@@ -247,6 +249,8 @@ __all__ = [
     "TradingHoliday",
     "TradingOrder",
     "TradingSignal",
+    "SignalCandidate",
+    "persist_approved_signals",
     "SignalActionEnum",
     "TimeframeEnum",
     "InstrumentTypeEnum",
