@@ -34,7 +34,7 @@ class TradingSignal(Base):
     expiry_date = Column(Date, nullable=True)  # futures / options
 
     action = Column(
-        ENUM("BUY", "SELL", "EXIT", name="signal_action", create_type=False),
+        ENUM("BUY", "SELL", "EXIT", "WATCH", name="signal_action", create_type=False),
         nullable=False,
     )
     timeframe = Column(
