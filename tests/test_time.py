@@ -1,6 +1,6 @@
 """Unit tests for tb_utils.time module."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlalchemy import Column, DateTime

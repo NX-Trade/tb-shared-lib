@@ -1,5 +1,3 @@
-from enum import StrEnum
-
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -18,25 +16,6 @@ from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 
 from .base import Base, PostgresUpsertMixin
-
-
-class StrategyClusterEnum(StrEnum):
-    """Broad quantitative engine / strategy family originating the signal."""
-
-    SHORT_TERM_CLUSTER = "SHORT_TERM_CLUSTER"
-    LONG_TERM_CLUSTER = "LONG_TERM_CLUSTER"
-    DELIVERY_ACCUMULATION = "DELIVERY_ACCUMULATION"
-    FNO_DERIVATIVES = "FNO_DERIVATIVES"
-
-
-class SignalOutcomeStatusEnum(StrEnum):
-    """Lifecycle status of a trading signal."""
-
-    ACTIVE = "ACTIVE"
-    TARGET_HIT = "TARGET_HIT"
-    SL_HIT = "SL_HIT"
-    EXPIRED = "EXPIRED"
-    INVALIDATED = "INVALIDATED"
 
 
 class TradingSignal(Base):

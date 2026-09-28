@@ -111,4 +111,3 @@ def test_resolve_underlying_index_alias():
 
     inst_id = resolve_underlying_instrument_id(db, "NIFTY")
     assert inst_id == 1001
-

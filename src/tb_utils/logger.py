@@ -160,8 +160,6 @@ def setup_service_logging(
     # Hook Celery signals if Celery is available in runtime
     if f_handler is not None:
         try:
-            
-
             celery_signals = importlib.import_module("celery.signals")
             after_setup_logger = getattr(celery_signals, "after_setup_logger", None)
             after_setup_task_logger = getattr(celery_signals, "after_setup_task_logger", None)

@@ -194,3 +194,45 @@ class InstrumentTypeEnum(StrEnum):
     FUT = "FUT"
     CE = "CE"
     PE = "PE"
+    STK = "STK"
+    OPT = "OPT"
+    IDX = "IDX"
+
+
+class SignalActionEnum(StrEnum):
+    """Direction of a trading signal / order."""
+
+    BUY = "BUY"
+    SELL = "SELL"
+    EXIT = "EXIT"
+    WATCH = "WATCH"
+
+
+class TimeframeEnum(StrEnum):
+    """Holding timeframe of a signal."""
+
+    SCALPING = "SCALPING"
+    INTRADAY = "INTRADAY"
+    SWING = "SWING"
+    POSITIONAL = "POSITIONAL"
+
+
+class StrategyClusterEnum(StrEnum):
+    """Broad quantitative engine / strategy family originating the signal."""
+
+    SHORT_TERM_CLUSTER = "SHORT_TERM_CLUSTER"
+    LONG_TERM_CLUSTER = "LONG_TERM_CLUSTER"
+    DELIVERY_ACCUMULATION = "DELIVERY_ACCUMULATION"
+    FNO_DERIVATIVES = "FNO_DERIVATIVES"
+    INTRADAY_FNO_CLUSTER = "INTRADAY_FNO_CLUSTER"
+    RESEARCH_CONFLUENCE = "RESEARCH_CONFLUENCE"
+
+
+class SignalOutcomeStatusEnum(StrEnum):
+    """Lifecycle status of a trading signal."""
+
+    ACTIVE = "ACTIVE"
+    TARGET_HIT = "TARGET_HIT"
+    SL_HIT = "SL_HIT"
+    EXPIRED = "EXPIRED"
+    INVALIDATED = "INVALIDATED"

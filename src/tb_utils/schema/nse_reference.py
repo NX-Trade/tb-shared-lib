@@ -44,4 +44,3 @@ class FnoBanListResponse(BaseSchema):
     trade_date: date
     symbol: str
     created_at: datetime
-

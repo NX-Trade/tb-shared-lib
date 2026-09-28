@@ -401,7 +401,6 @@ def resolve_upstox_instrument_key(
     return fallback_key
 
 
-
 def reset_upstox_circuit_breaker(redis_client: Any, endpoint_class: str = "order") -> bool:
     """Reset the Upstox circuit breaker to CLOSED in Redis.
 
