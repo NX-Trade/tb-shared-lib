@@ -5,11 +5,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import relationship, synonym
@@ -170,6 +172,21 @@ class TradingOrder(Base):
     account = relationship("ClientAccount", back_populates="orders")
     parent_order = relationship("TradingOrder", remote_side=[order_id])
 
+    __table_args__ = (
+        # A signal now legitimately fans out to N accounts (one order each), so
+        # the idempotency guard for multi-account fan-out is scoped per
+        # (signal_id, account_id): at most one non-terminal order per pair.
+        # This is the DB-level backstop behind the app-level claim-before-act
+        # check in the fan-out task — see docs/MULTI_ACCOUNT_MULTI_BROKER_PLAN.md.
+        Index(
+            "ux_trading_order_signal_account_active",
+            "signal_id",
+            "account_id",
+            unique=True,
+            postgresql_where=text("status NOT IN ('CANCELLED', 'REJECTED')"),
+        ),
+    )
+
 
 class ExecutionPlan(Base):
     """Durable state machine for a single entry execution (limit → TWAP fallback).
@@ -288,7 +305,14 @@ class Position(Base, PostgresUpsertMixin):
     account = relationship("ClientAccount", back_populates="positions")
 
     __table_args__ = (
-        UniqueConstraint("trading_symbol", "broker_id", name="uix_position_symbol_broker"),
+        # Was (trading_symbol, broker_id) only — collided across two client
+        # accounts holding the same symbol at the same broker. account_id is
+        # nullable (legacy single-account rows), and Postgres treats each NULL
+        # as distinct in a unique constraint, so pre-existing NULL-account rows
+        # are unaffected by this widening.
+        UniqueConstraint(
+            "trading_symbol", "broker_id", "account_id", name="uix_position_symbol_broker_account"
+        ),
     )
 
 
