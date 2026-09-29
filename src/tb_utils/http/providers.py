@@ -85,6 +85,21 @@ _UPSTOX_ENDPOINT_CLASSES: tuple[tuple[str, EndpointClassEnum], ...] = (
     ("/option/chain", EndpointClassEnum.MARKET_DATA),
 )
 
+# Angel One's SmartAPI adapter passes logical endpoint labels (not real URLs,
+# since calls go through the SDK — see ExternalClient.guarded_call), but the
+# same substring classification applies.
+_ANGELONE_ENDPOINT_CLASSES: tuple[tuple[str, EndpointClassEnum], ...] = (
+    ("/gtt", EndpointClassEnum.GTT),
+    ("/historical", EndpointClassEnum.HISTORICAL),
+    ("/order", EndpointClassEnum.ORDER),
+    ("/trade", EndpointClassEnum.ORDER),
+    ("/position", EndpointClassEnum.PORTFOLIO),
+    ("/holding", EndpointClassEnum.PORTFOLIO),
+    ("/portfolio", EndpointClassEnum.PORTFOLIO),
+    ("/quote", EndpointClassEnum.MARKET_DATA),
+    ("/ltp", EndpointClassEnum.MARKET_DATA),
+)
+
 # Endpoint fragments whose telemetry is an execution audit record. These are
 # retained for years, not days (review 13, Q4): they evidence what was sent to
 # the exchange on our behalf.
@@ -93,10 +108,15 @@ ORDER_AUDIT_FRAGMENTS: tuple[str, ...] = ("/order", "/gtt", "/trade")
 
 def classify_endpoint(provider: ApiProviderEnum, url: str) -> EndpointClassEnum:
     """Return the rate-limit class for ``url``."""
-    if provider != ApiProviderEnum.UPSTOX:
+    if provider == ApiProviderEnum.UPSTOX:
+        fragments = _UPSTOX_ENDPOINT_CLASSES
+    elif provider == ApiProviderEnum.ANGELONE:
+        fragments = _ANGELONE_ENDPOINT_CLASSES
+    else:
         return EndpointClassEnum.OTHER
+
     lowered = url.lower()
-    for fragment, endpoint_class in _UPSTOX_ENDPOINT_CLASSES:
+    for fragment, endpoint_class in fragments:
         if fragment in lowered:
             return endpoint_class
     return EndpointClassEnum.OTHER
