@@ -37,6 +37,7 @@ def insert_order(
     strike_price: Optional[float] = None,
     expiry_date: Optional[dt.date] = None,
     signal_id: Optional[int] = None,
+    account_id: Optional[int] = None,
 ) -> TradingOrder:
     """Insert a new order into trading_order table.
 
@@ -66,6 +67,7 @@ def insert_order(
             chain — entry, TWAP slice, stop, target, exit — so realised P&L can be
             attributed back to the signal in one join. Leave ``None`` only for
             genuinely discretionary orders.
+        account_id: Optional FK to ``client_account``.
 
     Returns:
         The persisted ``TradingOrder``.
@@ -79,6 +81,7 @@ def insert_order(
     order = TradingOrder(
         instrument_id=instrument_id,
         broker_id=broker_id,
+        account_id=account_id,
         symbol=resolved_symbol or "",
         instrument_type=instrument_type,
         strike_price=strike_price,
