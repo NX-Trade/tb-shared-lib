@@ -1,6 +1,6 @@
 """System Configuration, Metrics, and Log Models."""
 
-from sqlalchemy import Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, DOUBLE_PRECISION, JSON, JSONB
 from sqlalchemy.sql import func
 
@@ -41,6 +41,10 @@ class SystemMetric(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime(timezone=True), default=func.now(), index=True)
+    # NULL = legacy platform-wide curve (kept for backward-compatible reads,
+    # no longer written to once per-account snapshots are live). A populated
+    # value scopes this row to one ClientAccount's own equity curve.
+    account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
     total_equity = Column(Numeric(12, 2), nullable=False)
     cash_balance = Column(Numeric(12, 2), nullable=False)
     unrealized_pnl = Column(Numeric(10, 2), default=0)
