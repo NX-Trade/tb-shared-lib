@@ -95,6 +95,7 @@ class TradingOrder(Base):
     signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True, index=True)
     broker_order_id = Column(String(50), unique=True)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"))
+    account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
     symbol = Column(String(60))  # widened for derivative symbols
     trading_symbol = synonym("symbol")
 
@@ -166,6 +167,7 @@ class TradingOrder(Base):
 
     # Relationships
     broker = relationship("Broker", back_populates="orders")
+    account = relationship("ClientAccount", back_populates="orders")
     parent_order = relationship("TradingOrder", remote_side=[order_id])
 
 
@@ -194,6 +196,7 @@ class ExecutionPlan(Base):
         Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
     )
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
     signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True)
     strategy_id = Column(String(50), nullable=False)
 
@@ -255,6 +258,7 @@ class Position(Base, PostgresUpsertMixin):
         Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
     )
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
 
     # ── Contract identification ─────────────────────────────────────────
     trading_symbol = Column(String(60), nullable=False, index=True)
@@ -281,6 +285,7 @@ class Position(Base, PostgresUpsertMixin):
     last_updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
     broker = relationship("Broker", back_populates="positions")
+    account = relationship("ClientAccount", back_populates="positions")
 
     __table_args__ = (
         UniqueConstraint("trading_symbol", "broker_id", name="uix_position_symbol_broker"),
@@ -300,6 +305,7 @@ class Trade(Base):
     signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
 
     # ── Contract identification (mirrors Position) ──────────────────────
     trading_symbol = Column(String(60), nullable=True, index=True)
@@ -344,6 +350,7 @@ class Trade(Base):
     exit_reason = Column(String(20))  # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL"
 
     broker = relationship("Broker", back_populates="trades")
+    account = relationship("ClientAccount", back_populates="trades")
     entry_order = relationship("TradingOrder", foreign_keys=[entry_order_id])
     exit_order = relationship("TradingOrder", foreign_keys=[exit_order_id])
     stop_order = relationship("TradingOrder", foreign_keys=[stop_order_id])

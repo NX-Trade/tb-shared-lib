@@ -8,6 +8,7 @@ from tb_utils.utils.enums import (
     TimeframeEnum,
 )
 
+from .account import ClientAccount
 from .agent import AgentVerdict, NewsEmbedding
 from .base import Base, PostgresUpsertMixin
 from .broker import Broker, BrokerHealthLog, ExternalApiRequest
@@ -58,6 +59,7 @@ from .trading import (
 
 __all__ = [
     "SignalCandidate",
+    "ClientAccount",
     "AgentVerdict",
     "NewsEmbedding",
     "Nifty500AsOfDate",

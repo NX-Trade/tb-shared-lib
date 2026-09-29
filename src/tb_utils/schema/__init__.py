@@ -1,5 +1,11 @@
 """Pydantic API Validation Schemas (tb-utils)."""
 
+from .account import (
+    ClientAccountBase,
+    ClientAccountCreate,
+    ClientAccountResponse,
+    ClientAccountUpdate,
+)
 from .agent import (
     AgentClusterNodeStatus,
     AgentClusterStatusResponse,
@@ -153,4 +159,8 @@ __all__ = [
     "OptionStrategyResponse",
     "OptionStrategyLegCreate",
     "OptionStrategyLegResponse",
+    "ClientAccountBase",
+    "ClientAccountCreate",
+    "ClientAccountResponse",
+    "ClientAccountUpdate",
 ]

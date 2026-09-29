@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.13"
+__version__ = "1.16.14"
 
 from .broker.base import (
     BrokerAdapter,
@@ -42,6 +42,7 @@ from .models import (
     BrokerHealthLog,
     BulkDeal,
     Candle,
+    ClientAccount,
     CorporateEvent,
     DeliveryData,
     DerivativeTick,
@@ -224,6 +225,7 @@ __all__ = [
     "BrokerHealthLog",
     "BulkDeal",
     "Candle",
+    "ClientAccount",
     "CorporateEvent",
     "DerivativeTick",
     "ExternalApiRequest",
