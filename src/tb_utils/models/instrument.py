@@ -15,6 +15,10 @@ class Instrument(Base, PostgresUpsertMixin):
     isin = Column(String(50), unique=True, nullable=False, index=True)
     symbol = Column(String(100), nullable=False, index=True)
     ib_symbol = Column(String(20), nullable=False, index=True)
+    # Angel One's own instrument identifier (``symboltoken`` from their scrip
+    # master); nullable because it's populated by a separate tb-collector sync
+    # job, not known at instrument creation time.
+    angelone_token = Column(String(20), nullable=True, index=True)
     company_name = Column(String(500))
     sector = Column(String(200))
     is_fno = Column(SmallInteger, default=0)
