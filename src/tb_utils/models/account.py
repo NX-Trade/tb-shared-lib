@@ -1,6 +1,7 @@
 """Client Account model for multi-account trade routing and portfolio scoping."""
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
@@ -36,6 +37,10 @@ class ClientAccount(Base):
         String(100), nullable=True
     )  # Redis key containing daily OAuth access token
     static_token = Column(Text, nullable=True)
+    # Broker-specific auth fields that don't fit the generic columns above
+    # (e.g. Angel One's client_id + pin + totp_secret, structurally different
+    # from Upstox's OAuth token).
+    extra_credentials = Column(JSON, nullable=True)
 
     # Risk & Capital allocation
     allocated_capital = Column(
@@ -45,10 +50,19 @@ class ClientAccount(Base):
         Numeric(5, 4), nullable=False, server_default="0.0100", default=0.0100
     )  # 1% default
     max_active_trades = Column(Integer, nullable=False, server_default="2", default=2)
+    # ₹ overrides for this account's CircuitBreaker; NULL falls back to a
+    # proportional default derived from allocated_capital at the service layer
+    # (see risk/circuit_breaker.py) rather than the platform-wide settings.
+    daily_max_loss_limit = Column(Numeric(14, 2), nullable=True)
+    monthly_max_loss_limit = Column(Numeric(14, 2), nullable=True)
 
     # Status toggles
     is_active = Column(SmallInteger, nullable=False, server_default="1", default=1, index=True)
     is_paper = Column(Boolean, nullable=False, server_default="false", default=False)
+    # Per-account panic toggle — distinct from is_active, which gates
+    # onboarding/lifecycle. Set by an operator to halt just this account
+    # without touching the platform-wide TRADING_HALTED kill-switch.
+    is_halted = Column(Boolean, nullable=False, server_default="false", default=False)
 
     # Audit timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -60,6 +74,12 @@ class ClientAccount(Base):
     orders = relationship("TradingOrder", back_populates="account")
     positions = relationship("Position", back_populates="account")
     trades = relationship("Trade", back_populates="account")
+    strategy_subscriptions = relationship(
+        "AccountStrategySubscription", back_populates="account", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
-        return f"<ClientAccount(id={self.account_id}, code='{self.client_code}', broker='{self.broker_type}')>"
+        return (
+            f"<ClientAccount(id={self.account_id}, code='{self.client_code}', "
+            f"broker='{self.broker_type}')>"
+        )

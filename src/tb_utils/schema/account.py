@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,6 +24,11 @@ class ClientAccountBase(BaseModel):
         None, max_length=100, description="Redis key storing OAuth token"
     )
     static_token: Optional[str] = Field(None, description="Static access token fallback")
+    extra_credentials: Optional[dict[str, Any]] = Field(
+        None,
+        description="Broker-specific auth fields beyond the generic columns "
+        "(e.g. Angel One client_id/pin/totp_secret)",
+    )
     allocated_capital: Decimal = Field(
         Decimal("100000.00"), description="Allocated trading capital"
     )
@@ -31,14 +36,21 @@ class ClientAccountBase(BaseModel):
         Decimal("0.0100"), description="Max risk percentage per trade (0.01 = 1%)"
     )
     max_active_trades: int = Field(2, description="Max concurrent open trades for this account")
+    daily_max_loss_limit: Optional[Decimal] = Field(
+        None, description="₹ override for this account's daily CircuitBreaker limit"
+    )
+    monthly_max_loss_limit: Optional[Decimal] = Field(
+        None, description="₹ override for this account's monthly CircuitBreaker limit"
+    )
     is_active: int = Field(1, description="Active status (1=active, 0=paused)")
     is_paper: bool = Field(False, description="Whether orders should route to paper simulator")
+    is_halted: bool = Field(
+        False, description="Per-account panic toggle, independent of the platform kill-switch"
+    )
 
 
 class ClientAccountCreate(ClientAccountBase):
     """Schema for creating a new client account."""
-
-    pass
 
 
 class ClientAccountUpdate(BaseModel):
@@ -51,11 +63,15 @@ class ClientAccountUpdate(BaseModel):
     redirect_uri: Optional[str] = None
     token_storage_key: Optional[str] = None
     static_token: Optional[str] = None
+    extra_credentials: Optional[dict[str, Any]] = None
     allocated_capital: Optional[Decimal] = None
     max_risk_per_trade_pct: Optional[Decimal] = None
     max_active_trades: Optional[int] = None
+    daily_max_loss_limit: Optional[Decimal] = None
+    monthly_max_loss_limit: Optional[Decimal] = None
     is_active: Optional[int] = None
     is_paper: Optional[bool] = None
+    is_halted: Optional[bool] = None
 
 
 class ClientAccountResponse(ClientAccountBase):
