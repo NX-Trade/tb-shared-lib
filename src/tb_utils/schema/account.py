@@ -47,6 +47,11 @@ class ClientAccountBase(BaseModel):
     is_halted: bool = Field(
         False, description="Per-account panic toggle, independent of the platform kill-switch"
     )
+    orders_disabled: bool = Field(
+        False,
+        description="If true, the real broker adapter is used for reads (quotes/positions/"
+        "balance) but every order-placing call is refused before reaching the broker",
+    )
 
 
 class ClientAccountCreate(ClientAccountBase):
@@ -72,6 +77,7 @@ class ClientAccountUpdate(BaseModel):
     is_active: Optional[int] = None
     is_paper: Optional[bool] = None
     is_halted: Optional[bool] = None
+    orders_disabled: Optional[bool] = None
 
 
 class ClientAccountResponse(ClientAccountBase):

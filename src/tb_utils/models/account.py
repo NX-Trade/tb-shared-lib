@@ -63,6 +63,11 @@ class ClientAccount(Base):
     # onboarding/lifecycle. Set by an operator to halt just this account
     # without touching the platform-wide TRADING_HALTED kill-switch.
     is_halted = Column(Boolean, nullable=False, server_default="false", default=False)
+    # When true, the account's real broker adapter is used for reads (quotes,
+    # positions, balance) but every order-placing call is refused before it
+    # reaches the broker (see broker/read_only_guard.py in tb-trade-engine).
+    # Distinct from is_paper: is_paper never calls the real broker at all.
+    orders_disabled = Column(Boolean, nullable=False, server_default="false", default=False)
 
     # Audit timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
