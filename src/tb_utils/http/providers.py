@@ -24,6 +24,7 @@ class ApiProviderEnum(IntEnum):
     OLLAMA = 3
     TELEGRAM = 4
     GEMINI = 5
+    ANGELONE = 6
 
 
 class EndpointClassEnum(StrEnum):
@@ -53,6 +54,18 @@ PROVIDER_LIMITS: dict[ApiProviderEnum, dict[EndpointClassEnum, tuple[int, int]]]
         # NSE publishes nothing; this is the scrape-politeness budget the
         # collector already used (10/s).
         EndpointClassEnum.OTHER: (8, 240),
+    },
+    ApiProviderEnum.ANGELONE: {
+        # Angel One SmartAPI published limits (per-account): order 10/s & 200/min,
+        # LTP/quote 10/s & 500/min, historical 3/s. Set to ~80% pending live
+        # verification during Phase 2 adapter rollout — tighten/loosen once
+        # actual throttling responses (HTTP 429 / "Access denied") are observed.
+        EndpointClassEnum.ORDER: (8, 160),
+        EndpointClassEnum.MARKET_DATA: (8, 400),
+        EndpointClassEnum.HISTORICAL: (2, 100),
+        EndpointClassEnum.GTT: (2, 100),
+        EndpointClassEnum.PORTFOLIO: (8, 160),
+        EndpointClassEnum.OTHER: (8, 160),
     },
 }
 
