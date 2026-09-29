@@ -130,6 +130,9 @@ class ExitReasonEnum(StrEnum):
     LIQUIDATION = "LIQUIDATION"
     MANUAL = "MANUAL"
     AUTO_SQUARE_OFF = "AUTO_SQUARE_OFF"
+    # A strategy-specific trend exit (e.g. STC's EMA21 cross / EFI sign flip),
+    # evaluated by the strategy's own scan task rather than a fixed price level.
+    DYNAMIC_EXIT = "DYNAMIC_EXIT"
 
 
 class SignalExecutionStatusEnum(StrEnum):

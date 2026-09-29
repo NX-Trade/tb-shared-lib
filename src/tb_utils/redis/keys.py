@@ -106,3 +106,13 @@ def get_paper_order_key(broker_order_id: str) -> str:
 def get_live_intraday_switch_key() -> str:
     """Redis key controlling the live intraday execution switch (values: 'true'/'false')."""
     return "execution:live_intraday_switch"
+
+
+def get_stc_dynamic_exit_key(symbol: str, side: str) -> str:
+    """Flag set when STC's dynamic trend-exit condition (EMA21 cross / EFI sign
+    flip) fires for a symbol+side. Written by the 5-min STC scan task
+    (evaluate_stc_dynamic_exit), read by the 15s position monitor. Short TTL —
+    the scan re-evaluates and re-sets it every cycle, so it never outlives the
+    bar it was computed from.
+    """
+    return f"execution:stc_dynamic_exit:{symbol}:{side}"
