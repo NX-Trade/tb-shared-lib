@@ -128,8 +128,15 @@ def upsert_position(
     strike_price: Optional[float] = None,
     expiry_date: Optional[dt.date] = None,
     is_algo: bool = True,
+    account_id: Optional[int] = None,
 ) -> None:
-    """Upsert a position record in position table."""
+    """Upsert a position record in position table.
+
+    ``account_id``, when given, scopes the lookup to one ClientAccount's own
+    position and is set on a newly created row — without it, two accounts
+    holding the same symbol at the same broker would otherwise match and
+    mutate each other's position.
+    """
     resolved_symbol = trading_symbol
     if not resolved_symbol and instrument_id:
         inst = db.get(Instrument, instrument_id)
@@ -137,6 +144,8 @@ def upsert_position(
             resolved_symbol = inst.symbol
 
     query = db.query(Position).filter(Position.broker_id == broker_id)
+    if account_id is not None:
+        query = query.filter(Position.account_id == account_id)
     if resolved_symbol:
         query = query.filter(Position.trading_symbol == resolved_symbol)
     else:
@@ -161,6 +170,7 @@ def upsert_position(
             Position(
                 instrument_id=instrument_id,
                 broker_id=broker_id,
+                account_id=account_id,
                 trading_symbol=resolved_symbol or "",
                 instrument_type=instrument_type,
                 strike_price=strike_price,
