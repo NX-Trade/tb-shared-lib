@@ -238,5 +238,9 @@ class SignalOutcomeStatusEnum(StrEnum):
     ACTIVE = "ACTIVE"
     TARGET_HIT = "TARGET_HIT"
     SL_HIT = "SL_HIT"
+    # A strategy-specific trend exit (e.g. STC's EMA21 cross / EFI sign flip)
+    # rather than a fixed target — see tb-trade-engine's ExitReasonEnum.DYNAMIC_EXIT,
+    # the live-trade counterpart of this signal-level status.
+    DYNAMIC_EXIT = "DYNAMIC_EXIT"
     EXPIRED = "EXPIRED"
     INVALIDATED = "INVALIDATED"
