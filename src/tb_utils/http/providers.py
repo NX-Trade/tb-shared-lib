@@ -25,6 +25,7 @@ class ApiProviderEnum(IntEnum):
     TELEGRAM = 4
     GEMINI = 5
     ANGELONE = 6
+    BREEZE = 7
 
 
 class EndpointClassEnum(StrEnum):
@@ -67,6 +68,16 @@ PROVIDER_LIMITS: dict[ApiProviderEnum, dict[EndpointClassEnum, tuple[int, int]]]
         EndpointClassEnum.PORTFOLIO: (8, 160),
         EndpointClassEnum.OTHER: (8, 160),
     },
+    ApiProviderEnum.BREEZE: {
+        # ICICI Breeze published limits: order 5/s & 100/min, quotes 10/s & 200/min,
+        # historical 2/s. Set to ~80%.
+        EndpointClassEnum.ORDER: (4, 80),
+        EndpointClassEnum.MARKET_DATA: (8, 160),
+        EndpointClassEnum.HISTORICAL: (2, 50),
+        EndpointClassEnum.GTT: (2, 50),
+        EndpointClassEnum.PORTFOLIO: (4, 80),
+        EndpointClassEnum.OTHER: (4, 80),
+    },
 }
 
 # Substrings that identify an endpoint's class. Checked in order, first match
@@ -100,6 +111,20 @@ _ANGELONE_ENDPOINT_CLASSES: tuple[tuple[str, EndpointClassEnum], ...] = (
     ("/ltp", EndpointClassEnum.MARKET_DATA),
 )
 
+_BREEZE_ENDPOINT_CLASSES: tuple[tuple[str, EndpointClassEnum], ...] = (
+    ("/order", EndpointClassEnum.ORDER),
+    ("/gtt", EndpointClassEnum.GTT),
+    ("/trade", EndpointClassEnum.ORDER),
+    ("/position", EndpointClassEnum.PORTFOLIO),
+    ("/holding", EndpointClassEnum.PORTFOLIO),
+    ("/demat", EndpointClassEnum.PORTFOLIO),
+    ("/portfolio", EndpointClassEnum.PORTFOLIO),
+    ("/funds", EndpointClassEnum.PORTFOLIO),
+    ("/quote", EndpointClassEnum.MARKET_DATA),
+    ("/historical", EndpointClassEnum.HISTORICAL),
+    ("/ltp", EndpointClassEnum.MARKET_DATA),
+)
+
 # Endpoint fragments whose telemetry is an execution audit record. These are
 # retained for years, not days (review 13, Q4): they evidence what was sent to
 # the exchange on our behalf.
@@ -112,6 +137,8 @@ def classify_endpoint(provider: ApiProviderEnum, url: str) -> EndpointClassEnum:
         fragments = _UPSTOX_ENDPOINT_CLASSES
     elif provider == ApiProviderEnum.ANGELONE:
         fragments = _ANGELONE_ENDPOINT_CLASSES
+    elif provider == ApiProviderEnum.BREEZE:
+        fragments = _BREEZE_ENDPOINT_CLASSES
     else:
         return EndpointClassEnum.OTHER
 
