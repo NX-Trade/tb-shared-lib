@@ -161,6 +161,7 @@ from .time import (
     trading_day,
 )
 from .utils.enums import (
+    BrokerEnum,
     BrokerNameEnum,
     BrokerTypeEnum,
     ExecutionModeEnum,
@@ -180,6 +181,7 @@ __all__ = [
     # Version
     "__version__",
     # Enums
+    "BrokerEnum",
     "BrokerNameEnum",
     "BrokerTypeEnum",
     "ExecutionModeEnum",

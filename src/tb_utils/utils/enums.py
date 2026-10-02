@@ -110,10 +110,16 @@ class TaskLogStatusEnum(IntEnum):
 
 
 class BrokerNameEnum(StrEnum):
+    ANGELONE = "ANGELONE"
     IB = "IB"
     ICICI = "ICICI"
+    MOTILAL_OSWAL = "MOTILAL_OSWAL"
     PAPER = "PAPER"
     UPSTOX = "UPSTOX"
+
+
+# Alias BrokerEnum to BrokerNameEnum for convenience
+BrokerEnum = BrokerNameEnum
 
 
 class ExecutionModeEnum(StrEnum):
