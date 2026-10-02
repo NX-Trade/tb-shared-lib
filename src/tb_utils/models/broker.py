@@ -31,7 +31,7 @@ class Broker(Base):
     # Relationships
     health_logs = relationship("BrokerHealthLog", back_populates="broker")
     orders = relationship("TradingOrder", back_populates="broker")
-    positions = relationship("Position", back_populates="broker")
+    holdings = relationship("Holding", back_populates="broker")
     trades = relationship("Trade", back_populates="broker")
     # For historical data relationships, those can be imported/mapped when needed
 

@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.16.14"
+__version__ = "1.17"
 
 from .broker.base import (
     BrokerAdapter,
@@ -54,6 +54,7 @@ from .models import (
     FuturesOI,
     HistoricalEquityData,
     HistoricalIndexData,
+    Holding,
     IndexConstituent,
     IndiaVIX,
     Instrument,
@@ -66,7 +67,6 @@ from .models import (
     OptionStrategyLeg,
     OptionStrategySignal,
     ParticipantOI,
-    Position,
     RegimeLog,
     SignalCandidate,
     SystemLog,
@@ -103,6 +103,7 @@ from .schema import (
     GenericResponseSchema,
     HistoricalEquityDataResponse,
     HistoricalIndexDataResponse,
+    HoldingResponse,
     IndexConstituentResponse,
     IndiaVIXResponse,
     InstrumentCreate,
@@ -195,6 +196,7 @@ __all__ = [
     "BrokerAdapter",
     "OrderRequest",
     "OrderResult",
+    "PortfolioHolding",
     "PortfolioPosition",
     # Calendar / Trading Holidays
     "get_trading_holidays_for_year",
@@ -244,7 +246,7 @@ __all__ = [
     "IntradayCandle",
     "OptionChain",
     "OptionDailyMetrics",
-    "Position",
+    "Holding",
     "SystemLog",
     "SystemMetric",
     "Trade",
@@ -321,6 +323,7 @@ __all__ = [
     "TradingSignalResponse",
     "TradingOrderCreate",
     "TradingOrderResponse",
+    "HoldingResponse",
     "PositionResponse",
     "TradeResponse",
     # Request Maker

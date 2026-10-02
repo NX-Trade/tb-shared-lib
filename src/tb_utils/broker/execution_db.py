@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from tb_utils.broker.base import OrderResult, OrderStatus
-from tb_utils.models import Instrument, Position, TradingOrder
+from tb_utils.models import Instrument, TradingOrder
 
 logger = logging.getLogger(__name__)
 
@@ -114,70 +114,3 @@ def update_order(db: Session, order: TradingOrder, result: OrderResult) -> None:
     if result.status == OrderStatus.FILLED:
         order.filled_at = dt.datetime.now(dt.UTC)
     db.commit()
-
-
-# pylint: disable=too-many-arguments,too-many-positional-arguments
-def upsert_position(
-    db: Session,
-    instrument_id: int,
-    broker_id: int,
-    qty_delta: int,
-    avg_price: float,
-    trading_symbol: Optional[str] = None,
-    instrument_type: str = "EQUITY",
-    strike_price: Optional[float] = None,
-    expiry_date: Optional[dt.date] = None,
-    is_algo: bool = True,
-    account_id: Optional[int] = None,
-) -> None:
-    """Upsert a position record in position table.
-
-    ``account_id``, when given, scopes the lookup to one ClientAccount's own
-    position and is set on a newly created row — without it, two accounts
-    holding the same symbol at the same broker would otherwise match and
-    mutate each other's position.
-    """
-    resolved_symbol = trading_symbol
-    if not resolved_symbol and instrument_id:
-        inst = db.get(Instrument, instrument_id)
-        if inst:
-            resolved_symbol = inst.symbol
-
-    query = db.query(Position).filter(Position.broker_id == broker_id)
-    if account_id is not None:
-        query = query.filter(Position.account_id == account_id)
-    if resolved_symbol:
-        query = query.filter(Position.trading_symbol == resolved_symbol)
-    else:
-        query = query.filter(Position.instrument_id == instrument_id)
-
-    existing = query.first()
-
-    if existing:
-        total_qty = existing.net_quantity + qty_delta
-        if total_qty == 0:
-            db.delete(existing)
-        else:
-            existing.average_price = round(
-                (existing.average_price * existing.net_quantity + avg_price * qty_delta)
-                / total_qty,
-                2,
-            )
-            existing.net_quantity = total_qty
-        db.commit()
-    else:
-        db.add(
-            Position(
-                instrument_id=instrument_id,
-                broker_id=broker_id,
-                account_id=account_id,
-                trading_symbol=resolved_symbol or "",
-                instrument_type=instrument_type,
-                strike_price=strike_price,
-                expiry_date=expiry_date,
-                is_algo=is_algo,
-                net_quantity=qty_delta,
-                average_price=avg_price,
-            )
-        )
-        db.commit()

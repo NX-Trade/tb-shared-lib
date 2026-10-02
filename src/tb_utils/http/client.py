@@ -376,14 +376,12 @@ class ExternalClient:
         """Count the failure and alert once on the CLOSED → OPEN edge."""
         if breaker.record_failure() is not BreakerState.OPEN:
             return
-        try:
-            send_telegram_alert(
-                f"🔴 <b>Circuit Breaker OPEN</b>\n"
-                f"<b>Provider:</b> {self._provider.name}\n"
-                f"<b>Blocking for:</b> {self._breaker_config.reset_timeout_seconds:.0f}s"
-            )
-        except Exception:
-            logger.exception("Failed to send circuit-breaker alert")
+
+        send_telegram_alert(
+            f"🔴 <b>Circuit Breaker OPEN</b>\n"
+            f"<b>Provider:</b> {self._provider.name}\n"
+            f"<b>Blocking for:</b> {self._breaker_config.reset_timeout_seconds:.0f}s"
+        )
 
     def _breaker(self, endpoint_class: str) -> RedisCircuitBreaker:
         return RedisCircuitBreaker(

@@ -158,8 +158,12 @@ def send_telegram_alert(
     channel: str | TelegramChannel = TelegramChannel.DEFAULT,
 ) -> bool:
     """Convenience function to send a quick Telegram notification to a specific channel."""
-    notifier = TelegramNotifier(channel=channel)
-    return notifier.send(message)
+    try:
+        notifier = TelegramNotifier(channel=channel)
+        return notifier.send(message)
+    except Exception as tg_err:
+        logger.exception("Failed to send Telegram alert: %s", tg_err)
+        return False
 
 
 def send_alpha_alert(message: str) -> bool:

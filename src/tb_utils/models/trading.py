@@ -257,85 +257,74 @@ class ExecutionPlan(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
 
-class Position(Base, PostgresUpsertMixin):
-    """Current Positions table.
+class Holding(Base, PostgresUpsertMixin):
+    """Settled Demat equity holdings (CNC/Delivery) held overnight.
 
-    Tracks both equity and derivative (F&O) positions in a unified book.
-    ``instrument_id`` always points to the underlying equity/index in the
-    instrument master. Derivative-specific columns (``instrument_type``,
-    ``strike_price``, ``expiry_date``) follow the same pattern as
-    ``TradingSignal``. The ``trading_symbol`` is the broker-facing string
-    used for order placement and reconciliation.
+    Tracks settled inventory in Demat. Sourced from the broker's long-term
+    portfolio/holdings API (e.g. Upstox PORTFOLIO_LONG_TERM, Angel One getHolding).
+    Delivery holdings are NEVER evaluated for intraday auto-square-off or panic
+    liquidation.
     """
 
-    __tablename__ = "position"
+    __tablename__ = "holding"
 
-    position_id = Column(Integer, primary_key=True, autoincrement=True)
-    instrument_id = Column(
-        Integer, ForeignKey("instrument.instrument_id"), nullable=False, index=True
-    )
+    holding_id = Column(Integer, primary_key=True, autoincrement=True)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
     account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
 
-    # ── Contract identification ─────────────────────────────────────────
     trading_symbol = Column(String(60), nullable=False, index=True)
-    instrument_type = Column(
-        String(10), nullable=False, server_default="EQUITY", default="EQUITY"
-    )  # EQUITY, FUT, CE, PE
-    strike_price = Column(Numeric(14, 2), nullable=True)  # options only
-    expiry_date = Column(Date, nullable=True)  # F&O only
+    underlying_symbol = Column(String(20), nullable=True, index=True)
+    isin = Column(String(20), nullable=True, index=True)
 
-    # ── Operational flags ───────────────────────────────────────────────
-    is_algo = Column(Boolean, nullable=False, server_default="true", default=True)
-
-    # ── Position state ──────────────────────────────────────────────────
-    net_quantity = Column(Integer, nullable=False)
-    average_price = Column(Numeric(10, 2), nullable=False)
-    realized_pnl = Column(Numeric(10, 2), default=0)
-    unrealized_pnl = Column(Numeric(10, 2), default=0)
+    quantity = Column(Integer, nullable=False, default=0)
+    authorized_quantity = Column(Integer, nullable=True, default=0)  # For EDIS / CDSL authorization
+    average_price = Column(Numeric(10, 2), nullable=False, default=0.0)
     last_price = Column(Numeric(14, 4), nullable=True)
+    close_price = Column(Numeric(14, 4), nullable=True)
+    pnl = Column(Numeric(12, 2), nullable=True, default=0.0)
 
-    # ── Audit timestamps ────────────────────────────────────────────────
     created_at = Column(
         DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now()
     )
-    last_updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
-    broker = relationship("Broker", back_populates="positions")
-    account = relationship("ClientAccount", back_populates="positions")
+    broker = relationship("Broker", back_populates="holdings")
+    account = relationship("ClientAccount", back_populates="holdings")
 
     __table_args__ = (
-        # Was (trading_symbol, broker_id) only — collided across two client
-        # accounts holding the same symbol at the same broker. account_id is
-        # nullable (legacy single-account rows), and Postgres treats each NULL
-        # as distinct in a unique constraint, so pre-existing NULL-account rows
-        # are unaffected by this widening.
         UniqueConstraint(
-            "trading_symbol", "broker_id", "account_id", name="uix_position_symbol_broker_account"
+            "trading_symbol", "broker_id", "account_id", name="uix_holding_symbol_broker_account"
         ),
     )
 
 
 class Trade(Base):
-    """Completed Trades table for performance analysis."""
+    """Execution ledger and active position tracking.
+
+    Represents all intraday and derivative trades.
+    When status == 'OPEN', this row represents the active position (with stop_loss,
+    target, trailing stop, and live mark-to-market last_price).
+    When status == 'CLOSED', it represents a completed round trip with realized P&L.
+    Intraday trades (product='I') must be squared off by 3:00 PM IST.
+    """
 
     __tablename__ = "trade"
 
     trade_id = Column(Integer, primary_key=True, autoincrement=True)
     strategy_id = Column(String(50), index=True)
-    # Denormalised attribution link — see the note on TradingOrder.signal_id.
-    # Propagated from the entry order when the fill is booked, so realised
-    # net_pnl / slippage / commission join to trading_signal in one hop.
     signal_id = Column(Integer, ForeignKey("trading_signal.signal_id"), nullable=True, index=True)
-    instrument_id = Column(Integer, ForeignKey("instrument.instrument_id"), nullable=False)
     broker_id = Column(Integer, ForeignKey("broker.broker_id"), nullable=False, index=True)
     account_id = Column(Integer, ForeignKey("client_account.account_id"), nullable=True, index=True)
 
-    # ── Contract identification (mirrors Position) ──────────────────────
-    trading_symbol = Column(String(60), nullable=True, index=True)
+    # ── Contract identification (no instrument_id FK) ───────────────────
+    trading_symbol = Column(String(60), nullable=False, index=True)
+    underlying_symbol = Column(String(20), nullable=True, index=True)
     instrument_type = Column(String(10), nullable=True)  # EQUITY, FUT, CE, PE
     strike_price = Column(Numeric(14, 2), nullable=True)
     expiry_date = Column(Date, nullable=True)
+    product = Column(
+        String(5), nullable=False, server_default="I", default="I"
+    )  # "I" = Intraday MIS, "D" = Delivery CNC
 
     # False for trades placed outside the algo (manually at the broker, then
     # discovered by reconciliation). Such trades MUST still reach the circuit
@@ -354,13 +343,15 @@ class Trade(Base):
         nullable=False,
     )
     quantity = Column(Integer, nullable=False)
-    entry_price = Column(Numeric(10, 2), nullable=False)
-    exit_price = Column(Numeric(10, 2))
+    entry_price = Column(Numeric(10, 2), nullable=False)  # True fill price from broker
+    exit_price = Column(Numeric(10, 2))  # True fill price from broker
+    last_price = Column(Numeric(14, 4), nullable=True)  # Live mark-to-market price
     entry_time = Column(DateTime(timezone=True), nullable=False)
     exit_time = Column(DateTime(timezone=True))
 
     stop_loss = Column(Numeric(10, 2))
     target = Column(Numeric(10, 2))
+    unrealized_pnl = Column(Numeric(10, 2), default=0)
     realized_pnl = Column(Numeric(10, 2))
     net_pnl = Column(Numeric(10, 2))  # realized_pnl minus commission (round-trip)
     commission = Column(Numeric(10, 2), default=0)
@@ -371,13 +362,29 @@ class Trade(Base):
         default="OPEN",
         index=True,
     )
-    exit_reason = Column(String(20))  # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL"
+    exit_reason = Column(
+        String(20)
+    )  # "TARGET", "STOP_LOSS", "TRAILING_STOP", "MANUAL", "SQUARE_OFF", "PANIC"
 
     broker = relationship("Broker", back_populates="trades")
     account = relationship("ClientAccount", back_populates="trades")
     entry_order = relationship("TradingOrder", foreign_keys=[entry_order_id])
     exit_order = relationship("TradingOrder", foreign_keys=[exit_order_id])
     stop_order = relationship("TradingOrder", foreign_keys=[stop_order_id])
+
+    @property
+    def average_price(self) -> float:
+        """Alias for entry_price as float for backward compatibility."""
+        return float(self.entry_price) if self.entry_price is not None else 0.0
+
+    @property
+    def net_quantity(self) -> int:
+        """Signed quantity based on side (+ for BUY/LONG, - for SELL/SHORT)."""
+        qty = int(self.quantity) if self.quantity is not None else 0
+        side_val = getattr(self.side, "value", self.side)
+        if str(side_val).upper() in ("SELL", "SHORT"):
+            return -abs(qty)
+        return abs(qty)
 
 
 class OptionStrategySignal(Base, PostgresUpsertMixin):

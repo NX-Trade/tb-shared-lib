@@ -67,7 +67,7 @@ class TradingSignalResponse(TradingSignalCreate):
 
 
 class TradingOrderCreate(BaseSchema):
-    instrument_id: int
+    instrument_id: Optional[int] = None
     strategy_id: Optional[str] = None
     broker_order_id: Optional[str] = None
     broker_id: int
@@ -99,40 +99,58 @@ class TradingOrderResponse(TradingOrderCreate):
     updated_at: datetime
 
 
-class PositionResponse(BaseSchema):
-    position_id: int
-    instrument_id: int
+class HoldingResponse(BaseSchema):
+    holding_id: int
     broker_id: int
-    trading_symbol: Optional[str] = None
+    account_id: Optional[int] = None
+    trading_symbol: str
+    underlying_symbol: Optional[str] = None
+    isin: Optional[str] = None
+    quantity: int
+    authorized_quantity: Optional[int] = 0
+    average_price: float
+    last_price: Optional[float] = None
+    close_price: Optional[float] = None
+    pnl: Optional[float] = 0.0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class PositionResponse(BaseSchema):
+    trade_id: int
+    broker_id: int
+    account_id: Optional[int] = None
+    trading_symbol: str
+    underlying_symbol: Optional[str] = None
     instrument_type: Optional[str] = "EQUITY"
+    product: Optional[str] = "I"
     strike_price: Optional[float] = None
     expiry_date: Optional[date] = None
     is_algo: bool = True
-    net_quantity: int
-    average_price: float
-    realized_pnl: float
-    unrealized_pnl: float
+    quantity: int
+    entry_price: float
+    realized_pnl: float = 0.0
+    unrealized_pnl: float = 0.0
     last_price: Optional[float] = None
-    created_at: Optional[datetime] = None
-    last_updated_at: datetime
-    symbol: Optional[str] = None  # underlying symbol (from instrument join)
+    entry_time: Optional[datetime] = None
+    stop_loss: Optional[float] = None
+    target: Optional[float] = None
+    symbol: Optional[str] = None
 
 
 class TradeResponse(BaseSchema):
     trade_id: int
     strategy_id: Optional[str] = None
     signal_id: Optional[int] = None
-    # False for trades adopted from the broker (placed manually). Mirrors
-    # PositionResponse.is_algo. Without it the trade book serves manual and algo
-    # trades indistinguishably, so performance views would silently blend
-    # discretionary P&L into strategy results.
     is_algo: bool = True
-    instrument_id: int
     broker_id: int
-    trading_symbol: Optional[str] = None
+    account_id: Optional[int] = None
+    trading_symbol: str
+    underlying_symbol: Optional[str] = None
     instrument_type: Optional[str] = None
     strike_price: Optional[float] = None
     expiry_date: Optional[date] = None
+    product: str = "I"
     entry_order_id: Optional[int] = None
     exit_order_id: Optional[int] = None
     stop_order_id: Optional[int] = None
@@ -140,12 +158,18 @@ class TradeResponse(BaseSchema):
     quantity: int
     entry_price: float
     exit_price: Optional[float] = None
+    last_price: Optional[float] = None
     entry_time: datetime
     exit_time: Optional[datetime] = None
+    stop_loss: Optional[float] = None
+    target: Optional[float] = None
+    unrealized_pnl: Optional[float] = 0.0
     realized_pnl: Optional[float] = None
-    commission: float
-    slippage: float
+    net_pnl: Optional[float] = None
+    commission: float = 0.0
+    slippage: float = 0.0
     status: str
+    exit_reason: Optional[str] = None
 
 
 class OptionStrategyLegCreate(BaseSchema):

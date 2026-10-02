@@ -50,9 +50,9 @@ from .signal import SignalCandidate
 from .system import RegimeLog, SystemCommand, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import (
     ExecutionPlan,
+    Holding,
     OptionStrategyLeg,
     OptionStrategySignal,
-    Position,
     Trade,
     TradingOrder,
     TradingSignal,
@@ -104,7 +104,7 @@ __all__ = [
     "WatchlistFocus",
     "OptionStrategySignal",
     "OptionStrategyLeg",
-    "Position",
+    "Holding",
     "Trade",
     "ExecutionPlan",
     "TradingOrder",

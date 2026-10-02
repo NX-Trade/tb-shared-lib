@@ -75,3 +75,5 @@ ipython_config.py
 .vscode
 
 .idea
+
+uv.lock

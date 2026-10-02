@@ -20,13 +20,13 @@ from tb_utils.broker.base import (
     OrderSide,
     OrderStatus,
     OrderType,
+    PortfolioHolding,
     PortfolioPosition,
     TimeInForce,
 )
 from tb_utils.broker.execution_db import (
     insert_order,
     update_order,
-    upsert_position,
 )
 from tb_utils.broker.upstox_instruments import (
     build_upstox_lookup,
@@ -44,6 +44,7 @@ __all__ = [
     "OrderSide",
     "OrderStatus",
     "OrderType",
+    "PortfolioHolding",
     "PortfolioPosition",
     "TimeInForce",
     "build_angelone_lookup",
@@ -57,5 +58,4 @@ __all__ = [
     "sync_angelone_instruments_to_redis",
     "sync_upstox_instruments_to_redis",
     "update_order",
-    "upsert_position",
 ]

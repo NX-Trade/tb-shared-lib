@@ -62,15 +62,28 @@ class PortfolioPosition:
     symbol: str
     quantity: int
     avg_price: float
-    market_value: float
-    unrealized_pnl: float
+    market_value: float = 0.0
+    unrealized_pnl: float = 0.0
     realized_pnl: float = 0.0
+    last_price: Optional[float] = None
     exit_price: Optional[float] = None
     # Quantity opened *and* closed within the session (an intraday round trip).
     # ``quantity`` is net, so a completed round trip reports 0 and the size of
     # the trade would otherwise be unrecoverable — which is how manually traded
     # intraday P&L went unrecorded. Adapters that cannot report it leave it 0.
     closed_quantity: int = 0
+
+
+@dataclass
+class PortfolioHolding:
+    symbol: str
+    quantity: int
+    avg_price: float
+    last_price: float
+    pnl: float
+    close_price: Optional[float] = None
+    isin: Optional[str] = None
+    authorized_quantity: int = 0
 
 
 class BrokerAdapter(ABC):
@@ -102,7 +115,11 @@ class BrokerAdapter(ABC):
 
     @abstractmethod
     def get_positions(self) -> list[PortfolioPosition]:
-        """Return all current open positions."""
+        """Return all active intraday and derivative day positions."""
+
+    def get_holdings(self) -> list[PortfolioHolding]:
+        """Return all settled Demat delivery inventory. Defaults to empty list."""
+        return []
 
     @abstractmethod
     def get_last_price(self, symbol: str) -> float | None:

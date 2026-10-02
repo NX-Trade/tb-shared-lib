@@ -77,7 +77,7 @@ class ClientAccount(Base):
 
     # Relationships
     orders = relationship("TradingOrder", back_populates="account")
-    positions = relationship("Position", back_populates="account")
+    holdings = relationship("Holding", back_populates="account")
     trades = relationship("Trade", back_populates="account")
     strategy_subscriptions = relationship(
         "AccountStrategySubscription", back_populates="account", cascade="all, delete-orphan"
