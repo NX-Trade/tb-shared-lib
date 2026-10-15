@@ -61,27 +61,74 @@ ORDER BY ABS(change_in_oi) DESC
 """)
 
 PCR_SCAN_QUERY = text("""
+WITH latest AS (
+    -- One snapshot per symbol. Without this, every intraday snapshot of the
+    -- day is summed together.
+    SELECT symbol, MAX(ts) AS ts
+    FROM option_chain
+    WHERE ts >= date_trunc('day', (SELECT MAX(ts) FROM option_chain))
+    GROUP BY symbol
+)
 SELECT
-    symbol,
-    MAX(ts::date) AS trade_date,
-    SUM(CASE WHEN option_type = 'PE' THEN open_interest ELSE 0 END)::float AS put_oi,
-    SUM(CASE WHEN option_type = 'CE' THEN open_interest ELSE 0 END)::float AS call_oi,
+    oc.symbol,
+    MAX(oc.ts::date) AS trade_date,
+    SUM(CASE WHEN oc.option_type = 'PE' THEN oc.open_interest ELSE 0 END)::float AS put_oi,
+    SUM(CASE WHEN oc.option_type = 'CE' THEN oc.open_interest ELSE 0 END)::float AS call_oi,
     CASE
-        WHEN SUM(CASE WHEN option_type = 'CE' THEN open_interest ELSE 0 END) > 0
-        THEN SUM(CASE WHEN option_type = 'PE' THEN open_interest ELSE 0 END)::float
-             / SUM(CASE WHEN option_type = 'CE' THEN open_interest ELSE 0 END)
+        WHEN SUM(CASE WHEN oc.option_type = 'CE' THEN oc.open_interest ELSE 0 END) > 0
+        THEN SUM(CASE WHEN oc.option_type = 'PE' THEN oc.open_interest ELSE 0 END)::float
+             / SUM(CASE WHEN oc.option_type = 'CE' THEN oc.open_interest ELSE 0 END)
         ELSE NULL
     END AS pcr,
-    MAX(underlying_value) AS spot_price,
-    MAX(expiry_date) FILTER (WHERE expiry_date >= CURRENT_DATE) AS nearest_expiry
-FROM option_chain
-WHERE ts::date = (SELECT MAX(ts::date) FROM option_chain)
-  AND open_interest > 0
-  AND underlying_value > 0
-GROUP BY symbol
+    MAX(oc.underlying_value) AS spot_price,
+    MIN(oc.expiry_date) FILTER (WHERE oc.expiry_date >= CURRENT_DATE) AS nearest_expiry
+FROM option_chain oc
+JOIN latest l ON l.symbol = oc.symbol AND l.ts = oc.ts
+WHERE oc.open_interest > 0
+  AND oc.underlying_value > 0
+GROUP BY oc.symbol
 HAVING
-    SUM(CASE WHEN option_type = 'CE' THEN open_interest ELSE 0 END) > 0
-ORDER BY symbol
+    SUM(CASE WHEN oc.option_type = 'CE' THEN oc.open_interest ELSE 0 END) > 0
+ORDER BY oc.symbol
+""")
+
+# PCR_SCAN_QUERY sums every stored expiry into one number per symbol. This
+# keeps them apart: one row per (symbol, expiry) from each symbol's latest
+# snapshot, so weekly and monthly expiries each get their own PCR.
+PCR_BY_EXPIRY_QUERY = text("""
+WITH latest AS (
+    SELECT symbol, MAX(ts) AS ts
+    FROM option_chain
+    WHERE ts >= date_trunc('day', (SELECT MAX(ts) FROM option_chain))
+    GROUP BY symbol
+),
+per_expiry AS (
+    SELECT
+        oc.symbol,
+        oc.expiry_date,
+        MAX(oc.ts::date) AS trade_date,
+        SUM(CASE WHEN oc.option_type = 'PE' THEN oc.open_interest ELSE 0 END)::float AS put_oi,
+        SUM(CASE WHEN oc.option_type = 'CE' THEN oc.open_interest ELSE 0 END)::float AS call_oi,
+        MAX(oc.underlying_value) AS spot_price
+    FROM option_chain oc
+    JOIN latest l ON l.symbol = oc.symbol AND l.ts = oc.ts
+    WHERE oc.expiry_date >= CURRENT_DATE
+      AND oc.open_interest > 0
+      AND oc.underlying_value > 0
+    GROUP BY oc.symbol, oc.expiry_date
+)
+SELECT
+    symbol,
+    expiry_date,
+    trade_date,
+    put_oi,
+    call_oi,
+    put_oi / call_oi AS pcr,
+    spot_price,
+    ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY expiry_date) AS expiry_rank
+FROM per_expiry
+WHERE call_oi > 0
+ORDER BY symbol, expiry_date
 """)
 
 PARTICIPANT_OI_QUERY = (
@@ -115,6 +162,7 @@ CLIENT_OI_QUERY = (
 __all__ = [
     "FUTURES_BUILDUP_QUERY",
     "PCR_SCAN_QUERY",
+    "PCR_BY_EXPIRY_QUERY",
     "PARTICIPANT_OI_QUERY",
     "CLIENT_OI_QUERY",
 ]
