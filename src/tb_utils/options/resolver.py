@@ -227,6 +227,28 @@ def get_symbol_option_chain_aliases(symbol: str) -> list[str]:
     return [s]
 
 
+def _load_db_candidates(db: Session, symbols: list[str], option_type: str) -> list:
+    """Candidates from the first alias with option_chain rows, else an empty list."""
+    for sym in symbols:
+        rows = db.execute(
+            OPTION_CONTRACTS_QUERY, {"symbol": sym, "option_type": option_type}
+        ).fetchall()
+        candidates = _extract_candidates_from_db(rows, option_type) if rows else []
+        if candidates:
+            return candidates
+    return []
+
+
+def _pick_expiry(eligible_expiries: list[dt.date], preference: str) -> dt.date:
+    """Choose the expiry to trade from the sorted eligible ones."""
+    if preference == "next_month":
+        today = dt.date.today()
+        for expiry in eligible_expiries:
+            if (expiry.year, expiry.month) > (today.year, today.month):
+                return expiry
+    return eligible_expiries[0]
+
+
 def resolve_option_contract(
     db: Session,
     symbol: str,
@@ -236,6 +258,7 @@ def resolve_option_contract(
     underlying_entry_price: Optional[float] = None,
     underlying_target_price: Optional[float] = None,
     min_target_move_pct: float = MIN_INTRADAY_OPTION_TARGET_MOVE_PCT,
+    expiry_preference: str = "nearest",
 ) -> Optional[ResolvedContract]:
     """Resolve a concrete, liquid option contract for a directional (BUY/SELL) signal.
 
@@ -252,6 +275,10 @@ def resolve_option_contract(
         underlying_target_price: Optional target 1 price of the underlying signal.
         min_target_move_pct: Minimum required percentage difference between Target 1
             and Entry (default: 2.0%) to offer an intraday option trade.
+        expiry_preference: "nearest" (default) takes the nearest expiry that
+            clears MIN_DTE_DAYS. "next_month" takes the first eligible expiry
+            falling in a later calendar month than today, e.g. the next-month
+            PUT used as a hedge, and falls back to the nearest if there is none.
 
     Returns:
         ResolvedContract, or None if no liquid contract could be resolved or if
@@ -296,14 +323,12 @@ def resolve_option_contract(
 
     # 2. If not in Redis, try Postgres DB
     if not candidates:
-        for sym in symbol_candidates:
-            rows = db.execute(
-                OPTION_CONTRACTS_QUERY, {"symbol": sym, "option_type": option_type}
-            ).fetchall()
-            if rows:
-                candidates = _extract_candidates_from_db(rows, option_type)
-                if candidates:
-                    break
+        candidates = _load_db_candidates(db, symbol_candidates, option_type)
+
+    # A cached chain holds only the nearest expiry. If that is too close to
+    # expiry to trade, fall through to the DB, which also has the next one.
+    if candidates and not any(c.dte >= MIN_DTE_DAYS for c in candidates):
+        candidates = _load_db_candidates(db, symbol_candidates, option_type)
 
     if not candidates:
         logger.info(
@@ -323,11 +348,11 @@ def resolve_option_contract(
             MIN_DTE_DAYS,
         )
         return None
-    nearest_expiry = eligible_expiries[0]
+    chosen_expiry = _pick_expiry(eligible_expiries, expiry_preference)
 
     filtered_candidates: list[tuple[_OptionCandidate, dict]] = []
     for c in candidates:
-        if c.expiry_date != nearest_expiry:
+        if c.expiry_date != chosen_expiry:
             continue
         if c.open_interest < MIN_OPEN_INTEREST or c.volume < MIN_VOLUME:
             continue
@@ -350,7 +375,7 @@ def resolve_option_contract(
             option_type,
             MIN_OPEN_INTEREST,
             MIN_VOLUME,
-            nearest_expiry,
+            chosen_expiry,
         )
         return None
 

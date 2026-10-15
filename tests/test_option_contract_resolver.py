@@ -170,3 +170,62 @@ def test_resolve_option_contract_resolves_index_aliases():
     assert contract.strike_price == 25000.0
     assert contract.option_type == "CE"
     assert contract.entry_premium == 150.0
+
+
+def test_resolve_option_contract_next_month_preference():
+    """expiry_preference='next_month' skips the near expiry for a later month's one."""
+    today = dt.date.today()
+    near = today + dt.timedelta(days=5)
+    far = (today.replace(day=1) + dt.timedelta(days=62)).replace(day=15)
+    rows = [
+        Row(near, 1000.0, "PE", 25.0, 20.0, 5000, 1000, 1000.0, 5),
+        Row(far, 1000.0, "PE", 60.0, 20.0, 5000, 1000, 1000.0, (far - today).days),
+    ]
+
+    default = resolve_option_contract(_mock_db(rows), "NIFTY50", "SELL")
+    hedge = resolve_option_contract(
+        _mock_db(rows), "NIFTY50", "SELL", expiry_preference="next_month"
+    )
+
+    assert default.expiry_date == near
+    assert hedge.expiry_date == far
+
+
+def test_resolve_option_contract_next_month_falls_back_to_nearest():
+    """With no later-month expiry listed, next_month still resolves the nearest."""
+    near = dt.date.today() + dt.timedelta(days=1)
+    rows = [Row(near, 1000.0, "PE", 25.0, 20.0, 5000, 1000.0, 1000.0, MIN_DTE_DAYS + 5)]
+
+    contract = resolve_option_contract(
+        _mock_db(rows), "NIFTY50", "SELL", expiry_preference="next_month"
+    )
+
+    assert contract is not None
+    assert contract.expiry_date == near
+
+
+def test_cached_chain_too_close_to_expiry_falls_through_to_db():
+    """A cached near expiry below MIN_DTE_DAYS must not stop the DB's next expiry."""
+    today = dt.date.today()
+    expiring = today + dt.timedelta(days=1)
+    next_expiry = today + dt.timedelta(days=30)
+    cached = [
+        {
+            "expiry_date": expiring.isoformat(),
+            "strike_price": 1000.0,
+            "option_type": "CE",
+            "ltp": 25.0,
+            "implied_vol": 20.0,
+            "open_interest": 5000,
+            "volume": 1000,
+            "underlying_value": 1000.0,
+        }
+    ]
+    store = MagicMock()
+    store.get_cached_option_chain.return_value = cached
+    rows = [Row(next_expiry, 1000.0, "CE", 40.0, 20.0, 5000, 1000, 1000.0, 30)]
+
+    contract = resolve_option_contract(_mock_db(rows), "TESTSYM", "BUY", redis_store=store)
+
+    assert contract is not None
+    assert contract.expiry_date == next_expiry
