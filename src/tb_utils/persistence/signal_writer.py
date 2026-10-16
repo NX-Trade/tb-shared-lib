@@ -115,16 +115,16 @@ def persist_approved_signals(
         if target_px <= 0:
             if action_val == SignalActionEnum.BUY.value:
                 target_px = entry_px * 1.02
-            elif action_val == SignalActionEnum.EXIT.value:
+            elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
                 target_px = entry_px * 0.98
             else:
-                target_px = entry_px
+                target_px = entry_px  # WATCH: no levels, the entry is its reference price
 
         sl_px = float(s.get("stop_loss") or 0.0)
         if sl_px <= 0:
             if action_val == SignalActionEnum.BUY.value:
                 sl_px = entry_px * 0.985
-            elif action_val == SignalActionEnum.EXIT.value:
+            elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
                 sl_px = entry_px * 1.015
             else:
                 sl_px = entry_px

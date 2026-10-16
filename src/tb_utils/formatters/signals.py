@@ -102,6 +102,8 @@ def format_research_signal_card(
 
     if action_val == SignalActionEnum.BUY.value:
         badge = f"🟢 <b>RESEARCH BUY: {sym}</b>"
+    elif action_val == SignalActionEnum.SELL.value:
+        badge = f"🔴 <b>RESEARCH SELL: {sym}</b>"
     elif action_val == SignalActionEnum.EXIT.value:
         badge = f"🔴 <b>RESEARCH EXIT / RISK: {sym}</b>"
     else:
@@ -114,9 +116,19 @@ def format_research_signal_card(
         f"<b>Score:</b> {score:+.2f} | <b>Confidence:</b> {conf * 100:.0f}%",
         "",
         "📊 <b>Cash Equity Levels:</b>",
-        f"• Entry: ₹{ep:.2f}",
-        f"• Target: ₹{tp:.2f} ({tp_pct:+.1f}%)",
-        f"• Stop Loss: ₹{sl:.2f} ({sl_pct:+.1f}%)",
+        *(
+            # A WATCH is not a trade: it carries a reference price and no target or stop.
+            [
+                f"• Reference price: ₹{ep:.2f}",
+                "• On watch, not a trade yet. A BUY needs a score of 0.55.",
+            ]
+            if action_val == SignalActionEnum.WATCH.value
+            else [
+                f"• Entry: ₹{ep:.2f}",
+                f"• Target: ₹{tp:.2f} ({tp_pct:+.1f}%)",
+                f"• Stop Loss: ₹{sl:.2f} ({sl_pct:+.1f}%)",
+            ]
+        ),
     ]
 
     # Confluence factors
