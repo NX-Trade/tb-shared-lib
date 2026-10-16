@@ -68,6 +68,11 @@ def get_upstox_token_key() -> str:
     return "market:upstox:access_token"
 
 
+def get_breeze_session_key(account_id: int) -> str:
+    """Today's ICICI Breeze ``api_session`` for one client account. Set daily after the browser login; TTL runs to ~06:00 IST."""
+    return f"broker:breeze:session:{account_id}"
+
+
 def get_option_chain_key(symbol: str) -> str:
     """Live option chain cache in Redis. TTL = 6 hours (21,600s)."""
     return f"market_data:option_chain:{symbol.upper()}"

@@ -19,6 +19,9 @@ class Instrument(Base, PostgresUpsertMixin):
     # master); nullable because it's populated by a separate tb-collector sync
     # job, not known at instrument creation time.
     angelone_token = Column(String(20), nullable=True, index=True)
+    # ICICI Direct (Breeze) ``stock_code`` from their security master, e.g. RELIND
+    # for RELIANCE. Populated by a tb-collector sync job, like ``angelone_token``.
+    icici_stock_code = Column(String(20), nullable=True, index=True)
     company_name = Column(String(500))
     sector = Column(String(200))
     is_fno = Column(SmallInteger, default=0)

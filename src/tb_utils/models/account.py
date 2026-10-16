@@ -26,8 +26,12 @@ class ClientAccount(Base):
     client_code = Column(String(50), unique=True, nullable=False, index=True)
     client_name = Column(String(100), nullable=False)
     broker_type = Column(
-        String(20), nullable=False, default="UPSTOX", index=True
-    )  # UPSTOX, ANGELONE, PAPER
+        String(20),
+        nullable=False,
+        default="UPSTOX",
+        index=True,
+        # UPSTOX, ANGELONE, ICICI, PAPER
+    )
 
     # API Credentials & Token references
     api_key = Column(String(100), nullable=True)

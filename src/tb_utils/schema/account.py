@@ -15,7 +15,7 @@ class ClientAccountBase(BaseModel):
     )
     client_name: str = Field(..., max_length=100, description="Display name for client")
     broker_type: str = Field(
-        "UPSTOX", max_length=20, description="Broker platform (UPSTOX, ANGELONE, PAPER)"
+        "UPSTOX", max_length=20, description="Broker platform (UPSTOX, ANGELONE, ICICI, PAPER)"
     )
     api_key: Optional[str] = Field(None, max_length=100)
     api_secret: Optional[str] = Field(None, max_length=100)
@@ -27,7 +27,8 @@ class ClientAccountBase(BaseModel):
     extra_credentials: Optional[dict[str, Any]] = Field(
         None,
         description="Broker-specific auth fields beyond the generic columns "
-        "(e.g. Angel One client_id/pin/totp_secret)",
+        "(e.g. Angel One client_id/pin/totp_secret). ICICI Breeze uses api_key/api_secret "
+        "and a daily api_session stored in Redis",
     )
     allocated_capital: Decimal = Field(
         Decimal("100000.00"), description="Allocated trading capital"
