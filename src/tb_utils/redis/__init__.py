@@ -7,6 +7,7 @@ from tb_utils.redis.client import (
     resolve_redis_url,
 )
 from tb_utils.redis.keys import (
+    get_broker_token_key,
     get_contracts_key,
     get_derived_metrics_key,
     get_instrument_spot_key,
@@ -27,6 +28,7 @@ from tb_utils.redis.market_math import (
 from tb_utils.redis.sync_market_store import SyncMarketStore
 
 __all__ = [
+    "get_broker_token_key",
     "get_contracts_key",
     "get_derived_metrics_key",
     "get_market_breadth_key",

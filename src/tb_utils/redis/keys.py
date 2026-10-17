@@ -64,12 +64,30 @@ def get_market_data_candle_key(symbol: str, security_type: str = "EQUITY") -> st
 
 
 def get_upstox_token_key() -> str:
-    """Active Upstox OAuth2 access token in Redis."""
+    """Active Upstox OAuth2 access token in Redis.
+
+    The platform-wide key, written as an alias alongside the per-account one
+    below. Readers that have no account context still use it; prefer
+    ``get_broker_token_key`` wherever the account is known.
+    """
     return "market:upstox:access_token"
 
 
+def get_broker_token_key(broker_type: str, client_code: str) -> str:
+    """Daily OAuth access token for one broker and client account.
+
+    A token belongs to the account that authenticated, not to the platform,
+    so two accounts on the same broker must not share a slot — the second
+    login would otherwise overwrite the first and both would act as one.
+    """
+    return f"broker:{broker_type.lower()}:access_token:{client_code.upper()}"
+
+
 def get_breeze_session_key(account_id: int) -> str:
-    """Today's ICICI Breeze ``api_session`` for one client account. Set daily after the browser login; TTL runs to ~06:00 IST."""
+    """Today's ICICI Breeze ``api_session`` for one client account.
+
+    Set daily after the browser login; TTL runs to ~06:00 IST.
+    """
     return f"broker:breeze:session:{account_id}"
 
 
