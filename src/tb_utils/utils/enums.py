@@ -118,10 +118,6 @@ class BrokerNameEnum(StrEnum):
     UPSTOX = "UPSTOX"
 
 
-# Alias BrokerEnum to BrokerNameEnum for convenience
-BrokerEnum = BrokerNameEnum
-
-
 class ExecutionModeEnum(StrEnum):
     PAPER = "PAPER"
     LIVE = "LIVE"
@@ -130,6 +126,8 @@ class ExecutionModeEnum(StrEnum):
 class ExitReasonEnum(StrEnum):
     STOP_LOSS = "STOP_LOSS"
     TARGET = "TARGET"
+    PARTIAL_TARGET = "PARTIAL_TARGET"
+    DAILY_PROFIT_CAP = "DAILY_PROFIT_CAP"
     TIME_BARRIER = "TIME_BARRIER"
     TRAILING_STOP = "TRAILING_STOP"
     BROKER_STOP_LOSS = "BROKER_STOP_LOSS"
