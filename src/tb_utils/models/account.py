@@ -9,7 +9,6 @@ from sqlalchemy import (
     Numeric,
     SmallInteger,
     String,
-    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -37,10 +36,19 @@ class ClientAccount(Base):
     api_key = Column(String(100), nullable=True)
     api_secret = Column(String(100), nullable=True)
     redirect_uri = Column(String(255), nullable=True)
+
+    # Login credentials behind the broker's 2FA. First-class columns rather
+    # than extra_credentials entries: every broker here needs some subset of
+    # them, and a schema-less blob gave the same field three spellings
+    # (MOBILE/mobile, TOTP_SECRET/totp_secret) with nothing to check them.
+    # extra_credentials is still read as a fallback for rows not yet migrated.
+    broker_client_id = Column(String(50), nullable=True)  # Angel One client code, etc.
+    phone = Column(String(20), nullable=True)  # Upstox logs in with the mobile number
+    pin = Column(String(32), nullable=True)
+    totp_secret = Column(String(64), nullable=True)
     token_storage_key = Column(
         String(100), nullable=True
     )  # Redis key containing daily OAuth access token
-    static_token = Column(Text, nullable=True)
     # Broker-specific auth fields that don't fit the generic columns above
     # (e.g. Angel One's client_id + pin + totp_secret, structurally different
     # from Upstox's OAuth token).

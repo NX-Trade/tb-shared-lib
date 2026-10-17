@@ -23,7 +23,6 @@ class ClientAccountBase(BaseModel):
     token_storage_key: Optional[str] = Field(
         None, max_length=100, description="Redis key storing OAuth token"
     )
-    static_token: Optional[str] = Field(None, description="Static access token fallback")
     extra_credentials: Optional[dict[str, Any]] = Field(
         None,
         description="Broker-specific auth fields beyond the generic columns "
@@ -68,7 +67,6 @@ class ClientAccountUpdate(BaseModel):
     api_secret: Optional[str] = None
     redirect_uri: Optional[str] = None
     token_storage_key: Optional[str] = None
-    static_token: Optional[str] = None
     extra_credentials: Optional[dict[str, Any]] = None
     allocated_capital: Optional[Decimal] = None
     max_risk_per_trade_pct: Optional[Decimal] = None
