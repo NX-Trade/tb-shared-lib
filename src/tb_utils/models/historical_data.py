@@ -133,6 +133,46 @@ class OptionChain(Base, PostgresUpsertMixin):
     source = Column(String(10), nullable=False, default="NSE")
 
 
+class OptionOiSnapshot(Base, PostgresUpsertMixin):
+    """Whole-chain OI and volume totals per expiry, with the PCR and VIX at that moment.
+
+    ``option_chain`` stores only a window of strikes around spot
+    (``OPTION_CHAIN_STRIKES_LIMIT`` each side), so a PCR summed from it misses
+    the far strikes where a good deal of open interest sits. NSE publishes the
+    totals for the *entire* expiry alongside the strikes, and this table keeps
+    them — one small row per (snapshot, symbol, expiry) rather than one per
+    strike, so a true PCR is a single read with no aggregation.
+
+    ``pcr_oi`` and ``pcr_volume`` are stored rather than derived on read, as in
+    ``OptionDailyMetrics``: the ratio is what every consumer actually wants and
+    the divisor can be zero. ``vix`` is the India VIX reading at the same
+    timestamp — market-wide, so repeated across a snapshot's rows, but it makes
+    "PCR against VIX at this moment" (the euphoria rule) a single read, and it
+    is the only place intraday VIX is retained; ``india_vix`` keeps daily bars.
+
+    Written every 15 minutes in market hours by the option-chain collectors,
+    which already fetch this payload — no extra NSE request.
+    """
+
+    __tablename__ = "option_oi_snapshot"
+
+    ts = Column(DateTime(timezone=True), primary_key=True)
+    symbol = Column(String(30), primary_key=True)
+    expiry_date = Column(Date, primary_key=True)
+
+    total_call_oi = Column(BigInteger, nullable=False, default=0)
+    total_put_oi = Column(BigInteger, nullable=False, default=0)
+    total_call_volume = Column(BigInteger, nullable=False, default=0)
+    total_put_volume = Column(BigInteger, nullable=False, default=0)
+
+    pcr_oi = Column(Numeric(10, 4))
+    pcr_volume = Column(Numeric(10, 4))
+    # India VIX at this timestamp; NULL when the feed had not published one.
+    vix = Column(Numeric(10, 4))
+
+    source = Column(String(20), nullable=False, default="NSE")
+
+
 class IntradayCandle(Base, PostgresUpsertMixin):
     """Intraday OHLCV bars, kept apart from ``historical_equity_data``.
 

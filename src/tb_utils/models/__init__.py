@@ -28,6 +28,7 @@ from .historical_data import (
     IntradayCandle,
     OptionChain,
     OptionDailyMetrics,
+    OptionOiSnapshot,
 )
 from .historical_valuation import HistoricalValuation
 from .instrument import Instrument
@@ -80,6 +81,7 @@ __all__ = [
     "IntradayCandle",
     "OptionChain",
     "OptionDailyMetrics",
+    "OptionOiSnapshot",
     "Instrument",
     "FiiDii",
     "MarketBreadth",
