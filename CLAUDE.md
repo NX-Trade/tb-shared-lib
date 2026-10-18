@@ -74,6 +74,25 @@ finally:
 - After every model change → generate + review + apply an Alembic migration
 - Redis keys → add builders to `redis/keys.py` — never hardcode in services
 - Telegram → `notifications/telegram.py` is the only alert path
+- **Credentials** → store them on `client_account` in an `EncryptedString` column
+  (`models/types.py`), never in a plain `String`, and never in the environment.
+  They are encrypted at rest with `CREDENTIALS_ENCRYPTION_KEY` and masked on the
+  way out by `ClientAccountResponse`: settable through the API, never readable.
+  Add a new credential to `CREDENTIAL_FIELDS` in `schema/account.py` so it is
+  masked and flagged — a test fails if the column is left unencrypted.
+
+## Credential Encryption
+
+```bash
+# Generate the key (back it up outside the host — losing it loses the credentials)
+venv/bin/python -c "from tb_utils.security import generate_key; print(generate_key())"
+```
+
+Set `CREDENTIALS_ENCRYPTION_KEY` in `deployment/.env`; `env_file` passes it to
+every container. To rotate, put the old key in `CREDENTIALS_ENCRYPTION_KEY_PREVIOUS`
+while the new one is in `CREDENTIALS_ENCRYPTION_KEY`, re-save each account, then
+drop the previous key. Rows written before encryption keep working — a value that
+is not a Fernet token is returned as-is.
 
 ## Git
 

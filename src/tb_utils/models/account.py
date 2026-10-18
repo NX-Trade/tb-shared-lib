@@ -14,6 +14,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from .base import Base
+from .types import EncryptedString
 
 
 class ClientAccount(Base):
@@ -32,9 +33,11 @@ class ClientAccount(Base):
         # UPSTOX, ANGELONE, ICICI, PAPER
     )
 
-    # API Credentials & Token references
-    api_key = Column(String(100), nullable=True)
-    api_secret = Column(String(100), nullable=True)
+    # API Credentials & Token references. The credential columns are
+    # encrypted at rest (see tb_utils.security); they read and write as
+    # plaintext in Python and are ciphertext in the database.
+    api_key = Column(EncryptedString, nullable=True)
+    api_secret = Column(EncryptedString, nullable=True)
     redirect_uri = Column(String(255), nullable=True)
 
     # Login credentials behind the broker's 2FA. First-class columns rather
@@ -42,10 +45,10 @@ class ClientAccount(Base):
     # them, and a schema-less blob gave the same field three spellings
     # (MOBILE/mobile, TOTP_SECRET/totp_secret) with nothing to check them.
     # extra_credentials is still read as a fallback for rows not yet migrated.
-    broker_client_id = Column(String(50), nullable=True)  # Angel One client code, etc.
-    phone = Column(String(20), nullable=True)  # Upstox logs in with the mobile number
-    pin = Column(String(32), nullable=True)
-    totp_secret = Column(String(64), nullable=True)
+    broker_client_id = Column(EncryptedString, nullable=True)  # Angel One client code, etc.
+    phone = Column(EncryptedString, nullable=True)  # Upstox logs in with the mobile number
+    pin = Column(EncryptedString, nullable=True)
+    totp_secret = Column(EncryptedString, nullable=True)
     token_storage_key = Column(
         String(100), nullable=True
     )  # Redis key containing daily OAuth access token

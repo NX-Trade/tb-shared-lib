@@ -38,6 +38,7 @@ dependencies = [
     "breeze-connect>=1.0.0",
     "pgvector>=0.3.0",
     "scipy>=1.14.0",
+    "cryptography>=50.0.2,<51.0.0",
 ]
 
 [project.urls]
