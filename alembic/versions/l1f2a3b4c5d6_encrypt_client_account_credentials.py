@@ -1,17 +1,12 @@
-"""encrypt client_account credentials at rest
+"""widen client_account credential columns for encryption
 
-Widens the credential columns to Text — a Fernet token runs to roughly 140
-characters, so the sized columns would have truncated on write — then
-encrypts whatever is already stored.
+Schema only. A Fernet token runs to roughly 140 characters, so the sized
+columns would truncate one on write; they become Text.
 
-The legacy extra_credentials blob is emptied of its credential keys at the
-same time. k1e2f3a4b5c6 copied them into columns but left the originals
-behind, and leaving plaintext secrets in a JSON column would defeat the
-point of encrypting the columns beside it.
-
-Needs CREDENTIALS_ENCRYPTION_KEY to be set. Without it the rows are left as
-plaintext and a warning is logged, so the migration is still safe to run —
-re-run it once the key is in place.
+Encrypting the rows that are already stored is a data change, not a schema
+change, and lives in ``scripts/encrypt_client_credentials.py``. Keeping it
+out of here means it can be re-run, dry-run, and reused for a key rotation,
+and that a schema migration does not depend on a runtime encryption key.
 
 Revision ID: l1f2a3b4c5d6
 Revises: k1e2f3a4b5c6
@@ -21,103 +16,49 @@ Create Date: 2026-10-18
 import sqlalchemy as sa
 from alembic import op
 
-from tb_utils.security import encrypt, looks_encrypted
-
 revision = "l1f2a3b4c5d6"
 down_revision = "k1e2f3a4b5c6"
 branch_labels = None
 depends_on = None
 
-CREDENTIAL_COLUMNS = (
-    "api_key",
-    "api_secret",
-    "broker_client_id",
-    "phone",
-    "pin",
-    "totp_secret",
-)
-
-# Credential names that were duplicated into extra_credentials, in either case.
-BLOB_CREDENTIAL_KEYS = (
-    "client_id", "CLIENT_ID",
-    "mobile", "MOBILE", "phone", "PHONE",
-    "pin", "PIN",
-    "totp_secret", "TOTP_SECRET",
-    "api_key", "API_KEY", "api_secret", "API_SECRET",
+CREDENTIAL_COLUMNS: tuple[tuple[str, int], ...] = (
+    ("api_key", 100),
+    ("api_secret", 100),
+    ("broker_client_id", 50),
+    ("phone", 20),
+    ("pin", 32),
+    ("totp_secret", 64),
 )
 
 
 def upgrade() -> None:
-    for column in CREDENTIAL_COLUMNS:
+    for column, _ in CREDENTIAL_COLUMNS:
         op.alter_column("client_account", column, type_=sa.Text(), existing_nullable=True)
-
-    bind = op.get_bind()
-    rows = bind.execute(
-        sa.text(f"SELECT account_id, {', '.join(CREDENTIAL_COLUMNS)} FROM client_account")
-    ).mappings().all()
-
-    for row in rows:
-        changes = {
-            column: encrypt(row[column])
-            for column in CREDENTIAL_COLUMNS
-            if row[column] and not looks_encrypted(row[column])
-        }
-        if not changes:
-            continue
-        assignments = ", ".join(f"{c} = :{c}" for c in changes)
-        bind.execute(
-            sa.text(f"UPDATE client_account SET {assignments} WHERE account_id = :account_id"),
-            {**changes, "account_id": row["account_id"]},
-        )
-
-    # Drop the now-redundant plaintext copies, keeping any genuinely
-    # broker-specific extras that are not credentials.
-    for key in BLOB_CREDENTIAL_KEYS:
-        bind.execute(
-            sa.text(
-                "UPDATE client_account SET extra_credentials = extra_credentials - :key "
-                "WHERE extra_credentials ? :key"
-            ),
-            {"key": key},
-        )
 
 
 def downgrade() -> None:
-    """Decrypt back to plaintext and restore the sized columns.
+    """Narrow the columns again, refusing if that would truncate a secret.
 
-    The blob copies are not put back: the columns are the source of truth
-    now, and re-creating plaintext duplicates would be the opposite of the
-    point.
+    Encrypted values do not fit the original widths, so decrypt first:
+    ``python scripts/encrypt_client_credentials.py --decrypt``.
     """
-    from tb_utils.security import decrypt
-
     bind = op.get_bind()
-    rows = bind.execute(
-        sa.text(f"SELECT account_id, {', '.join(CREDENTIAL_COLUMNS)} FROM client_account")
-    ).mappings().all()
+    for column, length in CREDENTIAL_COLUMNS:
+        too_long = bind.execute(
+            sa.text(
+                f"SELECT COUNT(*) FROM client_account "  # noqa: S608 - a fixed column list
+                f"WHERE {column} IS NOT NULL AND length({column}) > :length"
+            ),
+            {"length": length},
+        ).scalar()
+        if too_long:
+            raise RuntimeError(
+                f"{too_long} client_account row(s) have a {column} longer than {length} "
+                "characters, which this would truncate. They are probably still encrypted — "
+                "run scripts/encrypt_client_credentials.py --decrypt first."
+            )
 
-    for row in rows:
-        changes = {
-            column: decrypt(row[column])
-            for column in CREDENTIAL_COLUMNS
-            if looks_encrypted(row[column])
-        }
-        if not changes:
-            continue
-        assignments = ", ".join(f"{c} = :{c}" for c in changes)
-        bind.execute(
-            sa.text(f"UPDATE client_account SET {assignments} WHERE account_id = :account_id"),
-            {**changes, "account_id": row["account_id"]},
-        )
-
-    for column, length in (
-        ("api_key", 100),
-        ("api_secret", 100),
-        ("broker_client_id", 50),
-        ("phone", 20),
-        ("pin", 32),
-        ("totp_secret", 64),
-    ):
+    for column, length in CREDENTIAL_COLUMNS:
         op.alter_column(
             "client_account", column, type_=sa.String(length=length), existing_nullable=True
         )
