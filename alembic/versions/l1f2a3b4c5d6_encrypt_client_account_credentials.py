@@ -1,7 +1,8 @@
 """widen client_account credential columns for encryption
 
-Schema only. A Fernet token runs to roughly 140 characters, so the sized
-columns would truncate one on write; they become Text.
+Schema only. A Fernet token runs to roughly 140 characters, which the sized
+columns would reject on write ("value too long for type character varying"),
+so they become Text.
 
 Encrypting the rows that are already stored is a data change, not a schema
 change, and lives in ``scripts/encrypt_client_credentials.py``. Keeping it
@@ -37,27 +38,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Narrow the columns again, refusing if that would truncate a secret.
+    """Narrow the columns back.
 
-    Encrypted values do not fit the original widths, so decrypt first:
-    ``python scripts/encrypt_client_credentials.py --decrypt``.
+    Run ``scripts/encrypt_client_credentials.py --decrypt`` first: a Fernet
+    token does not fit these widths and Postgres refuses the conversion
+    outright ("value too long for type character varying"), so nothing is
+    truncated and no guard is needed here.
     """
-    bind = op.get_bind()
-    for column, length in CREDENTIAL_COLUMNS:
-        too_long = bind.execute(
-            sa.text(
-                f"SELECT COUNT(*) FROM client_account "  # noqa: S608 - a fixed column list
-                f"WHERE {column} IS NOT NULL AND length({column}) > :length"
-            ),
-            {"length": length},
-        ).scalar()
-        if too_long:
-            raise RuntimeError(
-                f"{too_long} client_account row(s) have a {column} longer than {length} "
-                "characters, which this would truncate. They are probably still encrypted — "
-                "run scripts/encrypt_client_credentials.py --decrypt first."
-            )
-
     for column, length in CREDENTIAL_COLUMNS:
         op.alter_column(
             "client_account", column, type_=sa.String(length=length), existing_nullable=True
