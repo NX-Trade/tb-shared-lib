@@ -6,7 +6,7 @@ A shared Python library for NX-Trade. Provides SQLAlchemy ORM models, Pydantic s
 
 ## 🏛 Architecture Decisions & Conventions
 
-- **ADR 001 — Single Migration Path**: All SQLAlchemy models live exclusively in `libs/tb-shared-lib/src/tb_utils/models/`. Never define SQLAlchemy models inside service directories (`tb-backend`, `tb-collector`, `tb-signal-bot`, `tb-execution`). After any model change, generate an Alembic migration from `tb-shared-lib`.
+- **ADR 001 — Single Migration Path**: All SQLAlchemy models live exclusively in `libs/tb-shared-lib/src/tb_utils/models/`. Never define SQLAlchemy models inside service directories (`tb-backend`, `tb-collector`, `tb-research-agent`, `tb-trade-engine`). After any model change, generate an Alembic migration from `tb-shared-lib`.
 - **ADR 005 — Golden Record Retention**: Records at `timestamp = 15:30:00` in `option_chain` and `derivative_tick` are never deleted.
 - **Singular Table Names**: All database tables in `nx_trade_db` use **singular** names (`trading_signal`, `trading_order`, `position`, `instrument`, `delivery_data`, `bulk_deals`, `block_deals`).
 

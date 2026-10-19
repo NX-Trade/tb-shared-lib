@@ -1,7 +1,7 @@
 """Single source of truth for regime-dependent position sizing rules.
 
-Previously duplicated between ``tb-execution/risk/position_sizer.py`` (live
-sizing) and ``tb-signal-bot/backtest/walk_forward.py`` (backtest simulation),
+Previously duplicated between ``tb-trade-engine/risk/position_sizer.py`` (live
+sizing) and ``tb-research-agent/backtest/walk_forward.py`` (backtest simulation),
 which risked silent drift if one copy was tuned without updating the other.
 Both now import ``REGIME_RULES`` from here.
 

@@ -97,11 +97,30 @@ class Candle(Base, PostgresUpsertMixin):
 class OptionChain(Base, PostgresUpsertMixin):
     """Live option chain snapshots.
 
-    Not a hypertable, despite what this docstring claimed until 2026-09-20 —
-    ``timescaledb_information.hypertables`` was empty. Left as a plain table:
-    intraday rows are pruned to 5 days by ADR-005 (exempting the 15:30 golden
-    records), so it does not accumulate the volume that would justify
-    partitioning.
+    A TimescaleDB hypertable partitioned on ``ts`` in 7-day chunks
+    (``m1a2b3c4d5e6_option_chain_hypertable``). It was a plain table until
+    2026-10-19, justified by the 5-day intraday prune; once ADR-005 was amended
+    to forbid pruning, ~265k rows/day with no deletion made partitioning the
+    obvious call. The PK already leads with ``ts``, so no key change was needed.
+    Compression is *configured* but intentionally *not scheduled* — upserts into
+    compressed chunks are restricted and the EOD backfills write historical
+    rows. See the migration docstring before adding a policy.
+
+    The only remaining bound on row growth is the stored strike window
+    (``OPTION_CHAIN_STRIKES_LIMIT``, 20 each side — it is per-side, not a
+    total, so the table holds ``2 * limit + 1`` strikes). Widening it is now a
+    partitioning decision, not just a storage one.
+
+    Nothing in this table is ever deleted (ADR-005). The 5-day intraday prune
+    this docstring described until 2026-10-19 was removed: the live chain
+    endpoint has no history, so a deleted intraday snapshot is as unrecoverable
+    as an EOD one, and IV-rank style work needs the long series. Rows at
+    ``ts = 15:30:00`` IST are the EOD golden record — the row to read for an
+    end-of-day figure. Do not add a prune task or a retention policy here.
+
+    Greeks are columns on this table (``delta``/``gamma``/``theta``/``vega``/
+    ``implied_vol``), stored as Upstox publishes them per strike. There is no
+    separate Greeks table.
     """
 
     __tablename__ = "option_chain"

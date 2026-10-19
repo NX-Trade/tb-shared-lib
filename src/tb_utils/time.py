@@ -1,7 +1,7 @@
 """Date and time utilities for Indian financial markets (NSE/BSE).
 
 Provides canonical timezone objects (IST, UTC), standard date conversion functions,
-and trading day determination to ensure consistency across tb-collector, tb-signal-bot,
+and trading day determination to ensure consistency across tb-collector, tb-research-agent,
 and tb-backend.
 
 Adheres to:

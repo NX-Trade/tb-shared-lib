@@ -109,7 +109,7 @@ def get_trading_halted_key() -> str:
 def get_circuit_breaker_alert_key(kind: str) -> str:
     """Debounce key for circuit-breaker trip alerts, one per trip kind.
 
-    The breaker is evaluated every 15 s by tb-execution's Celery beat; once it
+    The breaker is evaluated every 15 s by tb-trade-engine's Celery beat; once it
     has tripped it would otherwise send a Telegram alert and write a SystemLog
     row on every tick. Setting this key with a TTL suppresses repeats.
     """
@@ -119,7 +119,7 @@ def get_circuit_breaker_alert_key(kind: str) -> str:
 def get_paper_order_key(broker_order_id: str) -> str:
     """Resting (unfilled) paper-broker order state. TTL = 7 days.
 
-    Written by tb-execution's PaperBrokerAdapter so LIMIT/STOP orders that are
+    Written by tb-trade-engine's PaperBrokerAdapter so LIMIT/STOP orders that are
     not immediately marketable persist across worker restarts and are evaluated
     against the live spot on every status poll instead of being fabricated.
     """

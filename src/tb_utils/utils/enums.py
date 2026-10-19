@@ -142,7 +142,7 @@ class ExitReasonEnum(StrEnum):
 class SignalExecutionStatusEnum(StrEnum):
     """Why a trading_signal left the pending execution queue.
 
-    Written by tb-execution to ``trading_signal.metadata["execution"]["status"]``
+    Written by tb-trade-engine to ``trading_signal.metadata["execution"]["status"]``
     and read by tb-backend / tb-ui, so a risk rejection or a skip is never
     mistaken for a real fill.
     """
@@ -160,7 +160,7 @@ class SignalExecutionStatusEnum(StrEnum):
 
 
 class ExecutionPlanStateEnum(StrEnum):
-    """Lifecycle of an ``execution_plan`` row (tb-execution's entry state machine).
+    """Lifecycle of an ``execution_plan`` row (tb-trade-engine's entry state machine).
 
     ``LIMIT_ACTIVE`` → resting limit order being monitored until its deadline.
     ``TWAP_ACTIVE``  → limit cancelled, market slices being submitted one per tick.

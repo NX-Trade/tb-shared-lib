@@ -1,6 +1,6 @@
 """Database execution helpers for order insertion, order updates, and position upserts.
 
-Centralises DRY database mutations shared across tb-execution modules
+Centralises DRY database mutations shared across tb-trade-engine modules
 (smart_open.py, monitor_positions.py).
 """
 

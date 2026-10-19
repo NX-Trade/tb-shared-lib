@@ -14,7 +14,7 @@ Every error carries:
 ``details``    structured context (provider, endpoint, status, correlation id)
 
 This hierarchy is the seed of the service-wide typed exception work: it lives
-here so tb-execution, tb-collector and tb-signal-bot share one root.
+here so tb-trade-engine, tb-collector and tb-research-agent share one root.
 """
 
 from typing import Any, Optional

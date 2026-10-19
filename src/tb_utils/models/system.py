@@ -8,10 +8,10 @@ from .base import Base, PostgresUpsertMixin
 
 
 class SystemCommand(Base):
-    """Durable operator commands consumed by tb-execution's 15-second beat.
+    """Durable operator commands consumed by tb-trade-engine's 15-second beat.
 
     Replaces the fire-and-forget Redis pub/sub pattern used by the panic
-    endpoint.  tb-execution queries for PENDING rows, sets status=PROCESSING
+    endpoint.  tb-trade-engine queries for PENDING rows, sets status=PROCESSING
     while working, and writes DONE or FAILED with an acknowledged_at timestamp
     so the UI can poll for completion.
 

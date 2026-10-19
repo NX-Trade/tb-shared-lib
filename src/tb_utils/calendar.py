@@ -1,8 +1,8 @@
 """Market calendar utilities for nx-trade.
 
 Provides canonical functions ``is_trading_holiday()`` and
-``get_trading_holidays_for_year()`` used across tb-collector, tb-execution,
-and tb-signal-bot to skip execution on weekends and NSE trading holidays.
+``get_trading_holidays_for_year()`` used across tb-collector, tb-trade-engine,
+and tb-research-agent to skip execution on weekends and NSE trading holidays.
 
 Cache strategy
 --------------

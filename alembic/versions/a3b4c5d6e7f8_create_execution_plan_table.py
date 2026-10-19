@@ -1,6 +1,6 @@
 """create_execution_plan_table
 
-Durable state machine for tb-execution's limit → TWAP entry executor. Replaces
+Durable state machine for tb-trade-engine's limit → TWAP entry executor. Replaces
 the in-process ``time.sleep(180)`` + un-joined daemon TWAP thread, so an entry
 in progress survives a worker restart and never blocks the Celery beat.
 
