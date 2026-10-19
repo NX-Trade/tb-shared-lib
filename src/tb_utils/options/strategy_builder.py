@@ -151,6 +151,17 @@ def build_vertical_spread_strategy(
 ) -> Optional[BuiltOptionStrategy]:
     """Build a margin-optimized vertical spread strategy for a directional signal.
 
+    .. warning::
+       The price parameters are ``entry_price``/``target_price``/``stop_loss``,
+       **not** the ``underlying_*`` names used by
+       :func:`tb_utils.options.resolver.resolve_option_contract` or by the
+       ``underlying_*`` fields on the :class:`BuiltOptionStrategy` this returns.
+       The two functions are usually called back to back on the same values, and
+       that asymmetry cost months of silently dead spread generation in
+       ``tb-research-agent``'s ``research_signals.py``, where the mismatched
+       keywords raised ``TypeError`` into a bare ``except`` logging at debug
+       level. Keep the names aligned if either signature is ever revised.
+
     Args:
         db: SQLAlchemy database session.
         symbol: Underlying equity symbol (e.g. "ICICIBANK").

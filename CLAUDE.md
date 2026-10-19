@@ -96,4 +96,4 @@ is not a Fernet token is returned as-is.
 
 ## Git
 
-Separate sub-repo. Commit locally → push → `ssh algoserver "cd /home/abhi-trade/nx-trade/libs/tb-shared-lib && git pull"`.
+Separate sub-repo. Commit locally → push → `ssh optiplex "cd ~/nx-trade/libs/tb-shared-lib && git pull"`.
