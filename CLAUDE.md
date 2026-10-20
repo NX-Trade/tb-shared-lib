@@ -26,9 +26,42 @@ src/tb_utils/
 ├── redis/
 │   ├── keys.py         Redis key builders — always use these, never hardcode strings
 │   └── sync_market_store.py  store_regime_state(), store_watchlist(), get_regime_state()
+├── options/            Option analytics — shared by backend, research-agent & trade-engine
+│   ├── resolver.py     Single-contract resolution by target delta
+│   ├── strategy_builder.py  Multi-leg construction (hedge-first ordering)
+│   ├── payoff.py       (planned) payoff curve, breakevens, max P/L, net greeks
+│   └── margin.py       (planned) SPAN scenarios, exposure, short-option minimum
+├── greeks.py           Black-Scholes greeks + implied_volatility solver
 └── notifications/
     └── telegram.py     The ONLY Telegram alert path across all services
 ```
+
+## Option Analytics Live Here
+
+Payoff curves, max profit/loss, breakevens, net position greeks and margin estimation belong in
+`src/tb_utils/options/` — **never** reimplemented in a service or in the frontend. Three
+consumers need the identical numbers:
+
+| Consumer | Needs it for |
+|---|---|
+| `tb-backend` | `POST /options/analyze-basket` powering the strategy-builder UI |
+| `tb-research-agent` | EV gate; `strategy_builder` max P/L and R:R at construction |
+| `tb-trade-engine` | `spread_risk_manager` exit thresholds; pre-trade margin checks |
+
+Two rules:
+
+- **Pure functions only.** No DB session, no Redis, no HTTP in `payoff.py` / `margin.py`. Plain
+  dataclasses in and out, so they are callable from a request path, a Celery task and a backtest
+  alike, and testable without infrastructure.
+- **Compute server-side, never in TypeScript.** The UI calls the API. A second implementation in
+  the frontend will drift from this one — the same failure that produced the
+  `strategy_builder` / `resolver` keyword mismatch and the duplicated 15m/5m STC skills.
+
+⚠️ `strategy_builder.py` currently computes `max_profit = spread_width - net_premium` inline,
+which is a **closed form valid only for 2-leg verticals** and wrong for 3+ legs. `tb-trade-engine`'s
+`spread_risk_manager` reads those stored values and triggers real exits at 75% / 60% of them. Any
+move to N-leg structures must route this maths through `payoff.py` first, or exits break silently.
+See `tb-ai-brain/upcoming/OPTION_STRATEGY_BUILDER_AND_MARGIN_DESIGN.md` §5A.3.
 
 ## Adding a Model
 
@@ -71,6 +104,8 @@ finally:
 ## Hard Rules
 
 - All services import models from here — never define models locally in a service
+- Option payoff / margin / greeks maths lives in `options/` + `greeks.py` — never duplicated in a
+  service or the frontend (see *Option Analytics Live Here* above)
 - After every model change → generate + review + apply an Alembic migration
 - Redis keys → add builders to `redis/keys.py` — never hardcode in services
 - Telegram → `notifications/telegram.py` is the only alert path
