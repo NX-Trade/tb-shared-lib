@@ -67,6 +67,14 @@ Two rules:
 `max_profit` and never to the expiry maximum of a non-vertical structure (unreachable pre-expiry).
 See `tb-ai-brain/upcoming/OPTION_STRATEGY_BUILDER_AND_MARGIN_DESIGN.md` §5A.3.
 
+## Schema drift
+
+A model column with no migration behind it breaks every query that selects the model
+(`column trade.unrealized_pnl does not exist`) while the tests, which run on the models, stay green.
+`python scripts/check_schema_drift.py` (read-only, uses `DATABASE_URL`, exits 1 on any gap) lists the
+tables and columns the models declare that the live database lacks; `tb_utils.schema_drift.find_drift`
+is the library form. Run it after every deploy, and fix a gap with an Alembic migration — never by hand.
+
 ## Adding a Model
 
 ```python

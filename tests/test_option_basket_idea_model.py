@@ -114,7 +114,7 @@ class TestMigrationChain:
 
     def test_there_is_a_single_head(self):
         """A second head would make `alembic upgrade head` refuse to run on optiplex."""
-        assert self._scripts().get_heads() == ["p1e2f3a4b5c6"]
+        assert len(self._scripts().get_heads()) == 1
 
     def test_the_idea_migration_follows_the_lots_migration(self):
         assert self._scripts().get_revision("p1e2f3a4b5c6").down_revision == "o1c2d3e4f5a6"
