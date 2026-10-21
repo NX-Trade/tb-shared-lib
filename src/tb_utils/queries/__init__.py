@@ -12,6 +12,7 @@ from .fno import (
     PCR_SCAN_QUERY,
 )
 from .universe import (
+    get_fno_stock_symbols,
     get_nifty500_members_as_of,
     get_tradable_fno_symbols,
     get_tradable_symbols,
@@ -23,6 +24,7 @@ __all__ = [
     "get_nifty500_members_as_of",
     "get_tradable_symbols",
     "get_tradable_fno_symbols",
+    "get_fno_stock_symbols",
     "FUTURES_BUILDUP_QUERY",
     "PCR_BY_EXPIRY_QUERY",
     "PCR_SCAN_QUERY",

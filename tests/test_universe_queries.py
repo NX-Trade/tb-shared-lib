@@ -14,7 +14,8 @@ The correct answer is the most recent snapshot at or before ``as_of``.
 from datetime import date
 from unittest.mock import MagicMock
 
-from tb_utils.queries.universe import get_nifty500_members_as_of
+from tb_utils.models.instrument import Instrument
+from tb_utils.queries.universe import get_fno_stock_symbols, get_nifty500_members_as_of
 
 
 def _session(snapshot_date, symbols):
@@ -76,3 +77,27 @@ def test_snapshot_is_pinned_by_equality_not_a_range():
 
     # The max() lookup, by contrast, *should* use a range.
     assert "<=" in str(max_query.filter.call_args[0][0])
+
+
+def _fno_query(db):
+    """The query.filter(is_fno).filter(not index).distinct() chain of get_fno_stock_symbols."""
+    return db.query.return_value.filter.return_value.filter.return_value.distinct.return_value
+
+
+class TestGetFnoStockSymbols:
+    """All F&O stocks, with no fundamental_universe intersection and no indices."""
+
+    def test_returns_sorted_distinct_symbols_and_filters_in_the_query(self):
+        db = MagicMock()
+        _fno_query(db).all.return_value = [("TCS",), ("RELIANCE",), ("TCS",)]
+
+        assert get_fno_stock_symbols(db) == ["RELIANCE", "TCS"]
+        db.query.assert_called_once()
+        assert db.query.call_args[0][0] is Instrument.symbol
+
+    def test_does_not_touch_fundamental_universe(self):
+        db = MagicMock()
+        _fno_query(db).all.return_value = []
+
+        assert get_fno_stock_symbols(db) == []
+        assert db.query.call_count == 1  # one query, no second fundamental_universe lookup

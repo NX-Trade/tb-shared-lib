@@ -132,3 +132,25 @@ def get_tradable_fno_symbols(db: Session) -> list[str]:
         len(fund_symbols),
     )
     return sorted(filtered)
+
+
+def get_fno_stock_symbols(db: Session) -> list[str]:
+    """Return every F&O *stock* — ``is_fno = 1`` and not an index — sorted.
+
+    Unlike ``get_tradable_fno_symbols`` this does **not** intersect with
+    ``fundamental_universe``. That intersection silently dropped more than half
+    of the F&O stocks (RELIANCE, TCS, SBIN, TECHM, ...) from option-chain
+    collection, so use this for anything that must cover the whole F&O segment:
+    live option chains, basket suggestions, F&O scanners. Indices are excluded
+    because they have their own expiry calendar and collection path.
+    """
+    rows = (
+        db.query(Instrument.symbol)
+        .filter(Instrument.is_fno == 1)
+        .filter(func.coalesce(Instrument.is_index, 0) == 0)
+        .distinct()
+        .all()
+    )
+    symbols = sorted({r[0] for r in rows})
+    logger.info("F&O stock symbols: %d.", len(symbols))
+    return symbols
