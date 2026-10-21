@@ -442,6 +442,9 @@ class OptionStrategyLeg(Base, PostgresUpsertMixin):
         index=True,
     )
     execution_order = Column(Integer, nullable=False)  # 1 = BUY/Hedge first, 2 = SELL short second
+    # Ratio units of the strategy's lot_size for ONE structure: a 1x2x1 butterfly stores 1, 2, 1.
+    # Order quantity per leg is lots * strategy.lot_size.
+    lots = Column(Integer, nullable=False, default=1, server_default="1")
     action = Column(String(4), nullable=False)  # BUY, SELL
     option_type = Column(String(2), nullable=False)  # CE, PE
     strike_price = Column(Numeric(10, 2), nullable=False)

@@ -178,6 +178,7 @@ class OptionStrategyLegCreate(BaseSchema):
     option_type: str  # CE, PE
     strike_price: float
     symbol: str
+    lots: int = Field(default=1, ge=1)  # ratio units of the strategy lot_size (1x2x1 -> 1, 2, 1)
     entry_premium: float
     target_premium: Optional[float] = None
     stop_loss_premium: Optional[float] = None

@@ -65,6 +65,7 @@ class BuiltOptionLeg:
     strike_price: float
     symbol: str  # e.g. "ICICIBANK 29OCT 1360 CE"
     entry_premium: float
+    lots: int = 1  # ratio units of the strategy lot_size (a 1x2x1 butterfly is 1, 2, 1)
     target_premium: Optional[float] = None
     stop_loss_premium: Optional[float] = None
     delta: Optional[float] = None
