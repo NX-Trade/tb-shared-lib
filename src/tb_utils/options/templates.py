@@ -18,8 +18,9 @@ Anchor and width
 * A required strike outside the listed range raises :class:`TemplateError` — a structure is never
   silently truncated.
 
-Declared ``defined_risk`` is checked against ``payoff.max_profit_loss`` in the tests, so a
-template cannot claim bounded loss and be wrong.
+Every template here has a capped loss: structures with an uncovered short leg (short straddles
+and strangles, ratio spreads) are deliberately not offered anywhere, and tests assert both the
+payoff and the leg cover so one cannot be added by accident.
 """
 
 # stdlib
@@ -82,7 +83,6 @@ CONDOR = "condor"
 FLY = "fly"
 STRADDLE = "straddle"
 STRANGLE = "strangle"
-RATIO = "ratio"
 
 _SHAPE_BY_KEY = {
     "bull_call_spread": VERTICAL,
@@ -100,11 +100,7 @@ _SHAPE_BY_KEY = {
     "bearish_iron_fly": FLY,
     "iron_fly": FLY,
     "long_straddle": STRADDLE,
-    "short_straddle": STRADDLE,
     "long_strangle": STRANGLE,
-    "short_strangle": STRANGLE,
-    "call_ratio_spread": RATIO,
-    "put_ratio_spread": RATIO,
 }
 
 
@@ -276,46 +272,6 @@ _TEMPLATES: tuple[Template, ...] = (
         DEBIT,
         (_leg(BUY, CE, 1), _leg(BUY, PE, -1)),
         "Buy an OTM call and put. Cheaper than a straddle, needs a bigger move.",
-        generator_eligible=False,
-    ),
-    Template(
-        "short_straddle",
-        "Short Straddle",
-        NEUTRAL,
-        CREDIT,
-        (_leg(SELL, CE, 0), _leg(SELL, PE, 0)),
-        "Sell the ATM call and put. Open-ended loss on a large move.",
-        defined_risk=False,
-        generator_eligible=False,
-    ),
-    Template(
-        "short_strangle",
-        "Short Strangle",
-        NEUTRAL,
-        CREDIT,
-        (_leg(SELL, CE, 1), _leg(SELL, PE, -1)),
-        "Sell an OTM call and put. Open-ended loss on a large move.",
-        defined_risk=False,
-        generator_eligible=False,
-    ),
-    Template(
-        "call_ratio_spread",
-        "Call Ratio Spread (1x2)",
-        BULLISH,
-        MIXED,
-        (_leg(BUY, CE, 0), _leg(SELL, CE, 1, 2)),
-        "Buy one ATM call, sell two one width up. Open-ended loss above the short strike.",
-        defined_risk=False,
-        generator_eligible=False,
-    ),
-    Template(
-        "put_ratio_spread",
-        "Put Ratio Spread (1x2)",
-        BEARISH,
-        MIXED,
-        (_leg(BUY, PE, 0), _leg(SELL, PE, -1, 2)),
-        "Buy one ATM put, sell two one width down. Large loss below the short strike.",
-        defined_risk=False,
         generator_eligible=False,
     ),
 )

@@ -22,8 +22,6 @@ EXPIRY = dt.date(2026, 11, 26)
 SPOT = 1000.0
 STRIKES = [float(k) for k in range(800, 1201, 20)]  # step 20, ATM = 1000 at index 10
 ALL_KEYS = [t.key for t in list_templates()]
-# Not "defined risk" (a short leg is uncovered) yet finite at expiry: spot cannot go below 0.
-UNCOVERED_BUT_FINITE = {"put_ratio_spread"}
 
 
 def _target_for(template):
@@ -86,14 +84,19 @@ class TestRegistry:
 
 @pytest.mark.parametrize("key", ALL_KEYS)
 class TestEveryTemplate:
-    def test_declared_defined_risk_matches_payoff(self, key):
+    def test_loss_is_capped(self, key):
         template = get_template(key)
         extremes = max_profit_loss(_priced(_resolve(key, target=_target_for(template))))
-        bounded = math.isfinite(extremes.max_loss.value)
-        if key in UNCOVERED_BUT_FINITE:
-            assert bounded and not template.defined_risk
-        else:
-            assert bounded == template.defined_risk
+        assert template.defined_risk and math.isfinite(extremes.max_loss.value)
+
+    def test_every_short_leg_is_covered_by_a_long_of_the_same_type(self, key):
+        """The structural reason the loss is capped, independent of any price: per option type,
+        the lots bought are at least the lots sold."""
+        for option_type in ("CE", "PE"):
+            legs = [leg for leg in get_template(key).legs if leg.option_type == option_type]
+            bought = sum(leg.lots for leg in legs if leg.action == "BUY")
+            sold = sum(leg.lots for leg in legs if leg.action == "SELL")
+            assert bought >= sold, (key, option_type)
 
     def test_generator_templates_have_2_to_4_legs(self, key):
         template = get_template(key)
@@ -108,7 +111,7 @@ class TestEveryTemplate:
         """Directional generator templates earn more on the side their bias names."""
         template = get_template(key)
         if not template.generator_eligible:
-            return  # neutral and ratio structures are not meant to carry a one-sided payoff
+            return  # neutral structures are not meant to carry a one-sided payoff
         legs = _priced(_resolve(key, target=_target_for(template)))
         up = [payoff_at_expiry(legs, SPOT + step) for step in range(0, 81, 10)]
         down = [payoff_at_expiry(legs, SPOT - step) for step in range(0, 81, 10)]
@@ -116,6 +119,19 @@ class TestEveryTemplate:
             assert sum(up) >= sum(down)
         else:
             assert sum(down) >= sum(up)
+
+
+class TestUndefinedRiskIsNotOffered:
+    @pytest.mark.parametrize(
+        "key", ["short_straddle", "short_strangle", "call_ratio_spread", "put_ratio_spread"]
+    )
+    def test_an_uncovered_structure_is_not_in_the_registry(self, key):
+        assert key not in ALL_KEYS
+        with pytest.raises(TemplateError, match="unknown template"):
+            get_template(key)
+
+    def test_every_registered_template_is_flagged_defined_risk(self):
+        assert all(t.defined_risk for t in list_templates())
 
 
 class TestResolution:
