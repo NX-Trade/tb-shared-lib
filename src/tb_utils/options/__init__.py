@@ -1,5 +1,17 @@
 """Option Contract Resolution and Greeks Utilities."""
 
+from tb_utils.options.margin import (
+    ASSUMPTIONS as MARGIN_ASSUMPTIONS,
+)
+from tb_utils.options.margin import (
+    INDEX,
+    STOCK,
+    MarginBreakdown,
+    Sigma,
+    estimate_margin,
+    ewma_daily_vol,
+    sigma_from_iv,
+)
 from tb_utils.options.payoff import (
     Extreme,
     Leg,
@@ -45,6 +57,14 @@ from tb_utils.options.strategy_builder import (
 )
 
 __all__ = [
+    "INDEX",
+    "MARGIN_ASSUMPTIONS",
+    "STOCK",
+    "MarginBreakdown",
+    "Sigma",
+    "estimate_margin",
+    "ewma_daily_vol",
+    "sigma_from_iv",
     "Extreme",
     "Leg",
     "PayoffExtremes",
