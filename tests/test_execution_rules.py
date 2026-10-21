@@ -26,6 +26,7 @@ from tb_utils.options.execution_rules import (
     realized_pnl,
     risk_from_fills,
     target_reachable,
+    unsupported_broker_reason,
 )
 
 EXPIRY = dt.date(2026, 11, 26)  # a Thursday
@@ -332,3 +333,10 @@ class TestMarketableLimit:
 def test_order_tag_marks_an_execution_orders():
     assert order_tag(42) == "optexec:42"
     assert order_tag(42).startswith(ORDER_TAG_PREFIX)
+
+
+def test_only_verified_brokers_run_option_strategies_live():
+    assert unsupported_broker_reason("UPSTOX", False) is None
+    assert unsupported_broker_reason("upstox", False) is None
+    assert unsupported_broker_reason("ANGELONE", True) is None  # paper never reaches the broker
+    assert "ANGELONE" in unsupported_broker_reason("ANGELONE", False)

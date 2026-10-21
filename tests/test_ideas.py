@@ -62,6 +62,37 @@ def _view(bias="BULLISH", target=1060.0, conviction=0.7, **kwargs):
     return DirectionalView(**{**base, **kwargs})
 
 
+class TestRequestedExpiry:
+    """The expiry picked in the UI is the one strategies are built on."""
+
+    NEAR = dt.date(2026, 10, 27)  # 5 days out: inside the default "not expiry week" cut-off
+    FAR = dt.date(2026, 12, 31)
+
+    def _two_expiries(self):
+        quotes = [
+            _quote(k, t, e) for e in (self.NEAR, EXPIRY) for k in STRIKES for t in ("CE", "PE")
+        ]
+        return _chain(quotes)
+
+    def test_defaults_to_the_nearest_expiry_with_enough_days(self):
+        assert suggest_strategies(self._two_expiries(), NOW).expiry == EXPIRY
+
+    def test_builds_on_the_requested_expiry_even_inside_the_default_cutoff(self):
+        found = suggest_strategies(self._two_expiries(), NOW, expiry=self.NEAR)
+        assert found.expiry == self.NEAR
+        assert found.ideas
+        assert {i.expiry for i in found.ideas} == {self.NEAR}
+
+    def test_an_expiry_with_no_stored_chain_says_so(self):
+        found = suggest_strategies(self._two_expiries(), NOW, expiry=self.FAR)
+        assert found.skip.code == "NO_EXPIRY"
+        assert not found.ideas
+
+    def test_an_expiry_that_is_today_is_refused(self):
+        found = suggest_strategies(self._two_expiries(), NOW, expiry=NOW.date())
+        assert found.skip.code == "NO_EXPIRY"
+
+
 class TestSuggestStrategies:
     """Strategies straight from the chain: no research signal, no target, both leans."""
 

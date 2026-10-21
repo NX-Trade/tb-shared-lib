@@ -57,6 +57,10 @@ EXPIRY_EXIT_TIME = dt.time(15, 0)
 # would book an option leg as an equity trade and apply equity exit rules to it.
 ORDER_TAG_PREFIX = "optexec:"
 
+# Brokers whose option contract symbols and delivery product are verified for strategy orders.
+# Angel One and ICICI map the product differently for options and are not verified yet.
+SUPPORTED_OPTION_BROKERS = ("UPSTOX",)
+
 PRICE_TICK = 0.05
 MARKETABLE_BUFFER = 0.02  # a marketable limit crosses the last price by this fraction
 
@@ -89,6 +93,13 @@ class LegState:  # pylint: disable=too-many-instance-attributes
 
 
 # ── Ordering ─────────────────────────────────────────────────────────────────
+
+
+def unsupported_broker_reason(broker_type: str, is_paper: bool) -> Optional[str]:
+    """Why a live account cannot run option strategies, or None. Paper accounts can always."""
+    if is_paper or broker_type.upper() in SUPPORTED_OPTION_BROKERS:
+        return None
+    return f"option strategies are not supported on {broker_type} yet"
 
 
 def order_tag(execution_id: int) -> str:

@@ -244,8 +244,18 @@ def _atm_iv(quotes: Sequence[Quote], spot: float) -> Optional[float]:
     return sum(at_the_money) / len(at_the_money)
 
 
-def _choose_expiry(chain: ChainData, config: IdeaConfig, horizon_days: int, today: dt.date):
-    """Nearest expiry at least ``max(min_dte, horizon)`` days away, else None."""
+def _choose_expiry(
+    chain: ChainData,
+    config: IdeaConfig,
+    horizon_days: int,
+    today: dt.date,
+    requested: Optional[dt.date] = None,
+):
+    """The expiry to build on: the one asked for if it is stored and not expiring today,
+    else the nearest at least ``max(min_dte, horizon)`` days away, else None."""
+    if requested is not None:
+        stored = {q.expiry for q in chain.quotes}
+        return requested if requested in stored and (requested - today).days >= 1 else None
     needed = max(config.min_dte, horizon_days)
     for expiry in sorted({q.expiry for q in chain.quotes}):
         if (expiry - today).days >= needed:
@@ -289,9 +299,14 @@ def _build_context(
     now: dt.datetime,
     iv_rank: Optional[float],
     horizon_days: int,
+    requested_expiry: Optional[dt.date] = None,
 ) -> tuple[Optional[_Context], Optional[Skip]]:
     today = now.astimezone(IST).date()
-    expiry = _choose_expiry(chain, config, horizon_days, today)
+    expiry = _choose_expiry(chain, config, horizon_days, today, requested_expiry)
+    if expiry is None and requested_expiry is not None:
+        return None, Skip(
+            "NO_EXPIRY", f"No chain is stored for the {requested_expiry:%d %b %Y} expiry."
+        )
     if expiry is None:
         needed = max(config.min_dte, horizon_days)
         return None, Skip("NO_EXPIRY", f"No stored expiry is at least {needed} days away.")
@@ -544,6 +559,7 @@ def suggest_strategies(
     horizon_days: int = DEFAULT_HORIZON_DAYS,
     iv_rank: Optional[float] = None,
     config: Optional[IdeaConfig] = None,
+    expiry: Optional[dt.date] = None,
 ) -> Suggestions:
     """Bullish and bearish defined-risk strategies for ``chain``, straight from its quotes.
 
@@ -556,6 +572,8 @@ def suggest_strategies(
     An optional ``view`` adds probability and expected value *at that view*, rejects structures
     that are worth nothing even if it plays out, and ranks by them. Strategies come back with
     the best score first within each lean (POP-led without a view).
+
+    ``expiry`` builds on that stored expiry instead of the nearest one with enough days.
     """
     config = config or IdeaConfig()
     name = view.underlying if view else chain.symbol
@@ -572,7 +590,7 @@ def suggest_strategies(
         return Suggestions(name, skip=Skip("STALE_CHAIN", f"The chain is {age:.1f} h old."))
 
     horizon = view.horizon_days if view else horizon_days
-    ctx, skip = _build_context(view, chain, config, now, iv_rank, horizon)
+    ctx, skip = _build_context(view, chain, config, now, iv_rank, horizon, expiry)
     if skip or ctx is None:
         return Suggestions(name, skip=skip)
 
