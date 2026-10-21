@@ -5,16 +5,15 @@ A *selector* over analysed candidates, not a new source of maths: every number c
 no Redis, no HTTP — so it runs inside a request as readily as in a job.
 Design: tb-ai-brain/upcoming/OPTION_STRATEGY_BUILDER_AND_MARGIN_DESIGN.md §8B.
 
-Two entry points
-----------------
-* :func:`suggest_strategies` — **on demand, no signal and no target needed.** Legs come from the
-  listed strikes and the templates; both a bullish and a bearish lean are returned, each with its
-  payoff, breakevens, reward:risk, margin estimate and probability of profit at the market's own
-  odds. An optional view adds probability and expected value at that view.
-* :func:`generate_ideas` — the view-driven selector (top three diverse baskets for one view).
+Entry point
+-----------
+:func:`suggest_strategies` — **on demand, no signal and no target needed.** Legs come from the
+listed strikes and the templates; both a bullish and a bearish lean are returned, each with its
+payoff, breakevens, reward:risk, margin estimate and probability of profit at the market's own
+odds. An optional view adds probability and expected value at that view.
 
-Rules that hold for both
-------------------------
+Rules
+-----
 * **Defined risk only.** Only ``generator_eligible`` templates are tried (covered shorts, 2–4
   legs), and a candidate whose expiry loss is not finite is dropped regardless.
 * **Analysis, not orders.** Nothing here can place anything.
@@ -36,7 +35,7 @@ import datetime as dt
 import math
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Optional
 
 # internal
@@ -68,10 +67,6 @@ from tb_utils.time import IST
 
 BUY = "BUY"
 SELL = "SELL"
-
-ROLE_CONSERVATIVE = "CONSERVATIVE"  # highest probability of profit
-ROLE_BALANCED = "BALANCED"  # best expected value per rupee at risk
-ROLE_TARGETED = "TARGETED"  # pays the most for the least if the target is hit
 
 EXPIRY_CLOSE = dt.time(15, 30)
 CURVE_POINTS = 41
@@ -138,7 +133,6 @@ class IdeaConfig:
     iv_rank_low: float = 30.0  # below: debit structures preferred
     iv_rank_high: float = 60.0  # above: credit structures preferred
     family_bonus: float = 0.05
-    max_ideas: int = 3
     # score weights: return on risk, POP, view alignment, slippage, theta drag
     w_return: float = 1.0
     w_pop: float = 0.5
@@ -193,7 +187,6 @@ class Idea:
     score: float
     rationale: str
     curve: tuple[tuple[float, float], ...]  # expiry payoff, for a sparkline
-    role: str = ""
     reward_risk: float = 0.0  # max profit over max loss; read with POP, never alone
     bias: str = ""  # BULLISH | BEARISH: which way the structure leans
     width: int = 1  # spread width in listed-strike steps
@@ -212,14 +205,6 @@ class Skip:
 
     code: str
     message: str
-
-
-@dataclass(frozen=True)
-class IdeaSet:
-    underlying: str
-    ideas: list[Idea] = field(default_factory=list)
-    skip: Optional[Skip] = None
-    rejections: list[Rejection] = field(default_factory=list)
 
 
 # ── Context shared by every candidate of one underlying ──────────────────────
@@ -521,40 +506,6 @@ def _margin(ctx: _Context, legs: list[Leg]) -> Optional[float]:
     return round(result.total, 2)
 
 
-# ── Selection ────────────────────────────────────────────────────────────────
-
-
-def _select(candidates: list[Idea], limit: int) -> list[Idea]:
-    """Best score first; each further pick must be a different shape (risk profile)."""
-    chosen: list[Idea] = []
-    for idea in sorted(candidates, key=lambda i: i.score, reverse=True):
-        if len(chosen) == limit:
-            break
-        if any(idea.shape == c.shape for c in chosen):
-            continue
-        chosen.append(idea)
-    return chosen
-
-
-def _assign_roles(ideas: list[Idea]) -> list[Idea]:
-    """Conservative = highest POP, Balanced = best return on risk, Targeted = the rest."""
-    remaining = list(ideas)
-    roles: dict[int, str] = {}
-    for role, key in (
-        (ROLE_CONSERVATIVE, lambda i: i.pop_view),
-        (ROLE_BALANCED, lambda i: i.return_on_risk),
-        (ROLE_TARGETED, lambda i: i.max_profit / max(abs(i.net_premium), 1.0)),
-    ):
-        if not remaining:
-            break
-        best = max(remaining, key=key)
-        roles[id(best)] = role
-        remaining.remove(best)
-    ordered = [replace(i, role=roles[id(i)]) for i in ideas]
-    order = [ROLE_CONSERVATIVE, ROLE_BALANCED, ROLE_TARGETED]
-    return sorted(ordered, key=lambda i: order.index(i.role))
-
-
 def _no_survivors(rejections: list[Rejection]) -> Skip:
     counts = Counter(r.reason.split(":")[0].split(" for ")[0] for r in rejections)
     top = ", ".join(f"{reason} ({n})" for reason, n in counts.most_common(3))
@@ -641,39 +592,4 @@ def suggest_strategies(
         atm_iv=round(ctx.atm_iv, 2),
         expected_move=round(ctx.sigma_move, 2),
         iv_rank=iv_rank,
-    )
-
-
-def generate_ideas(
-    view: DirectionalView,
-    chain: ChainData,
-    now: dt.datetime,
-    *,
-    iv_rank: Optional[float] = None,
-    config: Optional[IdeaConfig] = None,
-) -> IdeaSet:
-    """Up to ``config.max_ideas`` defined-risk baskets for ``view``, or the reason for none."""
-    config = config or IdeaConfig()
-    skip = _preconditions(view, chain, config, now)
-    if skip:
-        return IdeaSet(view.underlying, skip=skip)
-    ctx, skip = _build_context(view, chain, config, now, iv_rank, view.horizon_days)
-    if skip or ctx is None:
-        return IdeaSet(view.underlying, skip=skip)
-
-    candidates: list[Idea] = []
-    rejections: list[Rejection] = []
-    for template in list_templates(view.bias, generator_only=True):
-        for width in config.widths:
-            idea, reason = _evaluate(ctx, template, width)
-            if idea is not None:
-                candidates.append(idea)
-            else:
-                rejections.append(Rejection(template.key, width, reason or "rejected"))
-    if not candidates:
-        return IdeaSet(view.underlying, skip=_no_survivors(rejections), rejections=rejections)
-    return IdeaSet(
-        view.underlying,
-        ideas=_assign_roles(_select(candidates, config.max_ideas)),
-        rejections=rejections,
     )

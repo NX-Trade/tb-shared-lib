@@ -83,9 +83,6 @@ from .system import (
 )
 from .trading import (
     HoldingResponse,
-    OptionBasketIdeaResponse,
-    OptionIdeasForUnderlying,
-    OptionIdeaSkipResponse,
     OptionStrategyCreate,
     OptionStrategyLegCreate,
     OptionStrategyLegResponse,
@@ -168,9 +165,6 @@ __all__ = [
     "TradeResponse",
     "OptionStrategyCreate",
     "OptionStrategyResponse",
-    "OptionBasketIdeaResponse",
-    "OptionIdeaSkipResponse",
-    "OptionIdeasForUnderlying",
     "OptionStrategyLegCreate",
     "OptionStrategyLegResponse",
     "ClientAccountBase",
