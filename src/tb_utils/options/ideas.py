@@ -1,28 +1,33 @@
-"""System-generated option basket ideas: up to three per underlying, from a directional view.
+"""Option strategies built straight from a chain snapshot, bullish and bearish.
 
 A *selector* over analysed candidates, not a new source of maths: every number comes from
 :mod:`payoff`, :mod:`probability`, :mod:`margin` and the :mod:`templates` registry. Pure — no DB,
-no Redis, no HTTP; callers pass plain dataclasses in and persist the result.
+no Redis, no HTTP — so it runs inside a request as readily as in a job.
 Design: tb-ai-brain/upcoming/OPTION_STRATEGY_BUILDER_AND_MARGIN_DESIGN.md §8B.
 
-Principles (§8B.1)
-------------------
-* **No view, no idea.** A neutral or missing view, a target on the wrong side of spot, or a stale
-  chain produces *zero* baskets and a named reason. An empty result is honest.
-* **Defined risk only.** Only ``generator_eligible`` templates are tried (covered shorts,
-  2–4 legs), and a candidate whose expiry loss is not finite is dropped regardless.
+Two entry points
+----------------
+* :func:`suggest_strategies` — **on demand, no signal and no target needed.** Legs come from the
+  listed strikes and the templates; both a bullish and a bearish lean are returned, each with its
+  payoff, breakevens, reward:risk, margin estimate and probability of profit at the market's own
+  odds. An optional view adds probability and expected value at that view.
+* :func:`generate_ideas` — the view-driven selector (top three diverse baskets for one view).
+
+Rules that hold for both
+------------------------
+* **Defined risk only.** Only ``generator_eligible`` templates are tried (covered shorts, 2–4
+  legs), and a candidate whose expiry loss is not finite is dropped regardless.
 * **Analysis, not orders.** Nothing here can place anything.
 * **Entry is priced where it would trade:** BUY at the ask, SELL at the bid. A leg without a
   two-sided quote, with no IV, or with thin open interest is rejected, never guessed.
+* **Expected value at the market's odds is a cost check**, about minus the bid-ask paid, so it is
+  shown but never used to reject or rank (open item M-2). Only an expected value at a *view*
+  can do that, and only a view the caller supplies.
 
 Pipeline
 --------
 expiry (nearest with enough days) → candidates (template × width) → hard filters (liquidity,
-slippage, reachability, negative edge at the view) → score → greedy diversity → roles.
-
-Ranking uses the **expected value at the view** (``probability.view_tilt``), not at the market:
-under the market's own distribution every fairly priced basket is worth about minus its costs
-and they cannot be told apart (design open item M-2).
+slippage, reachability, and negative EV at the view when there is one) → score → order.
 """
 # pylint: disable=too-many-instance-attributes,too-many-return-statements
 
@@ -70,6 +75,7 @@ ROLE_TARGETED = "TARGETED"  # pays the most for the least if the target is hit
 
 EXPIRY_CLOSE = dt.time(15, 30)
 CURVE_POINTS = 41
+BODY_MOVES = 0.5  # expected moves from spot at which a view-less butterfly body is centred
 
 
 # ── Inputs ───────────────────────────────────────────────────────────────────
@@ -176,9 +182,9 @@ class Idea:
     breakevens: tuple[float, ...]
     pop_market: float
     ev_market: float
-    pop_view: float
-    ev_view: float
-    return_on_risk: float  # ev_view / max_loss
+    pop_view: Optional[float]  # None unless a view was supplied
+    ev_view: Optional[float]
+    return_on_risk: Optional[float]  # ev_view / max_loss, with a view
     slippage: float  # rupees to cross the spread again on exit
     net_delta: float
     margin_estimate: Optional[float]
@@ -188,6 +194,9 @@ class Idea:
     rationale: str
     curve: tuple[tuple[float, float], ...]  # expiry payoff, for a sparkline
     role: str = ""
+    reward_risk: float = 0.0  # max profit over max loss; read with POP, never alone
+    bias: str = ""  # BULLISH | BEARISH: which way the structure leans
+    width: int = 1  # spread width in listed-strike steps
 
 
 @dataclass(frozen=True)
@@ -218,7 +227,8 @@ class IdeaSet:
 
 @dataclass(frozen=True)
 class _Context:
-    view: DirectionalView
+    view: Optional[DirectionalView]
+    horizon_days: int
     chain: ChainData
     config: IdeaConfig
     now: dt.datetime
@@ -229,7 +239,7 @@ class _Context:
     sigma_move: float
     strikes: list[float]
     quotes: dict[tuple[float, str], Quote]
-    tilt: float
+    tilt: Optional[float]
     iv_rank: Optional[float]
 
 
@@ -246,9 +256,9 @@ def _atm_iv(quotes: Sequence[Quote], spot: float) -> Optional[float]:
     return sum(at_the_money) / len(at_the_money)
 
 
-def _choose_expiry(chain: ChainData, config: IdeaConfig, view: DirectionalView, today: dt.date):
+def _choose_expiry(chain: ChainData, config: IdeaConfig, horizon_days: int, today: dt.date):
     """Nearest expiry at least ``max(min_dte, horizon)`` days away, else None."""
-    needed = max(config.min_dte, view.horizon_days)
+    needed = max(config.min_dte, horizon_days)
     for expiry in sorted({q.expiry for q in chain.quotes}):
         if (expiry - today).days >= needed:
             return expiry
@@ -285,16 +295,17 @@ def _preconditions(
 
 
 def _build_context(
-    view: DirectionalView,
+    view: Optional[DirectionalView],
     chain: ChainData,
     config: IdeaConfig,
     now: dt.datetime,
     iv_rank: Optional[float],
+    horizon_days: int,
 ) -> tuple[Optional[_Context], Optional[Skip]]:
     today = now.astimezone(IST).date()
-    expiry = _choose_expiry(chain, config, view, today)
+    expiry = _choose_expiry(chain, config, horizon_days, today)
     if expiry is None:
-        needed = max(config.min_dte, view.horizon_days)
+        needed = max(config.min_dte, horizon_days)
         return None, Skip("NO_EXPIRY", f"No stored expiry is at least {needed} days away.")
     quotes = [q for q in chain.quotes if q.expiry == expiry]
     atm_iv = _atm_iv(quotes, chain.spot)
@@ -304,9 +315,9 @@ def _build_context(
     sigma_move = chain.spot * (atm_iv / 100.0) * math.sqrt(days / 365.0)
     by_key = {(q.strike, q.option_type): q for q in quotes}
     strikes = sorted({q.strike for q in quotes})
-    tilt = view_tilt(chain.spot, view.target, view.conviction)
+    tilt = view_tilt(chain.spot, view.target, view.conviction) if view else None
     context = _Context(
-        view, chain, config, now, expiry, (expiry - today).days, days, atm_iv,
+        view, horizon_days, chain, config, now, expiry, (expiry - today).days, days, atm_iv,
         sigma_move, strikes, by_key, tilt, iv_rank,
     )  # fmt: skip
     return context, None
@@ -356,9 +367,9 @@ def _payoff_legs(ctx: _Context, legs: Sequence[IdeaLeg]) -> list[Leg]:
     ]
 
 
-def _alignment(ctx: _Context, delta: float) -> float:
+def _alignment(ctx: _Context, delta: float, bias: str) -> float:
     """Net delta agrees with the bias (+) or fights it (-), saturating at about one lot."""
-    sign = 1.0 if ctx.view.bias == BULLISH else -1.0
+    sign = 1.0 if bias == BULLISH else -1.0
     return math.tanh(sign * delta / ctx.chain.lot_size)
 
 
@@ -366,7 +377,7 @@ def _theta_drag(ctx: _Context, theta: float, net: float) -> float:
     """Share of a debit that time decay eats over the view's horizon (0 for credits)."""
     if net >= 0:
         return 0.0
-    return min(max(-theta, 0.0) * ctx.view.horizon_days / abs(net), 1.0)
+    return min(max(-theta, 0.0) * ctx.horizon_days / abs(net), 1.0)
 
 
 def _family_bonus(ctx: _Context, template: Template) -> float:
@@ -380,13 +391,21 @@ def _family_bonus(ctx: _Context, template: Template) -> float:
     return 0.0
 
 
-def _rationale(template: Template, idea_view: DirectionalView, m: dict) -> str:
+def _rationale(template: Template, bias: str, view: Optional[DirectionalView], m: dict) -> str:
     cost = f"costs ₹{abs(m['net']):,.0f}" if m["net"] < 0 else f"collects ₹{m['net']:,.0f}"
-    return (
+    base = (
         f"{template.label}: {cost}, risks ₹{m['max_loss']:,.0f} "
         f"to make up to ₹{m['max_profit']:,.0f}. "
-        f"Wins {m['pop_view']:.0%} of the time if the {idea_view.bias.lower()} view to "
-        f"{idea_view.target:g} plays out ({m['pop_market']:.0%} on market odds); "
+    )
+    if view is None:
+        return (
+            base
+            + f"On the market's own odds it finishes profitable {m['pop_market']:.0%} of the time; "
+            f"a {bias.lower()} lean pays off if the underlying moves that way."
+        )
+    return (
+        base + f"Wins {m['pop_view']:.0%} of the time if the {view.bias.lower()} view to "
+        f"{view.target:g} plays out ({m['pop_market']:.0%} on market odds); "
         f"expected value at the view ₹{m['ev_view']:,.0f}."
     )
 
@@ -396,10 +415,15 @@ def _evaluate(  # pylint: disable=too-many-locals
 ) -> tuple[Optional[Idea], Optional[str]]:
     """Resolve, price and judge one template at one width: (idea, None) or (None, reason)."""
     chain, config, view = ctx.chain, ctx.config, ctx.view
+    bias = view.bias if view else template.bias
     both = {leg.option_type for leg in template.legs}
     strikes = sorted({s for s in ctx.strikes if all((s, t) in ctx.quotes for t in both)})
+    # Without a view a body-at-target structure is centred half an expected move from spot, in
+    # the direction the structure leans: a placement rule, not a forecast.
+    lean = 1.0 if bias == BULLISH else -1.0
+    target = view.target if view else chain.spot + lean * BODY_MOVES * ctx.sigma_move
     try:
-        resolved = resolve_template(template, strikes, chain.spot, width, view.target)
+        resolved = resolve_template(template, strikes, chain.spot, width, target)
     except TemplateError as exc:
         return None, str(exc)
 
@@ -427,21 +451,31 @@ def _evaluate(  # pylint: disable=too-many-locals
         return None, f"max profit needs a move beyond {config.max_move_sigmas:g}σ"
 
     market = analyze_probability(payoff_legs, chain.spot, ctx.atm_iv, ctx.days)
-    at_view = analyze_probability(payoff_legs, chain.spot, ctx.atm_iv, ctx.days, tilt=ctx.tilt)
-    if at_view.expected_value <= 0:
+    at_view = (
+        analyze_probability(payoff_legs, chain.spot, ctx.atm_iv, ctx.days, tilt=ctx.tilt or 0.0)
+        if view
+        else None
+    )
+    # Only a view can gate on expected value: at the market's own odds every fairly priced basket
+    # is worth about minus its cost, so that figure is shown, never used to reject.
+    if at_view is not None and at_view.expected_value <= 0:
         return None, "negative expected value at the view"
 
     greeks = net_greeks(payoff_legs, chain.spot, ctx.now.astimezone(IST).date())
     net = net_premium(payoff_legs)
-    ror = at_view.expected_value / max_loss
-    score = (
-        view.conviction
-        * (config.w_return * ror + config.w_alignment * _alignment(ctx, greeks["delta"]))
-        + config.w_pop * at_view.pop
-        - config.w_slippage * slippage_pct
-        - config.w_theta * _theta_drag(ctx, greeks["theta"], net)
-        + _family_bonus(ctx, template)
-    )  # fmt: skip
+    drag = config.w_theta * _theta_drag(ctx, greeks["theta"], net)
+    ror = at_view.expected_value / max_loss if at_view else None
+    if view and at_view and ror is not None:
+        score = (
+            view.conviction
+            * (config.w_return * ror + config.w_alignment * _alignment(ctx, greeks["delta"], bias))
+            + config.w_pop * at_view.pop
+            - config.w_slippage * slippage_pct
+            - drag
+            + _family_bonus(ctx, template)
+        )  # fmt: skip
+    else:
+        score = market.pop - config.w_slippage * slippage_pct - drag + _family_bonus(ctx, template)
 
     lo, hi = default_spot_range(payoff_legs, chain.spot)
     curve = tuple(
@@ -449,22 +483,26 @@ def _evaluate(  # pylint: disable=too-many-locals
     )
     numbers = {
         "net": net, "max_loss": max_loss, "max_profit": max_profit,
-        "pop_view": at_view.pop, "pop_market": market.pop, "ev_view": at_view.expected_value,
+        "pop_view": at_view.pop if at_view else None, "pop_market": market.pop,
+        "ev_view": at_view.expected_value if at_view else None,
     }  # fmt: skip
     return (
         Idea(
-            underlying=view.underlying, template=template.key, template_label=template.label,
+            underlying=view.underlying if view else chain.symbol,
+            template=template.key, template_label=template.label,
             shape=shape_of(template), family=template.family, expiry=ctx.expiry, dte=ctx.dte,
             lot_size=chain.lot_size, legs=tuple(legs), net_premium=round(net, 2),
             max_profit=round(max_profit, 2), max_loss=round(max_loss, 2),
             breakevens=tuple(round(b, 2) for b in breakevens(payoff_legs)),
             pop_market=round(market.pop, 4), ev_market=round(market.expected_value, 2),
-            pop_view=round(at_view.pop, 4), ev_view=round(at_view.expected_value, 2),
-            return_on_risk=round(ror, 4), slippage=round(slippage, 2),
+            pop_view=round(at_view.pop, 4) if at_view else None,
+            ev_view=round(at_view.expected_value, 2) if at_view else None,
+            return_on_risk=round(ror, 4) if ror is not None else None, slippage=round(slippage, 2),
             net_delta=round(greeks["delta"], 2),
             margin_estimate=_margin(ctx, payoff_legs),
             sigma_pct=round(ctx.atm_iv, 2), sigma_source="ATM_IV", score=round(score, 4),
-            rationale=_rationale(template, view, numbers), curve=curve,
+            rationale=_rationale(template, bias, view, numbers), curve=curve,
+            reward_risk=round(max_profit / max_loss, 2), bias=bias, width=width,
         ),
         None,
     )  # fmt: skip
@@ -523,6 +561,89 @@ def _no_survivors(rejections: list[Rejection]) -> Skip:
     return Skip("ALL_REJECTED", f"Every candidate failed a filter: {top}.")
 
 
+@dataclass(frozen=True)
+class Suggestions:
+    """Every defined-risk strategy the chain supports for an underlying, both ways of leaning."""
+
+    underlying: str
+    ideas: list[Idea] = field(default_factory=list)
+    skip: Optional[Skip] = None
+    rejections: list[Rejection] = field(default_factory=list)
+    expiry: Optional[dt.date] = None
+    dte: Optional[int] = None
+    atm_iv: Optional[float] = None
+    expected_move: Optional[float] = None  # one σ to expiry, in the underlying's price units
+    iv_rank: Optional[float] = None
+
+
+DEFAULT_HORIZON_DAYS = 10
+SUGGEST_BIASES = (BULLISH, BEARISH)
+
+
+def suggest_strategies(
+    chain: ChainData,
+    now: dt.datetime,
+    *,
+    view: Optional[DirectionalView] = None,
+    horizon_days: int = DEFAULT_HORIZON_DAYS,
+    iv_rank: Optional[float] = None,
+    config: Optional[IdeaConfig] = None,
+) -> Suggestions:
+    """Bullish and bearish defined-risk strategies for ``chain``, straight from its quotes.
+
+    No research signal and no target are needed: legs come from the listed strikes and the
+    templates, on the nearest expiry at least ``max(min_dte, horizon_days)`` days out. Each one
+    carries its payoff, breakevens, reward:risk, margin estimate and its probability of profit
+    and expected value **at the market's own odds**. Those are honest but not a forecast: the
+    expected value is about minus the cost of trading, so it is never used to reject or to rank.
+
+    An optional ``view`` adds probability and expected value *at that view*, rejects structures
+    that are worth nothing even if it plays out, and ranks by them. Strategies come back with
+    the best score first within each lean (POP-led without a view).
+    """
+    config = config or IdeaConfig()
+    name = view.underlying if view else chain.symbol
+    if view is not None:
+        skip = _preconditions(view, chain, config, now)
+        if skip:
+            return Suggestions(name, skip=skip)
+    elif chain.spot <= 0 or not chain.quotes:
+        return Suggestions(
+            name, skip=Skip("NO_CHAIN", "No option chain is stored for this underlying.")
+        )
+    elif now - chain.ts > config.max_chain_age:
+        age = (now - chain.ts).total_seconds() / 3600
+        return Suggestions(name, skip=Skip("STALE_CHAIN", f"The chain is {age:.1f} h old."))
+
+    horizon = view.horizon_days if view else horizon_days
+    ctx, skip = _build_context(view, chain, config, now, iv_rank, horizon)
+    if skip or ctx is None:
+        return Suggestions(name, skip=skip)
+
+    survivors: list[Idea] = []
+    rejections: list[Rejection] = []
+    for bias in SUGGEST_BIASES if view is None else (view.bias,):
+        for template in list_templates(bias, generator_only=True):
+            for width in config.widths:
+                idea, reason = _evaluate(ctx, template, width)
+                if idea is not None:
+                    survivors.append(idea)
+                else:
+                    rejections.append(Rejection(template.key, width, reason or "rejected"))
+    survivors.sort(key=lambda i: (SUGGEST_BIASES.index(i.bias), -i.score))
+    return Suggestions(
+        name,
+        ideas=survivors,
+        skip=None if survivors else _no_survivors(rejections),
+        rejections=rejections,
+        expiry=ctx.expiry,
+        dte=ctx.dte,
+        atm_iv=round(ctx.atm_iv, 2),
+        expected_move=round(ctx.sigma_move, 2),
+        iv_rank=iv_rank,
+    )
+
+
 def generate_ideas(
     view: DirectionalView,
     chain: ChainData,
@@ -536,7 +657,7 @@ def generate_ideas(
     skip = _preconditions(view, chain, config, now)
     if skip:
         return IdeaSet(view.underlying, skip=skip)
-    ctx, skip = _build_context(view, chain, config, now, iv_rank)
+    ctx, skip = _build_context(view, chain, config, now, iv_rank, view.horizon_days)
     if skip or ctx is None:
         return IdeaSet(view.underlying, skip=skip)
 

@@ -14,7 +14,9 @@ from tb_utils.options.ideas import (
     IdeaSet,
     Quote,
     Skip,
+    Suggestions,
     generate_ideas,
+    suggest_strategies,
 )
 from tb_utils.options.margin import (
     ASSUMPTIONS as MARGIN_ASSUMPTIONS,
@@ -106,6 +108,8 @@ __all__ = [
     "IdeaConfig",
     "IdeaLeg",
     "IdeaSet",
+    "Suggestions",
+    "suggest_strategies",
     "Quote",
     "Skip",
     "generate_ideas",
