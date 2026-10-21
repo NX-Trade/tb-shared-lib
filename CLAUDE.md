@@ -30,7 +30,8 @@ src/tb_utils/
 │   ├── resolver.py     Single-contract resolution by target delta
 │   ├── strategy_builder.py  Multi-leg construction (hedge-first ordering)
 │   ├── payoff.py       Payoff curve (expiry + T+n), breakevens, max P/L, net greeks — pure, N-leg
-│   └── margin.py       (planned) SPAN scenarios, exposure, short-option minimum
+│   ├── margin.py       SPAN scenarios, exposure, short-option minimum (estimate, `validated=False`)
+│   └── exit_rules.py   `exit_basis` — what exit percentages are applied to (T+n for non-verticals)
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
 └── notifications/
     └── telegram.py     The ONLY Telegram alert path across all services
@@ -57,10 +58,9 @@ Two rules:
   the frontend will drift from this one — the same failure that produced the
   `strategy_builder` / `resolver` keyword mismatch and the duplicated 15m/5m STC skills.
 
-⚠️ `strategy_builder.py` currently computes `max_profit = spread_width - net_premium` inline,
-which is a **closed form valid only for 2-leg verticals** and wrong for 3+ legs. `tb-trade-engine`'s
-`spread_risk_manager` reads those stored values and triggers real exits at 75% / 60% of them. Any
-move to N-leg structures must route this maths through `payoff.py` first, or exits break silently.
+`strategy_builder.py` and `tb-trade-engine`'s `spread_risk_manager` both go through `payoff.py` /
+`exit_rules.py` now. Exit percentages must be applied to `exit_basis(...)`, never to a stored
+`max_profit` and never to the expiry maximum of a non-vertical structure (unreachable pre-expiry).
 See `tb-ai-brain/upcoming/OPTION_STRATEGY_BUILDER_AND_MARGIN_DESIGN.md` §5A.3.
 
 ## Adding a Model

@@ -1,5 +1,10 @@
 """Option Contract Resolution and Greeks Utilities."""
 
+from tb_utils.options.exit_rules import (
+    ExitBasis,
+    exit_basis,
+    is_vertical,
+)
 from tb_utils.options.margin import (
     ASSUMPTIONS as MARGIN_ASSUMPTIONS,
 )
@@ -57,6 +62,9 @@ from tb_utils.options.strategy_builder import (
 )
 
 __all__ = [
+    "ExitBasis",
+    "exit_basis",
+    "is_vertical",
     "INDEX",
     "MARGIN_ASSUMPTIONS",
     "STOCK",

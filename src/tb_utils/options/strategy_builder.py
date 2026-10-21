@@ -34,6 +34,8 @@ from sqlalchemy.orm import Session
 # internal
 from tb_utils.greeks import calculate_greeks
 from tb_utils.models.instrument import Instrument
+from tb_utils.options.margin import STOCK, estimate_margin, sigma_from_iv
+from tb_utils.options.payoff import Leg, breakevens, max_profit_loss
 from tb_utils.options.resolver import (
     OPTION_CONTRACTS_QUERY,
     _extract_candidates_from_db,
@@ -136,6 +138,35 @@ def _get_candidate_chain(
         OPTION_CONTRACTS_QUERY, {"symbol": symbol, "option_type": option_type}
     ).fetchall()
     return _extract_candidates_from_db(rows, option_type)
+
+
+def _estimate_margin(
+    symbol: str,
+    option_type: str,
+    expiry: dt.date,
+    lot_size: int,
+    long_cand: _OptionCandidate,
+    short_cand: _OptionCandidate,
+) -> float:
+    """Margin for the one-lot spread from the shared SPAN estimate.
+
+    Falls back to the net debit paid, which is exactly what a defined-risk debit spread
+    blocks, if the estimate cannot be produced.
+    """
+    net_debit = round((long_cand.ltp - short_cand.ltp) * lot_size, 2)
+    try:
+        legs = [
+            Leg("BUY", option_type, long_cand.strike_price, long_cand.ltp, 1, lot_size, expiry),
+            Leg("SELL", option_type, short_cand.strike_price, short_cand.ltp, 1, lot_size, expiry),
+        ]
+        sigma = sigma_from_iv((long_cand.implied_vol + short_cand.implied_vol) / 2.0)
+        breakdown = estimate_margin(legs, long_cand.underlying_value, sigma, STOCK, dt.date.today())
+        return round(breakdown.total, 2)
+    except Exception:
+        logger.exception(
+            "[strategy_builder] Margin estimate failed for %s, using net debit.", symbol
+        )
+        return net_debit
 
 
 def build_vertical_spread_strategy(
@@ -345,8 +376,14 @@ def build_vertical_spread_strategy(
         )
         return None
 
-    max_profit = round(spread_width - net_premium, 2)
-    max_loss = net_premium
+    # Per-share payoff from the shared N-leg engine (lots=1, lot_size=1) — no closed form here.
+    payoff_legs = [
+        Leg("BUY", option_type, leg1_cand.strike_price, leg1_cand.ltp, 1, 1, valid_expiry),
+        Leg("SELL", option_type, leg2_cand.strike_price, leg2_cand.ltp, 1, 1, valid_expiry),
+    ]
+    extremes = max_profit_loss(payoff_legs)
+    max_profit = round(extremes.max_profit.value, 2)
+    max_loss = round(-extremes.max_loss.value, 2)
     risk_reward = round(max_profit / max_loss, 2) if max_loss > 0 else 0.0
 
     if risk_reward < MIN_RISK_REWARD_RATIO:
@@ -358,14 +395,14 @@ def build_vertical_spread_strategy(
         )
         return None
 
-    # Breakeven point
-    if is_bullish:
-        breakeven = round(leg1_cand.strike_price + net_premium, 2)
-    else:
-        breakeven = round(leg1_cand.strike_price - net_premium, 2)
+    be_points = breakevens(payoff_legs)
+    if not be_points:
+        return None
+    breakeven = round(be_points[0], 2)
 
-    # Approximate margin for a hedged debit spread in India:
-    approx_margin = round(max(net_premium * lot_size, 25000.0), 2)
+    approx_margin = _estimate_margin(
+        symbol, option_type, valid_expiry, lot_size, leg1_cand, leg2_cand
+    )
 
     # Construct the two sequenced legs:
     # LEG 1: BUY HEDGE FIRST (unlocks margin benefit)
