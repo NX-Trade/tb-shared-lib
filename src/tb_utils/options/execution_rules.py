@@ -52,6 +52,11 @@ EXIT_ENTRY_INCOMPLETE = "ENTRY_INCOMPLETE"
 
 DEFAULT_PROFIT_TARGET_MULTIPLE = 2.0
 EXPIRY_EXIT_TIME = dt.time(15, 0)
+# Every order an option-strategy execution places carries this tag in ``trading_order.strategy_id``.
+# The generic order worker, order reconciler and position reconciler leave tagged orders alone: they
+# would book an option leg as an equity trade and apply equity exit rules to it.
+ORDER_TAG_PREFIX = "optexec:"
+
 PRICE_TICK = 0.05
 MARKETABLE_BUFFER = 0.02  # a marketable limit crosses the last price by this fraction
 
@@ -84,6 +89,11 @@ class LegState:  # pylint: disable=too-many-instance-attributes
 
 
 # ── Ordering ─────────────────────────────────────────────────────────────────
+
+
+def order_tag(execution_id: int) -> str:
+    """The ``strategy_id`` that marks an order as belonging to option execution ``execution_id``."""
+    return f"{ORDER_TAG_PREFIX}{execution_id}"
 
 
 def entry_sequence(legs: Sequence[LegState]) -> list[LegState]:

@@ -8,6 +8,7 @@ import pytest
 from tb_utils.options.execution_rules import (
     EXIT_EXPIRY,
     EXIT_TARGET,
+    ORDER_TAG_PREFIX,
     LegState,
     can_send_sell_legs,
     closing_side,
@@ -20,6 +21,7 @@ from tb_utils.options.execution_rules import (
     legs_to_unwind,
     marketable_limit,
     open_pnl,
+    order_tag,
     profit_target,
     realized_pnl,
     risk_from_fills,
@@ -325,3 +327,8 @@ class TestMarketableLimit:
     def test_rejects_a_non_positive_price(self, price):
         with pytest.raises(ValueError):
             marketable_limit("BUY", price)
+
+
+def test_order_tag_marks_an_execution_orders():
+    assert order_tag(42) == "optexec:42"
+    assert order_tag(42).startswith(ORDER_TAG_PREFIX)

@@ -8,6 +8,7 @@ from tb_utils.options.contracts import (
     exchange_underlying,
     option_contract_symbol,
     parse_option_contract_symbol,
+    stored_underlying,
 )
 
 NOV3 = dt.date(2026, 11, 3)
@@ -77,3 +78,8 @@ class TestParse:
 
     def test_an_impossible_date_is_none(self):
         assert parse_option_contract_symbol("NIFTY26FEB3022800CE") is None
+
+
+def test_stored_underlying_reverses_the_exchange_name():
+    assert stored_underlying("NIFTY") == "NIFTY50"
+    assert stored_underlying("reliance") == "RELIANCE"

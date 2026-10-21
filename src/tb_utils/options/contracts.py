@@ -37,6 +37,12 @@ def exchange_underlying(symbol: str) -> str:
     return EXCHANGE_UNDERLYING.get(symbol.upper(), symbol.upper())
 
 
+def stored_underlying(symbol: str) -> str:
+    """The name our own tables use for an exchange underlying (``NIFTY`` -> ``NIFTY50``)."""
+    symbol = symbol.upper()
+    return next((ours for ours, theirs in EXCHANGE_UNDERLYING.items() if theirs == symbol), symbol)
+
+
 def _strike_text(strike: float) -> str:
     return f"{strike:.2f}".rstrip("0").rstrip(".")
 

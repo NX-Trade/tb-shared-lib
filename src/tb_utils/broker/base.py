@@ -125,6 +125,14 @@ class BrokerAdapter(ABC):
     def get_last_price(self, symbol: str) -> float | None:
         """Fetch the last traded price for a symbol. Returns None on failure."""
 
+    def get_last_prices(self, symbols: list[str]) -> dict[str, float | None]:
+        """Last traded price for each symbol; None where a price is unavailable.
+
+        The default asks one symbol at a time. Adapters whose broker has a batch quote endpoint
+        override this so a multi-leg position is marked with a single request.
+        """
+        return {symbol: self.get_last_price(symbol) for symbol in symbols}
+
     def place_gtt_order(
         self,
         request: OrderRequest,
