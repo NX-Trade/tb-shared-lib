@@ -72,6 +72,47 @@ class Template:  # pylint: disable=too-many-instance-attributes
     generator_eligible: bool = True  # the §8B generator only proposes defined-risk directional ones
 
 
+# What a structure *is*, independent of direction and wing choice. The idea generator picks at
+# most one basket per shape so three results are three different risk profiles, not one spread
+# shifted a strike.
+VERTICAL = "vertical"
+BUTTERFLY = "butterfly"
+BROKEN_WING = "broken_wing"
+CONDOR = "condor"
+FLY = "fly"
+STRADDLE = "straddle"
+STRANGLE = "strangle"
+RATIO = "ratio"
+
+_SHAPE_BY_KEY = {
+    "bull_call_spread": VERTICAL,
+    "bear_put_spread": VERTICAL,
+    "bull_put_spread": VERTICAL,
+    "bear_call_spread": VERTICAL,
+    "call_butterfly": BUTTERFLY,
+    "put_butterfly": BUTTERFLY,
+    "bullish_broken_wing_butterfly": BROKEN_WING,
+    "bearish_broken_wing_butterfly": BROKEN_WING,
+    "bullish_iron_condor": CONDOR,
+    "bearish_iron_condor": CONDOR,
+    "iron_condor": CONDOR,
+    "bullish_iron_fly": FLY,
+    "bearish_iron_fly": FLY,
+    "iron_fly": FLY,
+    "long_straddle": STRADDLE,
+    "short_straddle": STRADDLE,
+    "long_strangle": STRANGLE,
+    "short_strangle": STRANGLE,
+    "call_ratio_spread": RATIO,
+    "put_ratio_spread": RATIO,
+}
+
+
+def shape_of(template: Template) -> str:
+    """The structure's shape (vertical, butterfly, condor, ...), for diversity and display."""
+    return _SHAPE_BY_KEY[template.key]
+
+
 @dataclass(frozen=True)
 class ResolvedLeg:
     action: str

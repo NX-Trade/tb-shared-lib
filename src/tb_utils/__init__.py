@@ -5,7 +5,7 @@ PostgreSQL/TimescaleDB data handling, SQLAlchemy model management,
 Pydantic schema validation, and external API integration.
 """
 
-__version__ = "1.31"
+__version__ = "1.32"
 
 from .broker.base import (
     BrokerAdapter,
@@ -63,8 +63,10 @@ from .models import (
     MarketBreadth,
     News,
     NseIndex,
+    OptionBasketIdea,
     OptionChain,
     OptionDailyMetrics,
+    OptionIdeaSkip,
     OptionStrategyLeg,
     OptionStrategySignal,
     ParticipantOI,
@@ -270,6 +272,8 @@ __all__ = [
     "RegimeLog",
     "WatchlistFocus",
     "OptionStrategySignal",
+    "OptionBasketIdea",
+    "OptionIdeaSkip",
     "OptionStrategyLeg",
     # Schemas
     "GenericResponseSchema",

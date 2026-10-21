@@ -15,6 +15,7 @@ from tb_utils.options.templates import (
     get_template,
     list_templates,
     resolve_template,
+    shape_of,
 )
 
 EXPIRY = dt.date(2026, 11, 26)
@@ -52,6 +53,17 @@ def _resolve(key, width=1, target=None):
 
 
 class TestRegistry:
+    def test_every_template_has_a_shape(self):
+        assert all(shape_of(t) for t in list_templates())
+
+    def test_a_bull_and_bear_version_share_a_shape(self):
+        assert shape_of(get_template("bull_call_spread")) == shape_of(
+            get_template("bear_call_spread")
+        )
+        assert shape_of(get_template("call_butterfly")) != shape_of(
+            get_template("bull_call_spread")
+        )
+
     def test_keys_are_unique(self):
         assert len(ALL_KEYS) == len(set(ALL_KEYS))
 
