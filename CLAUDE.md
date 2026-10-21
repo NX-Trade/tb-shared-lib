@@ -29,7 +29,7 @@ src/tb_utils/
 ├── options/            Option analytics — shared by backend, research-agent & trade-engine
 │   ├── resolver.py     Single-contract resolution by target delta
 │   ├── strategy_builder.py  Multi-leg construction (hedge-first ordering)
-│   ├── payoff.py       (planned) payoff curve, breakevens, max P/L, net greeks
+│   ├── payoff.py       Payoff curve (expiry + T+n), breakevens, max P/L, net greeks — pure, N-leg
 │   └── margin.py       (planned) SPAN scenarios, exposure, short-option minimum
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
 └── notifications/

@@ -1,5 +1,19 @@
 """Option Contract Resolution and Greeks Utilities."""
 
+from tb_utils.options.payoff import (
+    Extreme,
+    Leg,
+    PayoffExtremes,
+    breakevens,
+    default_spot_range,
+    max_profit_loss,
+    net_greeks,
+    net_premium,
+    net_premium_per_share,
+    payoff_at_date,
+    payoff_at_expiry,
+    payoff_curve,
+)
 from tb_utils.options.pcr import (
     PCR_INDEX_SYMBOLS,
     VIX_EUPHORIA_HIGH,
@@ -31,6 +45,18 @@ from tb_utils.options.strategy_builder import (
 )
 
 __all__ = [
+    "Extreme",
+    "Leg",
+    "PayoffExtremes",
+    "breakevens",
+    "default_spot_range",
+    "max_profit_loss",
+    "net_greeks",
+    "net_premium",
+    "net_premium_per_share",
+    "payoff_at_date",
+    "payoff_at_expiry",
+    "payoff_curve",
     "PCR_INDEX_SYMBOLS",
     "VIX_EUPHORIA_HIGH",
     "VIX_EUPHORIA_WARN",
