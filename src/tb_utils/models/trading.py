@@ -417,6 +417,11 @@ class OptionStrategySignal(Base, PostgresUpsertMixin):
     status = Column(
         String(20), nullable=False, default="ACTIVE"
     )  # ACTIVE, EXECUTED, EXPIRED, CLOSED
+    # A strategy a trader saved from the option builder (source BUILDER) carries a name and the
+    # profit target at which every execution of it exits, as a multiple of its max loss.
+    name = Column(String(80), nullable=True)
+    source = Column(String(12), nullable=False, default="SYSTEM", server_default="SYSTEM")
+    profit_target_multiple = Column(Numeric(5, 2), nullable=False, default=2, server_default="2.00")
     metadata_ = Column("metadata", JSON, default={})
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
@@ -463,3 +468,94 @@ class OptionStrategyLeg(Base, PostgresUpsertMixin):
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
     strategy = relationship("OptionStrategySignal", back_populates="legs")
+
+
+class OptionStrategyExecution(Base, PostgresUpsertMixin):
+    """One run of a saved option strategy on one broker account.
+
+    A strategy can be executed on several accounts at once; each gets its own row so entry fills,
+    P&L, the exit and any failure are tracked per account. Only one *active* execution may exist for
+    a (strategy, account) pair, which is what stops a double click from opening the position twice.
+    """
+
+    __tablename__ = "option_strategy_execution"
+    __table_args__ = (
+        Index(
+            "uq_option_execution_active",
+            "strategy_id",
+            "account_id",
+            unique=True,
+            postgresql_where=text(
+                "status IN ('PENDING', 'ENTERING', 'OPEN', 'ROLLING_BACK', 'EXITING')"
+            ),
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    strategy_id = Column(
+        Integer,
+        ForeignKey("option_strategy_signal.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    account_id = Column(
+        Integer, ForeignKey("client_account.account_id"), nullable=False, index=True
+    )
+    # PENDING (queued) -> ENTERING -> OPEN -> EXITING -> CLOSED; an entry that cannot complete goes
+    # ENTERING -> ROLLING_BACK -> ROLLED_BACK (or FAILED when nothing had filled).
+    status = Column(String(14), nullable=False, default="PENDING", index=True)
+    order_type = Column(String(16), nullable=False, default="MARKETABLE_LIMIT")
+    profit_target_multiple = Column(Numeric(5, 2), nullable=False, default=2)
+    # Rupees for the whole position, from the prices actually filled at entry.
+    max_loss = Column(Numeric(14, 2), nullable=True)
+    target_profit = Column(Numeric(14, 2), nullable=True)
+    entry_net = Column(Numeric(14, 2), nullable=True)  # credit received (+) or debit paid (-)
+    unrealized_pnl = Column(Numeric(14, 2), nullable=True)
+    marked_at = Column(DateTime(timezone=True), nullable=True)
+    realized_pnl = Column(Numeric(14, 2), nullable=True)
+    exit_reason = Column(String(24), nullable=True)  # TARGET | EXPIRY | MANUAL | ENTRY_INCOMPLETE
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    opened_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    strategy = relationship("OptionStrategySignal")
+    legs = relationship(
+        "OptionExecutionLeg",
+        back_populates="execution",
+        cascade="all, delete-orphan",
+        order_by="OptionExecutionLeg.leg_order",
+    )
+
+
+class OptionExecutionLeg(Base, PostgresUpsertMixin):
+    """One leg of one execution: the contract, the entry fill and the exit fill."""
+
+    __tablename__ = "option_execution_leg"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    execution_id = Column(
+        Integer,
+        ForeignKey("option_strategy_execution.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    leg_order = Column(Integer, nullable=False)  # BUY legs first, then SELL legs
+    action = Column(String(4), nullable=False)  # BUY | SELL
+    option_type = Column(String(2), nullable=False)
+    strike_price = Column(Numeric(10, 2), nullable=False)
+    expiry_date = Column(Date, nullable=False)
+    lots = Column(Integer, nullable=False, default=1)
+    quantity = Column(Integer, nullable=False)  # lots * lot size, in shares
+    broker_symbol = Column(String(60), nullable=False)  # e.g. NIFTY26NOV0322800CE
+    # PENDING -> ENTERED -> CLOSED, or REJECTED / UNFILLED when the entry did not complete.
+    status = Column(String(12), nullable=False, default="PENDING")
+    entry_order_id = Column(Integer, ForeignKey("trading_order.order_id"), nullable=True)
+    entry_price = Column(Numeric(14, 4), nullable=True)
+    entry_filled = Column(Integer, nullable=False, default=0)
+    exit_order_id = Column(Integer, ForeignKey("trading_order.order_id"), nullable=True)
+    exit_price = Column(Numeric(14, 4), nullable=True)
+    exit_filled = Column(Integer, nullable=False, default=0)
+    last_price = Column(Numeric(14, 4), nullable=True)
+
+    execution = relationship("OptionStrategyExecution", back_populates="legs")

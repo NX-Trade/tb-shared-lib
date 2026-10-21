@@ -33,6 +33,8 @@ src/tb_utils/
 │   ├── margin.py       SPAN scenarios, exposure, short-option minimum (estimate, `validated=False`)
 │   ├── exit_rules.py   `exit_basis` — what exit percentages are applied to (T+n for non-verticals)
 │   ├── ideas.py        `suggest_strategies` — bullish + bearish defined-risk strategies straight from a chain, on demand (pure)
+│   ├── contracts.py    `option_contract_symbol` — the exchange symbol an option order needs (checked against all 37,910 Upstox options)
+│   ├── execution_rules.py  how a saved strategy runs: buys before sells, rollback, P&L, 2x-max-loss target, expiry exit (pure)
 │   ├── probability.py  Exact POP and expected value at expiry (lognormal; market and view-tilted) — pure
 │   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
