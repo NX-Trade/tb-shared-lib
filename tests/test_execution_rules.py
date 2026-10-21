@@ -264,11 +264,11 @@ class TestExpiry:
         return dt.datetime(day.year, day.month, day.day, hour, minute)
 
     def test_not_due_before_the_cutoff_on_the_last_session(self):
-        assert not expiry_exit_due(self._at(dt.date(2026, 11, 25), 14, 59), EXPIRY, weekend_only)
+        assert not expiry_exit_due(self._at(dt.date(2026, 11, 25), 15, 24), EXPIRY, weekend_only)
 
     def test_due_from_the_cutoff_on_the_last_session(self):
-        assert expiry_exit_due(self._at(dt.date(2026, 11, 25), 15, 0), EXPIRY, weekend_only)
-        assert expiry_exit_due(self._at(dt.date(2026, 11, 25), 15, 20), EXPIRY, weekend_only)
+        assert expiry_exit_due(self._at(dt.date(2026, 11, 25), 15, 25), EXPIRY, weekend_only)
+        assert expiry_exit_due(self._at(dt.date(2026, 11, 25), 15, 29), EXPIRY, weekend_only)
 
     def test_due_at_any_time_once_that_session_has_passed(self):
         assert expiry_exit_due(self._at(EXPIRY, 9, 20), EXPIRY, weekend_only)
@@ -296,11 +296,11 @@ class TestExitReason:
         assert exit_reason(5000.0, None, self.NOW, EXPIRY, weekend_only) is None
 
     def test_expiry_outranks_the_target(self):
-        late = dt.datetime(2026, 11, 25, 15, 5)
+        late = dt.datetime(2026, 11, 25, 15, 26)
         assert exit_reason(99999.0, 8940.0, late, EXPIRY, weekend_only) == EXIT_EXPIRY
 
     def test_expiry_exits_a_losing_position_too(self):
-        late = dt.datetime(2026, 11, 25, 15, 5)
+        late = dt.datetime(2026, 11, 25, 15, 26)
         assert exit_reason(-4000.0, 8940.0, late, EXPIRY, weekend_only) == EXIT_EXPIRY
 
 

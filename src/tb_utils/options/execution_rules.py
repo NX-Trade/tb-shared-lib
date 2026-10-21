@@ -51,7 +51,8 @@ EXIT_MANUAL = "MANUAL"
 EXIT_ENTRY_INCOMPLETE = "ENTRY_INCOMPLETE"
 
 DEFAULT_PROFIT_TARGET_MULTIPLE = 2.0
-EXPIRY_EXIT_TIME = dt.time(15, 0)
+# Options trade until the 15:30 close; 15:25 leaves five minutes for the exit to go out and fill.
+EXPIRY_EXIT_TIME = dt.time(15, 25)
 # Every order an option-strategy execution places carries this tag in ``trading_order.strategy_id``.
 # The generic order worker, order reconciler and position reconciler leave tagged orders alone: they
 # would book an option leg as an equity trade and apply equity exit rules to it.
