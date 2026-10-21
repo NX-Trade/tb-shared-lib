@@ -285,3 +285,47 @@ class TestSuggestWithAView:
         assert low["bull_call_spread"] == pytest.approx(
             base["bull_call_spread"] + IdeaConfig().family_bonus
         )
+
+
+class TestMinimumRewardToRisk:
+    """A floor on max profit over max loss: strategies under it are dropped, reason kept."""
+
+    def _with(self, minimum):
+        config = IdeaConfig(min_reward_risk=minimum)
+        return suggest_strategies(_chain(), NOW, config=config)
+
+    def test_the_default_keeps_everything(self):
+        assert IdeaConfig().min_reward_risk == 0.0
+        assert any(i.reward_risk < 1 for i in self._with(0.0).ideas)
+
+    def test_a_floor_keeps_only_strategies_at_or_above_it(self):
+        found = self._with(4.0)
+        assert found.ideas and all(i.reward_risk >= 4.0 for i in found.ideas)
+
+    def test_a_floor_drops_the_high_probability_structures_and_keeps_the_long_shots(self):
+        everything, floored = self._with(0.0), self._with(4.0)
+        assert len(floored.ideas) < len(everything.ideas)
+        assert {i.shape for i in floored.ideas} <= {"butterfly", "fly"}
+        assert max(i.pop_market for i in everything.ideas) > max(
+            i.pop_market for i in floored.ideas
+        )
+
+    def test_every_strategy_the_floor_removes_is_counted_under_one_reason(self):
+        everything, floored = self._with(0.0), self._with(4.0)
+        removed = len(everything.ideas) - len(floored.ideas)
+        counted = [
+            r for r in floored.rejections if r.reason == "reward-to-risk is below the minimum"
+        ]
+        # The floor is checked before slippage, so it may also claim candidates that would have
+        # failed that later filter anyway; it can never claim fewer than it removed.
+        assert len(counted) >= removed > 0
+
+    def test_a_floor_no_strategy_can_meet_says_so(self):
+        found = self._with(1000.0)
+        assert not found.ideas and found.skip.code == "ALL_REJECTED"
+        assert "reward-to-risk" in found.skip.message
+
+    def test_the_floor_also_applies_with_a_view(self):
+        config = IdeaConfig(min_reward_risk=4.0)
+        found = suggest_strategies(_chain(), NOW, view=_view(), config=config)
+        assert all(i.reward_risk >= 4.0 for i in found.ideas)

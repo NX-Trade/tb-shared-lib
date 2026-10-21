@@ -129,6 +129,9 @@ class IdeaConfig:
     min_open_interest: int = 300
     max_slippage_pct: float = 0.15  # round-trip exit cost over max profit
     max_move_sigmas: float = 1.5  # max profit may not sit further than this from spot
+    min_reward_risk: float = (
+        0.0  # drop strategies whose max profit is under this many times max loss
+    )
     max_chain_age: dt.timedelta = dt.timedelta(hours=30)
     iv_rank_low: float = 30.0  # below: debit structures preferred
     iv_rank_high: float = 60.0  # above: credit structures preferred
@@ -426,6 +429,8 @@ def _evaluate(  # pylint: disable=too-many-locals
     max_profit, max_loss = extremes.max_profit.value, -extremes.max_loss.value
     if max_profit <= 0 or max_loss <= 0:
         return None, "no profit is possible" if max_profit <= 0 else "no risk to measure"
+    if max_profit / max_loss < config.min_reward_risk:
+        return None, "reward-to-risk is below the minimum"
 
     slippage = sum(l.lots * chain.lot_size * (l.ask - l.bid) for l in legs)  # noqa: E741
     slippage_pct = slippage / max_profit
