@@ -60,8 +60,22 @@ from tb_utils.options.strategy_builder import (
     BuiltOptionStrategy,
     build_vertical_spread_strategy,
 )
+from tb_utils.options.templates import (
+    ResolvedLeg,
+    Template,
+    TemplateError,
+    get_template,
+    list_templates,
+    resolve_template,
+)
 
 __all__ = [
+    "ResolvedLeg",
+    "Template",
+    "TemplateError",
+    "get_template",
+    "list_templates",
+    "resolve_template",
     "ExitBasis",
     "exit_basis",
     "is_vertical",
