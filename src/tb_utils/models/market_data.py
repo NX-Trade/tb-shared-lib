@@ -86,7 +86,7 @@ class MarketBreadth(Base, PostgresUpsertMixin):
     __tablename__ = "market_breadth"
 
     ts = Column(DateTime(timezone=True), primary_key=True)
-    exchange = Column(String(10), primary_key=True, default="NSE")
+    exchange = Column(String(64), primary_key=True, default="NSE")
     advances = Column(Integer, nullable=False, default=0)
     declines = Column(Integer, nullable=False, default=0)
     unchanged = Column(Integer, nullable=False, default=0)
