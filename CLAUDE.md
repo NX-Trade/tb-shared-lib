@@ -32,6 +32,7 @@ src/tb_utils/
 │   ├── payoff.py       Payoff curve (expiry + T+n), breakevens, max P/L, net greeks — pure, N-leg
 │   ├── margin.py       SPAN scenarios, exposure, short-option minimum (estimate, `validated=False`)
 │   ├── exit_rules.py   `exit_basis` — what exit percentages are applied to (T+n for non-verticals)
+│   ├── probability.py  Exact POP and expected value at expiry (lognormal; market and view-tilted) — pure
 │   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
 └── notifications/

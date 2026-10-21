@@ -41,6 +41,15 @@ from tb_utils.options.pcr import (
     is_oversold_reversal,
     is_pcr_symbol,
 )
+from tb_utils.options.probability import (
+    ProbabilityResult,
+    Terminal,
+    analyze_probability,
+    expected_value,
+    probability_of_profit,
+    terminal_distribution,
+    view_tilt,
+)
 from tb_utils.options.resolver import (
     DELTA_TOLERANCE_WARN,
     MIN_DTE_DAYS,
@@ -70,6 +79,13 @@ from tb_utils.options.templates import (
 )
 
 __all__ = [
+    "ProbabilityResult",
+    "Terminal",
+    "analyze_probability",
+    "expected_value",
+    "probability_of_profit",
+    "terminal_distribution",
+    "view_tilt",
     "ResolvedLeg",
     "Template",
     "TemplateError",
