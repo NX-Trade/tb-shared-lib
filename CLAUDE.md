@@ -33,6 +33,7 @@ src/tb_utils/
 │   ├── margin.py       SPAN scenarios, exposure, short-option minimum (estimate, `validated=False`)
 │   ├── exit_rules.py   `exit_basis` — what exit percentages are applied to (T+n for non-verticals)
 │   ├── ideas.py        `generate_ideas` — up to 3 diverse defined-risk baskets from a directional view + chain (pure selector)
+│   ├── outcomes.py     `settle_idea` + `calibration_report` — settle a generated idea at expiry and check its odds (pure)
 │   ├── probability.py  Exact POP and expected value at expiry (lognormal; market and view-tilted) — pure
 │   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver

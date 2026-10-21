@@ -28,6 +28,12 @@ from tb_utils.options.margin import (
     ewma_daily_vol,
     sigma_from_iv,
 )
+from tb_utils.options.outcomes import (
+    IdeaOutcome,
+    PricePoint,
+    calibration_report,
+    settle_idea,
+)
 from tb_utils.options.payoff import (
     Extreme,
     Leg,
@@ -90,6 +96,10 @@ from tb_utils.options.templates import (
 )
 
 __all__ = [
+    "IdeaOutcome",
+    "PricePoint",
+    "calibration_report",
+    "settle_idea",
     "ChainData",
     "DirectionalView",
     "Idea",
