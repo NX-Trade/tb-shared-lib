@@ -101,6 +101,21 @@ def get_lot_size_key(symbol: str) -> str:
     return f"market_data:lot_size:{symbol.upper()}"
 
 
+def get_gemini_active_key_key() -> str:
+    """Index (0 or 1) of the Gemini API key currently in use; flips on a 429."""
+    return "gemini:active_key_index"
+
+
+def get_gemini_daily_counter_key(kind: str, day: str) -> str:
+    """Per-day Gemini counter: ``kind`` is ``calls`` or ``cost_inr``, ``day`` is YYYY-MM-DD."""
+    return f"gemini:{kind}:{day}"
+
+
+def get_gemini_alert_key(kind: str) -> str:
+    """Debounce key so a Gemini key failover or degradation alerts once an hour, not once a call."""
+    return f"gemini:alert:{kind}"
+
+
 def get_trading_halted_key() -> str:
     """Flag set in Redis when live trading is halted/panic initiated."""
     return "TRADING_HALTED"

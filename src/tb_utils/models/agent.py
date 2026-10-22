@@ -12,6 +12,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -60,11 +61,51 @@ class AgentVerdict(Base):
     # ── Observability ─────────────────────────────────────────────────────
     latency_ms = Column(Integer)  # inference time in milliseconds
 
+    # ── LLM gatekeeper audit (Gemini verdicts; NULL on the retired Ollama-era rows) ──
+    # One row per call, reproducible: what was asked (``input_context`` is the evidence
+    # pack; the hashes identify it and the prompt), what came back (``raw_response`` and
+    # the parsed fields), what it cost, and how to find the stored HTTP exchange
+    # (``correlation_id`` -> ``external_api_request.correlation_id``).
+    # Rows with ``ai_provider = 'GEMINI'`` are kept indefinitely; the purge skips them.
+    signal_id = Column(
+        Integer,
+        ForeignKey("trading_signal.signal_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    ai_provider = Column(String(16))  # GEMINI
+    as_of = Column(DateTime(timezone=True))  # the moment the evidence describes
+    prompt_version = Column(String(24))
+    prompt_sha256 = Column(String(64))
+    evidence_sha256 = Column(String(64))
+    parsed_verdict = Column(String(20))  # APPROVE | REJECT | WAIT_PULLBACK
+    reason_codes = Column(JSONB)
+    raw_response = Column(Text)
+    prompt_tokens = Column(Integer)
+    completion_tokens = Column(Integer)
+    cost_inr = Column(Numeric(10, 4))
+    degraded = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    error_code = Column(String(40))
+    correlation_id = Column(String(36), index=True)
+
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
         default=func.now(),
         index=True,
+    )
+
+    __table_args__ = (
+        # One verdict per signal per prompt and evidence: a Celery retry cannot double-spend.
+        Index(
+            "uq_agent_verdict_signal_prompt",
+            "signal_id",
+            "agent_name",
+            "prompt_sha256",
+            "evidence_sha256",
+            unique=True,
+            postgresql_where=text("signal_id IS NOT NULL AND degraded = false"),
+        ),
     )
 
 

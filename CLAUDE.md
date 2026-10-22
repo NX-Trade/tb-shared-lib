@@ -38,6 +38,8 @@ src/tb_utils/
 │   ├── gex.py          Gamma exposure by strike, GEX profile and flip level (estimate: calls +, puts -; gamma recomputed from IV) — pure
 │   ├── probability.py  Exact POP and expected value at expiry (lognormal; market and view-tilted) — pure
 │   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator
+├── http/               ExternalClient (limit, break, retry, redact, store every request/response) + gemini.py: GeminiClient
+│                       (structured JSON, two API keys with 429 failover, model fallback, daily call/rupee budget)
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
 └── notifications/
     └── telegram.py     The ONLY Telegram alert path across all services

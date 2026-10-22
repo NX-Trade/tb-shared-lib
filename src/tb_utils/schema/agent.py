@@ -25,6 +25,19 @@ class AgentVerdictResponse(BaseSchema):
     output_json: Optional[dict[str, Any]] = Field(default_factory=dict)
     latency_ms: Optional[int] = None
     created_at: datetime
+    # Gemini gatekeeper audit fields (None on the retired Ollama-era rows).
+    signal_id: Optional[int] = None
+    ai_provider: Optional[str] = None
+    as_of: Optional[datetime] = None
+    prompt_version: Optional[str] = None
+    parsed_verdict: Optional[str] = None
+    reason_codes: Optional[list[str]] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    cost_inr: Optional[float] = None
+    degraded: bool = False
+    error_code: Optional[str] = None
+    correlation_id: Optional[str] = None
 
 
 class AgentClusterNodeStatus(BaseSchema):

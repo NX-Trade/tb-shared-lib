@@ -149,6 +149,34 @@ class UpstreamBadResponse(ExternalApiError):
     alert = True
 
 
+class GeminiTimeout(UpstreamTimeout):
+    """Gemini did not answer in time. The verdict is skipped, never guessed."""
+
+    code = "GEMINI_TIMEOUT"
+    alert = False  # a slow LLM is routine; the breaker alerts if it persists
+
+
+class GeminiRateLimited(RateLimited):
+    """Gemini refused with a 429 on every key, or our own limiter refused the call."""
+
+    code = "GEMINI_RATE_LIMITED"
+
+
+class GeminiSchemaInvalid(UpstreamBadResponse):
+    """A 200 whose body is not the JSON the schema demanded. Not retried: it would fail again."""
+
+    code = "GEMINI_SCHEMA_INVALID"
+    alert = False
+
+
+class GeminiBudgetExceeded(ExternalApiError):
+    """The day's call or rupee budget is spent. Callers degrade; nothing is blocked on the LLM."""
+
+    code = "GEMINI_BUDGET_EXCEEDED"
+    retryable = False
+    alert = True
+
+
 def classify_status(status_code: int) -> type[ExternalApiError]:
     """Map an HTTP status onto the error type that describes it."""
     if status_code in (401, 403):

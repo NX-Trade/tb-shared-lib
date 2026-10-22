@@ -51,6 +51,11 @@ PROVIDER_LIMITS: dict[ApiProviderEnum, dict[EndpointClassEnum, tuple[int, int]]]
         EndpointClassEnum.PORTFOLIO: (8, 400),
         EndpointClassEnum.OTHER: (8, 400),
     },
+    ApiProviderEnum.GEMINI: {
+        # Gemini Flash paid-tier ceilings are well above this; the budget guard in GeminiClient
+        # (calls and rupees per day) is the real limit. This only stops a burst.
+        EndpointClassEnum.OTHER: (4, 120),
+    },
     ApiProviderEnum.NSE: {
         # NSE publishes nothing; this is the scrape-politeness budget the
         # collector already used (10/s).

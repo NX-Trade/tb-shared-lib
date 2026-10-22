@@ -248,3 +248,44 @@ class SignalOutcomeStatusEnum(StrEnum):
     DYNAMIC_EXIT = "DYNAMIC_EXIT"
     EXPIRED = "EXPIRED"
     INVALIDATED = "INVALIDATED"
+
+
+class AiProviderEnum(StrEnum):
+    """Which LLM produced an ``agent_verdict`` row. Ollama was retired in favour of Gemini."""
+
+    GEMINI = "GEMINI"
+
+
+class GatekeeperVerdictEnum(StrEnum):
+    """The LLM gatekeeper's call on a candidate signal. Categorical: it never produces a price."""
+
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    WAIT_PULLBACK = "WAIT_PULLBACK"
+
+
+class GatekeeperReasonEnum(StrEnum):
+    """The closed vocabulary the gatekeeper may cite. An answer using any other code is invalid."""
+
+    OVERHEAD_RESISTANCE = "OVERHEAD_RESISTANCE"
+    FALLING_KNIFE = "FALLING_KNIFE"
+    TREND_CONFIRMS = "TREND_CONFIRMS"
+    TREND_CONTRADICTS = "TREND_CONTRADICTS"
+    MARKET_TIDE_AGAINST = "MARKET_TIDE_AGAINST"
+    MARKET_TIDE_WITH = "MARKET_TIDE_WITH"
+    DERIVATIVES_CONFIRM = "DERIVATIVES_CONFIRM"
+    DERIVATIVES_CONTRADICT = "DERIVATIVES_CONTRADICT"
+    DELIVERY_ACCUMULATION = "DELIVERY_ACCUMULATION"
+    DELIVERY_DISTRIBUTION = "DELIVERY_DISTRIBUTION"
+    NEWS_SUPPORTS = "NEWS_SUPPORTS"
+    NEWS_NEGATIVE = "NEWS_NEGATIVE"
+    EVENT_RISK = "EVENT_RISK"
+    PREMIUM_TOO_RICH = "PREMIUM_TOO_RICH"
+    THETA_DECAY_RISK = "THETA_DECAY_RISK"
+    LOW_LIQUIDITY = "LOW_LIQUIDITY"
+    GAMMA_REGIME_RISK = "GAMMA_REGIME_RISK"
+    POOR_RISK_REWARD = "POOR_RISK_REWARD"
+    STRATEGY_RECORD_POOR = "STRATEGY_RECORD_POOR"
+    STRATEGY_RECORD_STRONG = "STRATEGY_RECORD_STRONG"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    OTHER = "OTHER"

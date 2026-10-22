@@ -21,6 +21,7 @@ SECRET_HEADERS: frozenset[str] = frozenset(
         "authorization",
         "proxy-authorization",
         "x-api-key",
+        "x-goog-api-key",  # Gemini: sent as a header precisely so the key never lands in a URL
         "api-key",
         "apikey",
         "x-auth-token",
