@@ -62,11 +62,16 @@ def answer(
     completion=100,
     version="gemini-live-001",
     finish="STOP",
+    thoughts=0,
 ):
     return FakeResponse(
         {
             "candidates": [{"content": {"parts": [{"text": text}]}, "finishReason": finish}],
-            "usageMetadata": {"promptTokenCount": prompt, "candidatesTokenCount": completion},
+            "usageMetadata": {
+                "promptTokenCount": prompt,
+                "candidatesTokenCount": completion,
+                "thoughtsTokenCount": thoughts,
+            },
             "modelVersion": version,
         }
     )
@@ -126,7 +131,7 @@ class TestSuccess:
         gemini.generate("be careful", "the signal", SCHEMA, max_output_tokens=500)
         call = external.calls[0]
         cfg = call["body"]["generationConfig"]
-        assert (cfg["temperature"], cfg["topP"], cfg["maxOutputTokens"]) == (0, 1, 500)
+        assert (cfg["temperature"], cfg["topP"]) == (0, 1)
         assert cfg["responseMimeType"] == "application/json"
         assert cfg["responseSchema"] == SCHEMA
         assert call["body"]["systemInstruction"]["parts"][0]["text"] == "be careful"
@@ -152,6 +157,42 @@ class TestSuccess:
         gemini, external, _ = client([quota(), answer()])
         result = gemini.generate("s", "u", SCHEMA)
         assert {c["correlation_id"] for c in external.calls} == {result.correlation_id}
+
+
+class TestThinking:
+    def test_thinking_is_bounded_and_the_output_limit_leaves_room_for_it(self):
+        """Thinking counts against the output limit: thinking 480 of 500 leaves half a JSON."""
+        gemini, external, _ = client([answer()])
+        gemini.generate("s", "u", SCHEMA, max_output_tokens=500)
+        cfg = external.calls[0]["body"]["generationConfig"]
+        assert cfg["thinkingConfig"] == {"thinkingBudget": 512}
+        assert cfg["maxOutputTokens"] == 500 + 512
+
+    def test_thinking_tokens_are_billed_as_output(self):
+        gemini, _, _ = client([answer(prompt=1000, completion=100, thoughts=400)])
+        result = gemini.generate("s", "u", SCHEMA)
+        assert result.thought_tokens == 400
+        # (1000 x 0.30 + 500 x 2.50) / 1e6 USD at 88 INR
+        assert result.cost_inr == pytest.approx(0.1364, abs=0.0001)
+
+    def test_a_negative_budget_leaves_thinking_to_the_model(self):
+        config = GeminiConfig(api_keys=("k",), live_model="m", eod_model="", thinking_budget=-1)
+        gemini, external, _ = client([answer()], config)
+        gemini.generate("s", "u", SCHEMA, max_output_tokens=500)
+        cfg = external.calls[0]["body"]["generationConfig"]
+        assert "thinkingConfig" not in cfg and cfg["maxOutputTokens"] == 500
+
+    def test_a_zero_budget_turns_thinking_off(self):
+        config = GeminiConfig(api_keys=("k",), live_model="m", eod_model="", thinking_budget=0)
+        gemini, external, _ = client([answer()], config)
+        gemini.generate("s", "u", SCHEMA, max_output_tokens=300)
+        cfg = external.calls[0]["body"]["generationConfig"]
+        assert cfg["thinkingConfig"] == {"thinkingBudget": 0} and cfg["maxOutputTokens"] == 300
+
+    def test_the_budget_is_read_from_the_environment(self, monkeypatch):
+        monkeypatch.setenv("GEMINI_API_KEY_1", "a")
+        monkeypatch.setenv("GEMINI_THINKING_BUDGET", "128")
+        assert GeminiConfig.from_env().thinking_budget == 128
 
 
 class TestKeyFailover:

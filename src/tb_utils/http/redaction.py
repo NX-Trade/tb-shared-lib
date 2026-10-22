@@ -69,6 +69,13 @@ def redact_headers(headers: Any) -> dict[str, str]:
     }
 
 
+def _is_secret(key: Any, value: Any) -> bool:
+    """A credential-looking key, except an error body's numeric ``code`` (OAuth's is a string)."""
+    if str(key).lower() not in SECRET_KEYS:
+        return False
+    return not (str(key).lower() == "code" and isinstance(value, (int, float)))
+
+
 def redact_payload(payload: Any) -> Any:
     """Recursively replace secret-looking values in a JSON-ish structure.
 
@@ -77,7 +84,7 @@ def redact_payload(payload: Any) -> Any:
     """
     if isinstance(payload, dict):
         return {
-            key: (REDACTED if str(key).lower() in SECRET_KEYS else redact_payload(value))
+            key: (REDACTED if _is_secret(key, value) else redact_payload(value))
             for key, value in payload.items()
         }
     if isinstance(payload, (list, tuple)):

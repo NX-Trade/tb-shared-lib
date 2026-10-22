@@ -184,6 +184,13 @@ def test_bearer_token_in_free_text_redacted():
     assert "secret" not in redact_text("failed with Bearer abcdef123456 invalid")
 
 
+def test_an_error_bodys_numeric_code_is_kept_but_a_string_code_is_not():
+    """Gemini errors carry {"code": 503}: diagnostic, not a credential. OAuth's code is a string."""
+    error = {"error": {"code": 503, "status": "UNAVAILABLE"}}
+    assert redact_payload(error) == error
+    assert redact_payload({"code": "4/0AbCdEf"}) == {"code": REDACTED}
+
+
 def test_redaction_survives_non_json_text():
     assert redact_text("<html>502 Bad Gateway</html>") == "<html>502 Bad Gateway</html>"
 

@@ -73,6 +73,10 @@ class GeminiConfig:
     price_in_usd_per_m: float = 0.30
     price_out_usd_per_m: float = 2.50
     usd_inr: float = 88.0
+    # Tokens the model may spend thinking before it answers. Thinking counts against the output
+    # limit and is billed as output, so it is bounded (room is added to the limit for it).
+    # Negative: leave it to the model. Zero was tried live and the model then answered badly.
+    thinking_budget: int = 512
 
     @classmethod
     def from_env(cls) -> "GeminiConfig":
@@ -88,6 +92,7 @@ class GeminiConfig:
             price_in_usd_per_m=float(os.getenv("GEMINI_PRICE_INPUT_USD_PER_M", "0.30")),
             price_out_usd_per_m=float(os.getenv("GEMINI_PRICE_OUTPUT_USD_PER_M", "2.50")),
             usd_inr=float(os.getenv("GEMINI_USD_INR", "88")),
+            thinking_budget=int(os.getenv("GEMINI_THINKING_BUDGET", "512")),
         )
 
 
@@ -101,6 +106,7 @@ class GeminiResult:  # pylint: disable=too-many-instance-attributes
     key_index: int
     prompt_tokens: int
     completion_tokens: int
+    thought_tokens: int
     latency_ms: int
     cost_inr: float
     correlation_id: str
@@ -137,6 +143,11 @@ class GeminiClient:
         )
 
     # ── Public ─────────────────────────────────────────────────────────────
+
+    @property
+    def config(self) -> GeminiConfig:
+        """The settings this client runs with (model names, budget)."""
+        return self._config
 
     def generate(
         self,
@@ -239,20 +250,24 @@ class GeminiClient:
 
     # ── Request and response ───────────────────────────────────────────────
 
-    @staticmethod
     def _body(
-        system: str, user: str, schema: dict[str, Any], max_output_tokens: int
+        self, system: str, user: str, schema: dict[str, Any], max_output_tokens: int
     ) -> dict[str, Any]:
+        """``max_output_tokens`` is the size of the *answer*; the thinking allowance is added."""
+        budget = self._config.thinking_budget
+        generation: dict[str, Any] = {
+            "temperature": 0,
+            "topP": 1,
+            "maxOutputTokens": max_output_tokens + max(budget, 0),
+            "responseMimeType": "application/json",
+            "responseSchema": schema,
+        }
+        if budget >= 0:
+            generation["thinkingConfig"] = {"thinkingBudget": budget}
         return {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {
-                "temperature": 0,
-                "topP": 1,
-                "maxOutputTokens": max_output_tokens,
-                "responseMimeType": "application/json",
-                "responseSchema": schema,
-            },
+            "generationConfig": generation,
         }
 
     def _result(
@@ -292,7 +307,9 @@ class GeminiClient:
         usage = payload.get("usageMetadata") or {}
         prompt_tokens = int(usage.get("promptTokenCount") or 0)
         completion_tokens = int(usage.get("candidatesTokenCount") or 0)
-        cost = self._cost_inr(prompt_tokens, completion_tokens)
+        thought_tokens = int(usage.get("thoughtsTokenCount") or 0)
+        # Thinking is billed as output.
+        cost = self._cost_inr(prompt_tokens, completion_tokens + thought_tokens)
         self._count(cost)
         return GeminiResult(
             text=text,
@@ -301,6 +318,7 @@ class GeminiClient:
             key_index=key_index,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            thought_tokens=thought_tokens,
             latency_ms=latency_ms,
             cost_inr=cost,
             correlation_id=correlation_id,
