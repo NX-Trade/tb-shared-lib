@@ -116,6 +116,11 @@ def get_gemini_alert_key(kind: str) -> str:
     return f"gemini:alert:{kind}"
 
 
+def get_upstox_chain_lock_key(tag: str) -> str:
+    """Lock held while one Upstox option-chain collection run is in flight, so two never overlap."""
+    return f"upstox:chain_lock:{tag}"
+
+
 def get_trading_halted_key() -> str:
     """Flag set in Redis when live trading is halted/panic initiated."""
     return "TRADING_HALTED"
