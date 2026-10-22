@@ -111,6 +111,11 @@ def get_gemini_daily_counter_key(kind: str, day: str) -> str:
     return f"gemini:{kind}:{day}"
 
 
+def get_gemini_cooldown_key() -> str:
+    """Set with a TTL when every Gemini key is out of quota; callers pause until it expires."""
+    return "gemini:quota_cooldown"
+
+
 def get_gemini_alert_key(kind: str) -> str:
     """Debounce key so a Gemini key failover or degradation alerts once an hour, not once a call."""
     return f"gemini:alert:{kind}"

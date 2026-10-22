@@ -44,6 +44,9 @@ class FakeRedis:
     def expire(self, key, seconds):
         return True
 
+    def ttl(self, key):
+        return 600 if key in self.store else -2
+
 
 class FakeResponse:
     def __init__(self, payload):
@@ -213,6 +216,18 @@ class TestKeyFailover:
         gemini, _, _ = client([quota(), quota()])
         with patch("tb_utils.http.gemini.send_telegram_alert"), pytest.raises(GeminiRateLimited):
             gemini.generate("s", "u", SCHEMA)
+
+    def test_both_keys_over_quota_pauses_calls_until_the_cooldown_ends(self):
+        gemini, external, redis = client([quota(), quota(), answer()])
+        with patch("tb_utils.http.gemini.send_telegram_alert") as alert:
+            with pytest.raises(GeminiRateLimited):
+                gemini.generate("s", "u", SCHEMA)
+            calls_after_first = len(external.calls)
+            with pytest.raises(GeminiRateLimited, match="paused"):
+                gemini.generate("s", "u", SCHEMA)
+        assert len(external.calls) == calls_after_first  # the second call never reached Gemini
+        assert redis.get("gemini:quota_cooldown") == "1"
+        assert any("quota exhausted" in str(c) for c in alert.call_args_list)
 
     def test_our_own_limiter_does_not_burn_the_other_key(self):
         gemini, external, redis = client([RateLimited("per-second budget", provider="GEMINI")])

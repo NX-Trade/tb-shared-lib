@@ -46,6 +46,7 @@ from tb_utils.http.providers import ApiProviderEnum
 from tb_utils.redis.keys import (
     get_gemini_active_key_key,
     get_gemini_alert_key,
+    get_gemini_cooldown_key,
     get_gemini_daily_counter_key,
 )
 from tb_utils.telegram import send_telegram_alert
@@ -57,6 +58,7 @@ BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 DEFAULT_TIMEOUT = 20.0
 DEFAULT_MAX_OUTPUT_TOKENS = 700
 COUNTER_TTL_SECONDS = 3 * 24 * 3600
+QUOTA_COOLDOWN_SECONDS = 600  # pause after every key reports its quota exhausted
 ALERT_DEBOUNCE_SECONDS = 3600
 
 
@@ -165,6 +167,7 @@ class GeminiClient:
         Raises a typed :class:`ExternalApiError` subclass on any failure; the caller degrades.
         """
         self._check_budget()
+        self._check_cooldown()
         order = [m for m in (models or (self._config.live_model, self._config.eod_model)) if m]
         if not order:
             raise ValueError("No Gemini model configured (GEMINI_LIVE_MODEL / GEMINI_EOD_MODEL).")
@@ -227,6 +230,7 @@ class GeminiClient:
                     ) from exc
                 other = self._other_index(index)
                 if other is None or other in tried:
+                    self._start_cooldown()
                     raise GeminiRateLimited(
                         "Gemini quota exhausted on every key",
                         provider="GEMINI",
@@ -235,6 +239,10 @@ class GeminiClient:
                     ) from exc
                 self._switch_key(other)
                 continue
+            except CircuitOpen:
+                if len(tried) > 1:  # a quota error on the first key tripped the breaker
+                    self._start_cooldown()
+                raise
             except UpstreamTimeout as exc:
                 raise GeminiTimeout(
                     exc.message, provider="GEMINI", endpoint=url, correlation_id=correlation_id
@@ -335,6 +343,25 @@ class GeminiClient:
         except (TypeError, ValueError):
             index = 0
         return index if 0 <= index < len(self._config.api_keys) else 0
+
+    def _start_cooldown(self) -> None:
+        """Every key is out of quota: stop asking for a while instead of probing."""
+        self._redis.set(get_gemini_cooldown_key(), "1", ex=QUOTA_COOLDOWN_SECONDS)
+        self._alert_once(
+            "quota_cooldown",
+            "⏸ <b>Gemini quota exhausted on every key</b>: pausing calls for "
+            f"{QUOTA_COOLDOWN_SECONDS // 60} min. Check the plan and billing for the API keys.",
+        )
+
+    def _check_cooldown(self) -> None:
+        remaining = self._redis.ttl(get_gemini_cooldown_key())
+        if remaining and remaining > 0:
+            raise GeminiRateLimited(
+                "Gemini quota exhausted; calls are paused",
+                provider="GEMINI",
+                status_code=429,
+                retry_after=float(remaining),
+            )
 
     def _other_index(self, index: int) -> Optional[int]:
         return next((i for i in range(len(self._config.api_keys)) if i != index), None)
