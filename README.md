@@ -48,6 +48,12 @@ src/tb_utils/
 │   ├── instrument.py     # Instrument, NseIndex, IndexConstituent
 │   ├── market_data.py    # FiiDii, ParticipantOi, News
 │   └── trading.py        # TradingSignal, TradingOrder, Position
+├── options/              # Pure option analytics, shared by backend, research-agent and trade-engine
+│   ├── payoff.py, margin.py, probability.py   # payoff/breakevens/greeks, SPAN-style margin estimate, POP/EV
+│   ├── templates.py, ideas.py                 # named structures; on-demand defined-risk strategy suggestions
+│   ├── contracts.py                           # exchange option symbols (checked against all Upstox options)
+│   ├── execution_rules.py                     # how a saved strategy runs: ordering, rollback, 2x target, expiry exit
+│   └── gex.py                                 # gamma exposure by strike, profile and flip level
 ├── redis/                # Redis Market Data Hub Helpers
 │   ├── async_market_store.py  # AsyncMarketDataStore for FastAPI/asyncpg
 │   ├── sync_market_store.py   # SyncMarketDataStore for Celery/workers
