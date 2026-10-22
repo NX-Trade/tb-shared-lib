@@ -4,8 +4,10 @@ All traffic goes through the shared client, so each request and response is rate
 broken and stored (redacted, compressed) in ``external_api_request`` under one correlation id. This
 module adds what is specific to Gemini and must not be reinvented per caller:
 
-* **Two API keys.** Key 1 is used until Gemini answers 429 (quota); the client then moves to key 2,
-  remembers that in Redis for every worker, and alerts once an hour. Keys are sent in the
+* **Several API keys**, from ``GEMINI_API_KEY`` (one key, a comma list, or a tuple of strings). The
+  first is used until Gemini answers 429 (quota); the client then moves to the next, remembers that
+  in Redis for every worker (for six hours, so a reset free key is tried again), and alerts once an
+  hour. Put a paid key last. Keys are sent in the
   ``x-goog-api-key`` header (redacted on the way into storage), never in the URL.
 * **Two models.** The primary model is tried first; a transient failure (5xx, timeout) tries
   the fallback.
@@ -24,9 +26,10 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -58,8 +61,25 @@ BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 DEFAULT_TIMEOUT = 20.0
 DEFAULT_MAX_OUTPUT_TOKENS = 700
 COUNTER_TTL_SECONDS = 3 * 24 * 3600
+ACTIVE_KEY_TTL_SECONDS = 6 * 3600
+MAX_KEY_VARS = 9  # GEMINI_API_KEY, then the older GEMINI_API_KEY_1 .. _9
 QUOTA_COOLDOWN_SECONDS = 600  # pause after every key reports its quota exhausted
 ALERT_DEBOUNCE_SECONDS = 3600
+
+
+def parse_api_keys(values: Iterable[str]) -> tuple[str, ...]:
+    """Every key in the given environment values, in order and without repeats.
+
+    A value may hold one key, several separated by commas, or a Python-style tuple or list of quoted
+    strings, e.g. ``("key-a", "key-b")``. Quotes, brackets and commas are stripped; nothing is
+    evaluated as code.
+    """
+    found: list[str] = []
+    for value in values:
+        for key in re.split(r"""[\s,;()\[\]'"]+""", value or ""):
+            if key and key not in found:
+                found.append(key)
+    return tuple(found)
 
 
 @dataclass(frozen=True)
@@ -82,9 +102,8 @@ class GeminiConfig:
 
     @classmethod
     def from_env(cls) -> "GeminiConfig":
-        keys = tuple(
-            k for k in (os.getenv("GEMINI_API_KEY_1", ""), os.getenv("GEMINI_API_KEY_2", "")) if k
-        )
+        names = ["GEMINI_API_KEY"] + [f"GEMINI_API_KEY_{n}" for n in range(1, MAX_KEY_VARS + 1)]
+        keys = parse_api_keys(os.getenv(name, "") for name in names)
         return cls(
             api_keys=keys,
             live_model=os.getenv("GEMINI_LIVE_MODEL", ""),
@@ -132,7 +151,7 @@ class GeminiClient:
         timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
         if not config.api_keys:
-            raise ValueError("No Gemini API key configured (GEMINI_API_KEY_1 / GEMINI_API_KEY_2).")
+            raise ValueError("No Gemini API key configured (GEMINI_API_KEY).")
         self._redis = redis_client
         self._config = config
         self._timeout = timeout
@@ -228,8 +247,8 @@ class GeminiClient:
                         correlation_id=correlation_id,
                         retry_after=exc.retry_after,
                     ) from exc
-                other = self._other_index(index)
-                if other is None or other in tried:
+                other = self._next_untried(index, tried)
+                if other is None:
                     self._start_cooldown()
                     raise GeminiRateLimited(
                         "Gemini quota exhausted on every key",
@@ -363,11 +382,15 @@ class GeminiClient:
                 retry_after=float(remaining),
             )
 
-    def _other_index(self, index: int) -> Optional[int]:
-        return next((i for i in range(len(self._config.api_keys)) if i != index), None)
+    def _next_untried(self, index: int, tried: set[int]) -> Optional[int]:
+        """The next key after ``index``, in order and wrapping, that this call has not used yet."""
+        count = len(self._config.api_keys)
+        order = ((index + step) % count for step in range(1, count))
+        return next((j for j in order if j not in tried), None)
 
     def _switch_key(self, index: int) -> None:
-        self._redis.set(get_gemini_active_key_key(), index)
+        # Expires, so a free key that has reset is tried again instead of staying on a later one.
+        self._redis.set(get_gemini_active_key_key(), index, ex=ACTIVE_KEY_TTL_SECONDS)
         self._alert_once(
             "key_failover", f"🔑 <b>Gemini quota hit</b>: switched to API key {index + 1}."
         )

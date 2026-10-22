@@ -16,7 +16,7 @@ from tb_utils.http.errors import (
     UpstreamTimeout,
     UpstreamUnavailable,
 )
-from tb_utils.http.gemini import GeminiClient, GeminiConfig
+from tb_utils.http.gemini import GeminiClient, GeminiConfig, parse_api_keys
 from tb_utils.http.redaction import REDACTED, redact_headers
 
 SCHEMA = {"type": "OBJECT", "properties": {"verdict": {"type": "STRING"}}, "required": ["verdict"]}
@@ -196,6 +196,36 @@ class TestThinking:
         monkeypatch.setenv("GEMINI_API_KEY_1", "a")
         monkeypatch.setenv("GEMINI_THINKING_BUDGET", "128")
         assert GeminiConfig.from_env().thinking_budget == 128
+
+
+class TestKeyList:
+    LONG = ["k" * 20 + str(i) for i in range(3)]
+
+    def test_a_tuple_of_strings_gives_every_key_in_order(self):
+        value = "(" + ", ".join(f'"{k}"' for k in self.LONG) + ")"
+        assert parse_api_keys([value]) == tuple(self.LONG)
+
+    def test_commas_lists_and_repeats_are_handled(self):
+        value = f"[{self.LONG[0]!r}, {self.LONG[1]!r}]"
+        assert parse_api_keys([value, f"{self.LONG[1]},{self.LONG[2]}", ""]) == tuple(self.LONG)
+
+    def test_the_plain_variable_comes_before_the_numbered_ones(self, monkeypatch):
+        monkeypatch.setenv("GEMINI_API_KEY", f"({self.LONG[0]!r}, {self.LONG[1]!r})")
+        monkeypatch.setenv("GEMINI_API_KEY_1", self.LONG[2])
+        monkeypatch.setenv("GEMINI_LIVE_MODEL", "m")
+        assert GeminiConfig.from_env().api_keys == tuple(self.LONG)
+
+    def test_a_third_key_is_used_after_two_run_out_of_quota(self):
+        config = GeminiConfig(api_keys=("key-a", "key-b", "key-c"), live_model="m", eod_model="")
+        gemini, external, redis = client([quota(), quota(), answer()], config=config)
+        with patch("tb_utils.http.gemini.send_telegram_alert"):
+            result = gemini.generate("s", "u", SCHEMA)
+        assert [c["headers"]["x-goog-api-key"] for c in external.calls] == [
+            "key-a",
+            "key-b",
+            "key-c",
+        ]
+        assert result.key_index == 2 and redis.get("gemini:active_key_index") == "2"
 
 
 class TestKeyFailover:
