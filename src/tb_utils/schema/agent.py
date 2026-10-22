@@ -66,3 +66,38 @@ class GatekeeperSummaryResponse(BaseSchema):
     by_verdict: dict[str, int] = Field(default_factory=dict)
     cost_inr: float = 0.0
     avg_latency_ms: Optional[int] = None
+
+
+class GeminiUsageBucket(BaseSchema):
+    """HTTP attempts to Gemini in one slice of the day (an IST hour, or one model)."""
+
+    label: str
+    attempts: int = 0
+    ok: int = 0
+    rate_limited: int = 0
+    failed: int = 0
+
+
+class GeminiUsageResponse(BaseSchema):
+    """Today's Gemini usage: what was sent, what it cost, and its daily limits."""
+
+    day: str  # YYYY-MM-DD, IST
+    max_calls_per_day: int  # 0 = no limit
+    daily_budget_inr: float  # 0 = no limit
+    answered_calls: int  # the counter the daily limit is checked against: calls Gemini answered
+    cost_inr: float
+    http_attempts: int  # every request sent, retries, fallback model and key rotation included
+    http_ok: int
+    http_rate_limited: int  # 429: quota
+    http_server_errors: int  # 5xx
+    http_other_failed: int  # timeouts and anything else
+    verdicts_answered: int
+    verdicts_degraded: int
+    prompt_tokens: int
+    completion_tokens: int
+    active_key_index: Optional[int] = None
+    quota_cooldown_seconds: int = 0  # >0: every key is out of quota and calls are paused
+    by_model: list[GeminiUsageBucket] = Field(default_factory=list)
+    by_hour: list[GeminiUsageBucket] = Field(default_factory=list)
+    first_call_at: Optional[datetime] = None
+    last_call_at: Optional[datetime] = None

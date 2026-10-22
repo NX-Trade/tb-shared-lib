@@ -15,6 +15,8 @@ from .account_strategy_subscription import (
 from .agent import (
     AgentVerdictResponse,
     GatekeeperSummaryResponse,
+    GeminiUsageBucket,
+    GeminiUsageResponse,
     SignalVerdictSummary,
 )
 from .base import BaseSchema, GenericResponseSchema
@@ -100,6 +102,8 @@ __all__ = [
     "GenericResponseSchema",
     "AgentVerdictResponse",
     "GatekeeperSummaryResponse",
+    "GeminiUsageBucket",
+    "GeminiUsageResponse",
     "SignalVerdictSummary",
     "BrokerResponse",
     "BrokerHealthLogResponse",
