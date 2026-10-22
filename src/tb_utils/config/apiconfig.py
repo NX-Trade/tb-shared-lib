@@ -23,6 +23,7 @@ class UpstoxApiConfig:
     ORDER_PLACE: str = "/order/place"
     ORDER_CANCEL: str = "/order/cancel"
     ORDER_HISTORY: str = "/order/history"
+    ORDER_BOOK: str = "/order/retrieve-all"
     PORTFOLIO_SHORT_TERM: str = "/portfolio/short-term-positions"
     PORTFOLIO_LONG_TERM: str = "/portfolio/long-term-holdings"
     MARKET_QUOTE_LTP: str = "/market-quote/ltp"

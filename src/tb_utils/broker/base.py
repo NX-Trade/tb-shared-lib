@@ -55,6 +55,22 @@ class OrderResult:
     filled_quantity: int = 0
     avg_fill_price: float | None = None
     message: str = ""
+    # True when the call failed in a way that does not tell us whether the broker has the order
+    # (a timeout, a 5xx). Such a result is reported as REJECTED for callers that predate this flag,
+    # but the order may well be live: anything that cares must ask the broker before assuming.
+    outcome_unknown: bool = False
+
+
+@dataclass
+class BrokerOrderInfo:
+    """One order as the broker's own order book shows it."""
+
+    order_id: str
+    symbol: str  # the symbol we asked about, not the broker's spelling of it
+    side: OrderSide
+    status: OrderStatus
+    filled_quantity: int = 0
+    avg_fill_price: float | None = None
 
 
 @dataclass
@@ -120,6 +136,16 @@ class BrokerAdapter(ABC):
     def get_holdings(self) -> list[PortfolioHolding]:
         """Return all settled Demat delivery inventory. Defaults to empty list."""
         return []
+
+    def find_orders(  # pylint: disable=unused-argument
+        self, tag: str, symbols: list[str]
+    ) -> list[BrokerOrderInfo] | None:
+        """Orders the broker holds with this tag for these symbols, or None if it cannot be asked.
+
+        Used to settle an order whose placement timed out: the answer says whether it reached the
+        exchange. None means "cannot verify", which callers must treat as unresolved, never as "no".
+        """
+        return None
 
     @abstractmethod
     def get_last_price(self, symbol: str) -> float | None:
