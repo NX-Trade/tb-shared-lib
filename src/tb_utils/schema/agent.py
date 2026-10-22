@@ -40,22 +40,29 @@ class AgentVerdictResponse(BaseSchema):
     correlation_id: Optional[str] = None
 
 
-class AgentClusterNodeStatus(BaseSchema):
-    """Status for an individual agent Ollama node."""
+class SignalVerdictSummary(BaseSchema):
+    """The slim form of a gatekeeper verdict shown beside a signal (no evidence, no raw reply)."""
 
-    node_id: str
-    name: str
-    url: str
-    online: bool
+    signal_id: int
+    verdict: Optional[str] = None  # APPROVE | REJECT | WAIT_PULLBACK; None when the call degraded
+    degraded: bool = False
+    error_code: Optional[str] = None
+    confidence: Optional[float] = None
+    reason_codes: list[str] = Field(default_factory=list)
+    rationale: Optional[str] = None
+    model_name: Optional[str] = None
+    prompt_version: Optional[str] = None
     latency_ms: Optional[int] = None
-    models: list[str] = Field(default_factory=list)
-    error: Optional[str] = None
+    cost_inr: Optional[float] = None
+    created_at: datetime
 
 
-class AgentClusterStatusResponse(BaseSchema):
-    """Consolidated status for the multi-agent cluster."""
+class GatekeeperSummaryResponse(BaseSchema):
+    """How the gatekeeper has done over a window: volume, split of verdicts, and cost."""
 
-    active_mode: str  # "MULTI_AGENT_CONSENSUS" or "PURE_MATH_ENSEMBLE"
-    nodes: list[AgentClusterNodeStatus] = Field(default_factory=list)
-    total_verdicts_24h: int = 0
-    updated_at: datetime
+    since: datetime
+    judged: int
+    degraded: int
+    by_verdict: dict[str, int] = Field(default_factory=dict)
+    cost_inr: float = 0.0
+    avg_latency_ms: Optional[int] = None

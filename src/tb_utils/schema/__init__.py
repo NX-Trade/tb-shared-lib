@@ -13,9 +13,9 @@ from .account_strategy_subscription import (
     AccountStrategySubscriptionUpdate,
 )
 from .agent import (
-    AgentClusterNodeStatus,
-    AgentClusterStatusResponse,
     AgentVerdictResponse,
+    GatekeeperSummaryResponse,
+    SignalVerdictSummary,
 )
 from .base import BaseSchema, GenericResponseSchema
 from .broker import (
@@ -99,8 +99,8 @@ __all__ = [
     "BaseSchema",
     "GenericResponseSchema",
     "AgentVerdictResponse",
-    "AgentClusterNodeStatus",
-    "AgentClusterStatusResponse",
+    "GatekeeperSummaryResponse",
+    "SignalVerdictSummary",
     "BrokerResponse",
     "BrokerHealthLogResponse",
     "ExternalApiRequestCreate",
