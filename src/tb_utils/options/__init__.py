@@ -81,6 +81,7 @@ from tb_utils.options.spread_engine import (
     SpreadLeg,
     SpreadResult,
     StaleChainError,
+    build_spread,
     build_vertical_spread,
 )
 from tb_utils.options.spread_policy import (
@@ -91,6 +92,11 @@ from tb_utils.options.spread_policy import (
     classify_regime,
 )
 from tb_utils.options.spread_rules import Rejection
+from tb_utils.options.spread_structures import (
+    LegSpec,
+    StructureSpec,
+    choose_vertical,
+)
 from tb_utils.options.strategy_builder import (
     BuiltOptionLeg,
     BuiltOptionStrategy,
@@ -179,7 +185,11 @@ __all__ = [
     "SpreadLeg",
     "SpreadResult",
     "StaleChainError",
+    "build_spread",
     "build_vertical_spread",
+    "LegSpec",
+    "StructureSpec",
+    "choose_vertical",
     "HIGH_VOL",
     "LOW_VOL",
     "TRANSITIONAL",
