@@ -96,6 +96,15 @@ class ClientAccountBase(BaseModel):
         description="If true, the real broker adapter is used for reads (quotes/positions/"
         "balance) but every order-placing call is refused before reaching the broker",
     )
+    is_equity_trade_enabled: bool = Field(
+        False, description="Allow new equity entries on this account (exits are never blocked)"
+    )
+    is_derivative_trade_enabled: bool = Field(
+        False, description="Allow new derivative (option spread) entries on this account"
+    )
+    is_commodity_trade_enabled: bool = Field(
+        False, description="Allow new commodity entries (stored; no commodity execution yet)"
+    )
 
 
 class ClientAccountCreate(ClientAccountBase):
@@ -130,6 +139,9 @@ class ClientAccountUpdate(BaseModel):
     is_paper: Optional[bool] = None
     is_halted: Optional[bool] = None
     orders_disabled: Optional[bool] = None
+    is_equity_trade_enabled: Optional[bool] = None
+    is_derivative_trade_enabled: Optional[bool] = None
+    is_commodity_trade_enabled: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod

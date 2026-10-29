@@ -28,3 +28,15 @@ def test_dropping_the_idea_tables_is_idempotent():
         encoding="utf-8"
     )
     assert source.count("DROP TABLE IF EXISTS") == 2
+
+
+def test_segment_flags_migration_follows_the_previous_head_and_does_not_backfill():
+    """Owner decision: the flags default off and existing accounts are NOT backfilled."""
+    revision = _scripts().get_revision("u1a2b3c4d5f1")
+    assert revision.down_revision == "t1a2b3c4d5f0"
+    source = (
+        ALEMBIC_DIR / "versions" / "u1a2b3c4d5f1_add_trading_segment_flags_to_client_account.py"
+    ).read_text(encoding="utf-8")
+    assert source.count("add_column") == 3
+    assert source.count("server_default='false'") == 3
+    assert "UPDATE" not in source.upper().replace("UPGRADE", "")
