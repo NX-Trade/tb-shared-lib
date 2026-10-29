@@ -96,6 +96,15 @@ def get_option_chain_key(symbol: str) -> str:
     return f"market_data:option_chain:{symbol.upper()}"
 
 
+def get_fresh_chain_key(symbol: str) -> str:
+    """The on-demand option-chain snapshot for one underlying, fetched for a trade decision.
+
+    Short-lived and separate from ``get_option_chain_key`` on purpose: that cache is refreshed every
+    15 minutes and lives 6 hours, which is fine for dashboards and wrong for pricing an order.
+    """
+    return f"market_data:fresh_chain:{symbol.strip().upper()}"
+
+
 def get_lot_size_key(symbol: str) -> str:
     """Market lot size cache in Redis. TTL = 1 day (86,400s)."""
     return f"market_data:lot_size:{symbol.upper()}"
