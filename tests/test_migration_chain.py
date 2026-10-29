@@ -40,3 +40,17 @@ def test_segment_flags_migration_follows_the_previous_head_and_does_not_backfill
     assert source.count("add_column") == 3
     assert source.count("server_default='false'") == 3
     assert "UPDATE" not in source.upper().replace("UPGRADE", "")
+
+
+def test_ban_sync_migration_follows_the_segment_flags_migration():
+    revision = _scripts().get_revision("v1a2b3c4d5f2")
+    assert revision.down_revision == "u1a2b3c4d5f1"
+    source = (ALEMBIC_DIR / "versions" / "v1a2b3c4d5f2_add_fno_ban_sync.py").read_text(
+        encoding="utf-8"
+    )
+    assert "create_table" in source and "fno_ban_sync" in source
+    assert "drop_table" in source
+
+
+def test_there_is_still_a_single_head_after_the_ban_sync_migration():
+    assert _scripts().get_heads() == ["v1a2b3c4d5f2"]

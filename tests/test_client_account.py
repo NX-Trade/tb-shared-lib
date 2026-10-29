@@ -3,6 +3,7 @@
 from decimal import Decimal
 
 from tb_utils import ClientAccount
+from tb_utils.models import FnoBanSync
 from tb_utils.schema.account import ClientAccountCreate, ClientAccountUpdate
 
 
@@ -72,3 +73,9 @@ def test_segment_flags_can_be_set_on_create_and_update():
     untouched = ClientAccountUpdate(client_name="Y")
     assert all(getattr(untouched, flag) is None for flag in SEGMENT_FLAGS)
     assert ClientAccountUpdate(is_equity_trade_enabled=False).is_equity_trade_enabled is False
+
+
+def test_ban_sync_table_records_one_row_per_synced_day():
+    columns = FnoBanSync.__table__.c
+    assert [c.name for c in FnoBanSync.__table__.primary_key.columns] == ["trade_date"]
+    assert not columns["synced_at"].nullable and not columns["banned_count"].nullable

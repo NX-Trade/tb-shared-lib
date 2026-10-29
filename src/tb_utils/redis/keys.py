@@ -21,6 +21,11 @@ def get_fno_ban_list_key() -> str:
     return "market_data:fno_ban_list"
 
 
+def get_fno_ban_meta_key() -> str:
+    """Which trading day the ban list under ``get_fno_ban_list_key`` was synced for."""
+    return "market_data:fno_ban_list:meta"
+
+
 def get_regime_current_key() -> str:
     return "signal_bot:regime:current"
 

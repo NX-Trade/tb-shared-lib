@@ -90,6 +90,20 @@ class Nifty500AsOfDate(Base, PostgresUpsertMixin):
     )
 
 
+class FnoBanSync(Base, PostgresUpsertMixin):
+    """One row per trading day whose F&O ban list was successfully synced.
+
+    ``fno_ban_list`` only holds banned symbols, so a day with nobody banned leaves no rows there and
+    looks exactly like a day the sync never ran. This table is the proof of the sync.
+    """
+
+    __tablename__ = "fno_ban_sync"
+
+    trade_date = Column(Date, primary_key=True)
+    synced_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    banned_count = Column(Integer, nullable=False, default=0)
+
+
 class FnoBanList(Base, PostgresUpsertMixin):
     """F&O Ban List Daily Data."""
 
