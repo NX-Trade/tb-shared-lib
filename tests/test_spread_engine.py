@@ -234,3 +234,11 @@ def test_an_empty_chain_is_a_skip_not_a_crash():
     empty = ChainData("TESTCO", NOW, SPOT, LOT, False, [])
     result = build_vertical_spread(FreshChain(empty, NOW), "BUY", NOW, RELAXED)
     assert result.spread is None and result.skip.code == "NO_CHAIN"
+
+
+@pytest.mark.parametrize("lot_size", [0, -1])
+def test_a_missing_lot_size_is_a_skip_not_a_crash(lot_size):
+    """Real data has instruments with a lot size of 0; that must not take the engine down."""
+    chain = dataclasses.replace(make_chain(), lot_size=lot_size)
+    result = build_vertical_spread(FreshChain(chain, NOW), "BUY", NOW, RELAXED)
+    assert result.spread is None and result.skip.code == "NO_LOT_SIZE"

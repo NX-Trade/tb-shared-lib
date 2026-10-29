@@ -202,14 +202,24 @@ def _atm_straddle(quotes: list[Quote], spot: float) -> Optional[tuple[float, flo
     return (call + put) / spot * 100.0, sum(ivs) / len(ivs)
 
 
+def _precheck(chain: ChainData, action: str) -> Optional[SpreadResult]:
+    """The Skip for an input that cannot be traded at all, or None."""
+    if action not in (BUY, SELL):
+        return _skip("BAD_ACTION", f"action must be BUY or SELL, got {action!r}")
+    if chain.spot <= 0 or not chain.quotes:
+        return _skip("NO_CHAIN", "the chain has no spot price or no quotes")
+    if chain.lot_size is None or chain.lot_size <= 0:
+        return _skip("NO_LOT_SIZE", f"the lot size for {chain.symbol} is not set")
+    return None
+
+
 def _context(
     chain: ChainData, action: str, now: dt.datetime, policy: SpreadPolicy
 ) -> tuple[Optional[_Context], Optional[SpreadResult]]:
     """Everything shared by the candidates, or the early Skip that ends the attempt."""
-    if action not in (BUY, SELL):
-        return None, _skip("BAD_ACTION", f"action must be BUY or SELL, got {action!r}")
-    if chain.spot <= 0 or not chain.quotes:
-        return None, _skip("NO_CHAIN", "the chain has no spot price or no quotes")
+    early = _precheck(chain, action)
+    if early is not None:
+        return None, early
     today = now.astimezone(IST).date()
     expiry = _choose_expiry(list(chain.quotes), today, policy.min_dte)
     if expiry is None:
