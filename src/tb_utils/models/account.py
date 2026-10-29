@@ -83,6 +83,16 @@ class ClientAccount(Base):
     # reaches the broker (see broker/read_only_guard.py in tb-trade-engine).
     # Distinct from is_paper: is_paper never calls the real broker at all.
     orders_disabled = Column(Boolean, nullable=False, server_default="false", default=False)
+    # Per-segment permission to open NEW trades. All default off: nothing trades until an operator
+    # enables it. They gate entries only: exits, stop auditing and reconciliation always run.
+    # is_commodity_trade_enabled is stored but nothing consumes it yet (no commodity execution).
+    is_equity_trade_enabled = Column(Boolean, nullable=False, server_default="false", default=False)
+    is_derivative_trade_enabled = Column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
+    is_commodity_trade_enabled = Column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
 
     # Audit timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

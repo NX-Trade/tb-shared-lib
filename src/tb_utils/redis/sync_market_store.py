@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from redis import Redis
@@ -11,6 +11,7 @@ from tb_utils.redis.keys import (
     get_contracts_key,
     get_derived_metrics_key,
     get_fno_ban_list_key,
+    get_fno_ban_meta_key,
     get_instrument_spot_key,
     get_lot_size_key,
     get_macro_indicator_key,
@@ -29,7 +30,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 logger = logging.getLogger(__name__)
 
 
-class SyncMarketStore:
+class SyncMarketStore:  # pylint: disable=too-many-public-methods
     """Wrapper for synchronous Redis caching logic."""
 
     def __init__(self, client: Redis):
@@ -179,6 +180,39 @@ class SyncMarketStore:
         key = get_fno_ban_list_key()
         self.client.setex(key, expiry_seconds, json.dumps(banned_symbols))
         logger.info("Stored F&O ban list: %s", banned_symbols)
+
+    def store_fno_ban_snapshot(
+        self, banned_symbols: list[str], trade_date: date, expiry_seconds: int = 86400
+    ) -> None:
+        """Store the ban list together with the trading day it was synced for, in one write.
+
+        The day is what lets a reader tell "nobody is banned today" (an empty list, synced today)
+        from "no list at all" (the sync never ran), which the list alone cannot say.
+        """
+        pipe = self.client.pipeline()
+        pipe.setex(get_fno_ban_list_key(), expiry_seconds, json.dumps(banned_symbols))
+        meta = json.dumps({"trade_date": trade_date.isoformat()})
+        pipe.setex(get_fno_ban_meta_key(), expiry_seconds, meta)
+        pipe.execute()
+        logger.info("Stored F&O ban list for %s: %s", trade_date, banned_symbols)
+
+    def get_fno_ban_snapshot(self) -> Optional[tuple[list[str], date]]:
+        """``(banned symbols, day they were synced for)``, or None when that cannot be proven.
+
+        A list without its marker (written before the marker existed) is not a snapshot: it says
+        nothing about which day it describes.
+        """
+        raw_list = self.client.get(get_fno_ban_list_key())
+        raw_meta = self.client.get(get_fno_ban_meta_key())
+        if raw_list is None or raw_meta is None:
+            return None
+        try:
+            symbols = [str(s) for s in json.loads(raw_list)]
+            trade_date = date.fromisoformat(json.loads(raw_meta)["trade_date"])
+        except (ValueError, KeyError, TypeError):
+            logger.error("Unreadable F&O ban snapshot in Redis; ignoring it.")
+            return None
+        return symbols, trade_date
 
     def store_regime_state(
         self,
