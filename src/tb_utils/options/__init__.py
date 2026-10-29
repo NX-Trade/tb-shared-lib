@@ -75,6 +75,22 @@ from tb_utils.options.resolver import (
     get_symbol_option_chain_aliases,
     resolve_option_contract,
 )
+from tb_utils.options.spread_engine import (
+    FreshChain,
+    Spread,
+    SpreadLeg,
+    SpreadResult,
+    StaleChainError,
+    build_vertical_spread,
+)
+from tb_utils.options.spread_policy import (
+    HIGH_VOL,
+    LOW_VOL,
+    TRANSITIONAL,
+    SpreadPolicy,
+    classify_regime,
+)
+from tb_utils.options.spread_rules import Rejection
 from tb_utils.options.strategy_builder import (
     BuiltOptionLeg,
     BuiltOptionStrategy,
@@ -158,4 +174,16 @@ __all__ = [
     "BuiltOptionLeg",
     "BuiltOptionStrategy",
     "build_vertical_spread_strategy",
+    "FreshChain",
+    "Spread",
+    "SpreadLeg",
+    "SpreadResult",
+    "StaleChainError",
+    "build_vertical_spread",
+    "HIGH_VOL",
+    "LOW_VOL",
+    "TRANSITIONAL",
+    "SpreadPolicy",
+    "classify_regime",
+    "Rejection",
 ]

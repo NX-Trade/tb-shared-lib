@@ -104,6 +104,7 @@ class Quote:
     open_interest: int
     volume: int
     iv: Optional[float]  # percent
+    tick: float = 0.05  # the contract's own price tick; most stock options are 0.05, some 0.01
 
 
 @dataclass(frozen=True)
