@@ -73,6 +73,7 @@ class Frame:  # pylint: disable=too-many-instance-attributes
     quotes: tuple[Quote, ...] = ()  # the chosen expiry only
     atm_iv: float = 0.0
     straddle_pct: Optional[float] = None
+    regime_straddle_pct: Optional[float] = None  # the figure the regime was decided on
     regime: Optional[str] = None
     structure: Optional[StructureSpec] = None
     liquid: tuple[Scored, ...] = ()
@@ -91,10 +92,15 @@ class Frame:  # pylint: disable=too-many-instance-attributes
             rejections=self.rejections,
             regime=self.regime,
             straddle_pct=None if self.straddle_pct is None else round(self.straddle_pct, 3),
+            regime_straddle_pct=_rounded(self.regime_straddle_pct),
         )
 
 
 # ── Stages ───────────────────────────────────────────────────────────────────
+
+
+def _rounded(value: Optional[float]) -> Optional[float]:
+    return None if value is None else round(value, 3)
 
 
 def _validate(frame: Frame) -> Frame | SpreadResult:
@@ -150,8 +156,18 @@ def _measure_volatility(frame: Frame) -> Frame | SpreadResult:
     if straddle is None:
         return frame.skip("NO_STRADDLE", "the ATM straddle cannot be priced (side, price or IV)")
     straddle_pct, atm_iv = straddle
-    regime = classify_regime(straddle_pct, frame.policy)
-    return replace(frame, straddle_pct=straddle_pct, atm_iv=atm_iv, regime=regime)
+    reference = frame.policy.regime_reference_days
+    # The straddle scales with the square root of time, so compare it at a fixed tenor.
+    scale = 1.0 if reference is None else math.sqrt(reference / frame.days)
+    decided_on = straddle_pct * scale
+    regime = classify_regime(decided_on, frame.policy)
+    return replace(
+        frame,
+        straddle_pct=straddle_pct,
+        regime_straddle_pct=decided_on,
+        atm_iv=atm_iv,
+        regime=regime,
+    )
 
 
 def _choose_structure(frame: Frame) -> Frame | SpreadResult:
@@ -190,10 +206,10 @@ def _screen_legs(frame: Frame) -> Frame | SpreadResult:
 
 def _generate(frame: Frame) -> Frame | SpreadResult:
     """Every combination of one liquid quote per leg whose deltas and strikes fit the structure."""
-    spec = frame.structure
+    spec, reach = frame.structure, frame.policy.delta_tolerance
     per_leg = [
         [s for s in frame.liquid if s[0].option_type == leg.option_type
-         and leg.delta_band[0] <= s[1] <= leg.delta_band[1]]
+         and leg.delta_band[0] - reach <= s[1] <= leg.delta_band[1] + reach]
         for leg in spec.legs
     ]  # fmt: skip
     candidates = tuple(
@@ -205,7 +221,9 @@ def _generate(frame: Frame) -> Frame | SpreadResult:
     generated = replace(frame, candidates=candidates)
     if not candidates:
         bands = " / ".join(str(leg.delta_band) for leg in spec.legs)
-        return generated.skip("NO_CANDIDATE", f"no strike combination fits the delta bands {bands}")
+        return generated.skip(
+            "NO_CANDIDATE", f"no strike combination fits the delta bands {bands} (±{reach:g})"
+        )
     return generated
 
 
@@ -248,6 +266,10 @@ def _evaluate_one(
         return None, Rejection("NO_EDGE", "no finite, positive profit and risk", subject)
 
     net = net_premium(payoff_legs)
+    delta_miss = sum(
+        max(0.0, leg.delta_band[0] - abs(l.delta), abs(l.delta) - leg.delta_band[1])
+        for leg, l in zip(spec.legs, legs, strict=True)  # noqa: E741
+    )
     strikes = [l.strike for l in legs]  # noqa: E741
     facts = CandidateFacts(
         regime=frame.regime,
@@ -269,6 +291,8 @@ def _evaluate_one(
             max_loss=round(max_loss, 2), reward_risk=round(facts.reward_risk, 2),
             pop=round(facts.pop, 4), breakevens=tuple(round(b, 2) for b in breakevens(payoff_legs)),
             straddle_pct=round(frame.straddle_pct, 3), atm_iv=round(frame.atm_iv, 2),
+            delta_miss=round(delta_miss, 4),
+            regime_straddle_pct=round(frame.regime_straddle_pct, 3),
         ),
         None,
     )  # fmt: skip
@@ -299,6 +323,7 @@ def _rank(frame: Frame) -> SpreadResult:
         alternatives=ranked,
         regime=frame.regime,
         straddle_pct=round(frame.straddle_pct, 3),
+        regime_straddle_pct=round(frame.regime_straddle_pct, 3),
     )
 
 

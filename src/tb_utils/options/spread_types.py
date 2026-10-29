@@ -74,8 +74,10 @@ class Spread:  # pylint: disable=too-many-instance-attributes
     reward_risk: float
     pop: float
     breakevens: tuple[float, ...]
-    straddle_pct: float
+    straddle_pct: float  # as measured
     atm_iv: float
+    delta_miss: float = 0.0  # total distance outside the ideal delta bands; 0 is ideal
+    regime_straddle_pct: float = 0.0  # the straddle the regime was decided on (tenor-normalised)
 
 
 @dataclass(frozen=True)
@@ -88,3 +90,4 @@ class SpreadResult:
     alternatives: tuple[Spread, ...] = ()  # every candidate that passed, best first
     regime: Optional[str] = None
     straddle_pct: Optional[float] = None
+    regime_straddle_pct: Optional[float] = None

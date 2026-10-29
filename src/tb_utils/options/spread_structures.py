@@ -86,11 +86,14 @@ def _pop_rule(family: str) -> CandidateRule:
 
 
 def _least_risk_first(spread: Spread) -> tuple:
-    return (spread.max_loss, -spread.pop)
+    """In-band candidates first, then the spec's objective: least rupee risk."""
+    return (spread.delta_miss > 0, spread.max_loss, -spread.pop, spread.delta_miss)
 
 
 def _richest_credit_first(spread: Spread) -> tuple:
-    return (-spread.net_premium / (spread.width * spread.lot_size), spread.max_loss)
+    """In-band candidates first, then the spec's objective: the richest credit for the width."""
+    credit_yield = spread.net_premium / (spread.width * spread.lot_size)
+    return (spread.delta_miss > 0, -credit_yield, spread.max_loss, spread.delta_miss)
 
 
 # ── The four verticals ───────────────────────────────────────────────────────

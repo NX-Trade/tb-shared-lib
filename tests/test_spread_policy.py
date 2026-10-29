@@ -50,3 +50,15 @@ def test_classify_regime_uses_the_policy_not_constants():
     policy = SpreadPolicy(low_vol_max_straddle_pct=3.0, high_vol_min_straddle_pct=4.0)
     assert classify_regime(3.5, policy) == TRANSITIONAL
     assert classify_regime(4.5, policy) == HIGH_VOL
+
+
+def test_the_two_calibrated_defaults():
+    """Added after the real-chain survey: widened delta reach and a tenor-normalised regime."""
+    p = SpreadPolicy()
+    assert p.delta_tolerance == 0.07
+    assert p.regime_reference_days == 30.0
+
+
+def test_classify_regime_is_unchanged_by_the_new_fields():
+    legacy = SpreadPolicy(delta_tolerance=0.0, regime_reference_days=None)
+    assert classify_regime(5.5, legacy) == LOW_VOL

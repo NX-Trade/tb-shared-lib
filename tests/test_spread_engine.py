@@ -168,18 +168,29 @@ def test_deltas_land_inside_the_policy_bands():
     assert p.debit_short_delta[0] <= abs(short_leg.delta) <= p.debit_short_delta[1]
 
 
+def _groups(alternatives):
+    """The ranked candidates split into those inside the ideal delta bands and those outside."""
+    inside = [s for s in alternatives if s.delta_miss == 0]
+    outside = [s for s in alternatives if s.delta_miss > 0]
+    return inside, outside
+
+
 def test_the_best_debit_spread_is_the_one_with_the_least_rupee_risk():
     result = build_vertical_spread(fresh(), "BUY", NOW, RELAXED)
     assert len(result.alternatives) >= 1
     assert result.spread == result.alternatives[0]
-    risks = [s.max_loss for s in result.alternatives]
-    assert risks == sorted(risks)
+    inside, outside = _groups(result.alternatives)
+    for group in (inside, outside):  # the objective decides within each group
+        risks = [s.max_loss for s in group]
+        assert risks == sorted(risks)
 
 
 def test_the_best_credit_spread_is_the_one_with_the_highest_credit_yield():
     result = build_vertical_spread(fresh(make_chain(iv=30.0)), "BUY", NOW, RELAXED)
-    yields = [s.net_premium / (s.width * LOT) for s in result.alternatives]
-    assert yields == sorted(yields, reverse=True)
+    inside, outside = _groups(result.alternatives)
+    for group in (inside, outside):
+        yields = [s.net_premium / (s.width * LOT) for s in group]
+        assert yields == sorted(yields, reverse=True)
 
 
 # ── Filters ──────────────────────────────────────────────────────────────────
@@ -242,3 +253,78 @@ def test_a_missing_lot_size_is_a_skip_not_a_crash(lot_size):
     chain = dataclasses.replace(make_chain(), lot_size=lot_size)
     result = build_vertical_spread(FreshChain(chain, NOW), "BUY", NOW, RELAXED)
     assert result.spread is None and result.skip.code == "NO_LOT_SIZE"
+
+
+# ── Delta tolerance: reach beyond the band, but the ideal band still wins ────
+
+NO_TOLERANCE = dataclasses.replace(RELAXED, delta_tolerance=0.0)
+
+
+def _narrow_bands(policy):
+    """Bands that no strike on the 10-point grid falls into, but one sits just outside."""
+    return dataclasses.replace(
+        policy, debit_long_delta=(0.40, 0.41), debit_short_delta=(0.18, 0.19)
+    )
+
+
+def test_a_band_no_strike_falls_into_is_a_skip_without_tolerance():
+    result = build_vertical_spread(fresh(), "BUY", NOW, _narrow_bands(NO_TOLERANCE))
+    assert result.spread is None and result.skip.code == "NO_CANDIDATE"
+
+
+def test_tolerance_reaches_the_nearest_strike_outside_the_band():
+    result = build_vertical_spread(fresh(), "BUY", NOW, _narrow_bands(RELAXED))
+    assert result.skip is None, result.skip
+    assert result.spread.delta_miss > 0  # it is outside the ideal band, and says by how much
+
+
+def test_a_strike_beyond_the_tolerance_is_still_refused():
+    tight = dataclasses.replace(_narrow_bands(RELAXED), delta_tolerance=0.001)
+    assert build_vertical_spread(fresh(), "BUY", NOW, tight).skip.code == "NO_CANDIDATE"
+
+
+def test_candidates_inside_the_ideal_band_always_rank_before_those_outside_it():
+    result = build_vertical_spread(fresh(), "BUY", NOW, RELAXED)
+    misses = [s.delta_miss > 0 for s in result.alternatives]
+    assert misses == sorted(misses)  # every in-band candidate comes first
+    assert any(misses) and not misses[0]  # the chain offers both, and the best is in band
+
+
+def test_zero_tolerance_reproduces_the_hard_band_behaviour():
+    result = build_vertical_spread(fresh(), "BUY", NOW, NO_TOLERANCE)
+    assert all(s.delta_miss == 0 for s in result.alternatives)
+
+
+# ── Regime: the straddle is compared at a reference tenor, not at whatever DTE it has ──
+
+
+def _at_dte(iv, days):
+    return build_vertical_spread(
+        fresh(make_chain(iv=iv, expiries=(NOW.date() + dt.timedelta(days=days),))),
+        "BUY", NOW, RELAXED,
+    )  # fmt: skip
+
+
+def test_the_same_market_gets_the_same_regime_at_any_time_to_expiry():
+    near, far = _at_dte(25.0, 8), _at_dte(25.0, 28)
+    assert near.regime == far.regime
+    assert near.straddle_pct < far.straddle_pct  # the raw straddle shrinks as expiry nears
+    assert near.spread.regime_straddle_pct == pytest.approx(
+        far.spread.regime_straddle_pct, rel=0.08
+    )
+
+
+def test_without_normalisation_the_regime_flips_with_the_calendar():
+    raw = dataclasses.replace(RELAXED, regime_reference_days=None)
+    near = build_vertical_spread(
+        fresh(make_chain(iv=25.0, expiries=(NOW.date() + dt.timedelta(days=8),))), "BUY", NOW, raw
+    )
+    far = build_vertical_spread(
+        fresh(make_chain(iv=25.0, expiries=(NOW.date() + dt.timedelta(days=28),))), "BUY", NOW, raw
+    )
+    assert near.regime != far.regime
+
+
+def test_both_straddle_figures_are_reported():
+    spread = build_vertical_spread(fresh(), "BUY", NOW, RELAXED).spread
+    assert spread.straddle_pct > 0 and spread.regime_straddle_pct > 0

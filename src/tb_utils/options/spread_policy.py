@@ -9,6 +9,7 @@ Spec: ``tb-ai-brain/strategies/options_spread_and_basket_strategies.md`` §2 (li
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 # Volatility regimes, from the ATM straddle as a share of the underlying (spec §3).
 LOW_VOL = "LOW_NORMAL"  # options are cheap: buy a debit spread
@@ -32,6 +33,15 @@ class SpreadPolicy:  # pylint: disable=too-many-instance-attributes
     # §3 regimes: ATM straddle value as a percentage of spot.
     low_vol_max_straddle_pct: float = 5.5
     high_vol_min_straddle_pct: float = 6.0
+    # The straddle shrinks with the square root of the time left, so the same market reads "high"
+    # early in the month and "low" near expiry. The bands above are applied to the straddle scaled
+    # to this many days; None compares the raw straddle (the original wording of the spec).
+    regime_reference_days: Optional[float] = 30.0
+
+    # How far outside a delta band a strike may sit and still be considered. Added after a survey of
+    # 211 real chains: about half had no strike inside the hard bands. Candidates inside the ideal
+    # band always rank first; this only widens the pool. 0 restores the hard bands.
+    delta_tolerance: float = 0.07
 
     # §4.1 debit vertical: absolute delta bands of the bought and the sold leg.
     debit_long_delta: tuple[float, float] = (0.35, 0.45)

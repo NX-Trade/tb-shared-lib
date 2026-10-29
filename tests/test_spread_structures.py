@@ -6,7 +6,7 @@ from test_spread_engine import NOW, RELAXED, fresh, make_chain
 from tb_utils.options.spread_engine import build_spread, build_vertical_spread
 from tb_utils.options.spread_policy import HIGH_VOL, LOW_VOL, SpreadPolicy
 from tb_utils.options.spread_structures import LegSpec, StructureSpec, choose_vertical
-from tb_utils.options.spread_types import BUY, CREDIT, DEBIT, SELL
+from tb_utils.options.spread_types import BUY, CREDIT, DEBIT, SELL, Spread
 
 POLICY = SpreadPolicy()
 
@@ -106,3 +106,24 @@ def test_a_skip_carries_what_was_learned_before_it():
     result = build_spread(fresh(make_chain(oi=100)), "BUY", NOW, RELAXED, butterfly_chooser)
     assert result.regime == LOW_VOL and result.straddle_pct is not None
     assert {r.code for r in result.rejections} == {"LOW_OI"}
+
+
+def _spread(max_loss, pop, delta_miss):
+    return Spread(
+        "t", DEBIT, LOW_VOL, "X", None, 30, 100, (), 10.0, -100.0, 500.0, max_loss, 5.0, pop, (),
+        4.0, 20.0, delta_miss=delta_miss, regime_straddle_pct=4.0,
+    )  # fmt: skip
+
+
+def test_a_dearer_in_band_candidate_still_beats_a_cheaper_out_of_band_one():
+    """The ideal delta is the preference; the tolerance only widens the pool when it is empty."""
+    chosen = choose_vertical("BUY", LOW_VOL, POLICY)
+    cheap_but_off = _spread(max_loss=100.0, pop=0.4, delta_miss=0.05)
+    dear_but_ideal = _spread(max_loss=900.0, pop=0.3, delta_miss=0.0)
+    assert sorted([cheap_but_off, dear_but_ideal], key=chosen.rank)[0] is dear_but_ideal
+
+
+def test_among_out_of_band_candidates_the_objective_still_decides():
+    chosen = choose_vertical("BUY", LOW_VOL, POLICY)
+    a, b = _spread(200.0, 0.3, 0.02), _spread(100.0, 0.3, 0.06)
+    assert sorted([a, b], key=chosen.rank)[0] is b
