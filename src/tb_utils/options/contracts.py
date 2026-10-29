@@ -18,6 +18,12 @@ MONTHS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", 
 # Our stored symbol for an index is not the exchange's underlying name.
 EXCHANGE_UNDERLYING = {"NIFTY50": "NIFTY"}
 
+# Angel One writes the date the other way round: UNDERLYING + DD + MON + YY + STRIKE + TYPE
+# (``TATASTEEL23NOV26150PE``). Day, month and year are fixed-width, so it parses without ambiguity.
+_ANGEL_SYMBOL = re.compile(
+    r"^(?P<underlying>.+?)(?P<dd>\d{2})(?P<mon>[A-Z]{3})(?P<yy>\d{2})"
+    r"(?P<strike>\d+(?:\.\d+)?)(?P<kind>CE|PE)$"
+)
 _SYMBOL = re.compile(
     r"^(?P<underlying>.+?)(?P<yy>\d{2})(?P<mon>[A-Z]{3})(?P<dd>\d{2})"
     r"(?P<strike>\d+(?:\.\d+)?)(?P<kind>CE|PE)$"
@@ -71,3 +77,28 @@ def parse_option_contract_symbol(symbol: str) -> Optional[ContractParts]:
     except ValueError:
         return None
     return ContractParts(match["underlying"], expiry, float(match["strike"]), match["kind"])
+
+
+def parse_angel_option_symbol(symbol: str) -> Optional[ContractParts]:
+    """Read Angel One's own option spelling into its parts, or None if it is not one."""
+    match = _ANGEL_SYMBOL.match(symbol.strip().upper())
+    if not match or match["mon"] not in MONTHS:
+        return None
+    try:
+        expiry = dt.date(2000 + int(match["yy"]), MONTHS.index(match["mon"]) + 1, int(match["dd"]))
+    except ValueError:
+        return None
+    return ContractParts(match["underlying"], expiry, float(match["strike"]), match["kind"])
+
+
+def compact_symbol_from_angel(symbol: str) -> Optional[str]:
+    """Angel's spelling of an option as ours.
+
+    ``TATASTEEL23NOV26150PE`` becomes ``TATASTEEL26NOV23150PE``.
+
+    None for anything that is not an Angel option, so an equity or future passes through untouched.
+    """
+    parts = parse_angel_option_symbol(symbol)
+    if parts is None:
+        return None
+    return option_contract_symbol(parts.underlying, parts.expiry, parts.strike, parts.option_type)

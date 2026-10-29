@@ -5,8 +5,10 @@ import datetime as dt
 import pytest
 
 from tb_utils.options.contracts import (
+    compact_symbol_from_angel,
     exchange_underlying,
     option_contract_symbol,
+    parse_angel_option_symbol,
     parse_option_contract_symbol,
     stored_underlying,
 )
@@ -83,3 +85,54 @@ class TestParse:
 def test_stored_underlying_reverses_the_exchange_name():
     assert stored_underlying("NIFTY") == "NIFTY50"
     assert stored_underlying("reliance") == "RELIANCE"
+
+
+# ── Angel One's own spelling: NAME + DD + MON + YY + STRIKE + CE/PE ─────────────
+
+
+@pytest.mark.parametrize(
+    ("angel", "ours"),
+    [
+        ("TATASTEEL23NOV26150PE", "TATASTEEL26NOV23150PE"),
+        ("CROMPTON23NOV26182.5CE", "CROMPTON26NOV23182.5CE"),  # fractional strike
+        ("NAM-INDIA29DEC26820CE", "NAM-INDIA26DEC29820CE"),  # hyphen in the name
+        ("M&M23NOV262500CE", "M&M26NOV232500CE"),  # ampersand in the name
+        ("NIFTY29DEC2623000CE", "NIFTY26DEC2923000CE"),  # an index
+        ("BANKNIFTY29DEC2646500PE", "BANKNIFTY26DEC2946500PE"),
+        ("360ONE23NOV261000CE", "360ONE26NOV231000CE"),  # digits at the start of the name
+    ],
+)
+def test_angels_spelling_becomes_ours(angel, ours):
+    assert compact_symbol_from_angel(angel) == ours
+
+
+def test_the_date_is_read_day_first_in_angels_spelling():
+    parts = parse_angel_option_symbol("TATASTEEL23NOV26150PE")
+    assert parts.expiry == dt.date(2026, 11, 23) and parts.strike == 150.0
+    assert (parts.underlying, parts.option_type) == ("TATASTEEL", "PE")
+
+
+NOT_OPTIONS = [
+    "TATASTEEL-EQ",
+    "RELIANCE",
+    "TATASTEEL23NOV26FUT",
+    "",
+    "TATASTEEL23XYZ26150PE",  # not a month
+    "TATASTEEL32NOV26150PE",  # not a day
+]
+
+
+@pytest.mark.parametrize("symbol", NOT_OPTIONS)
+def test_anything_that_is_not_an_angel_option_is_none(symbol):
+    assert compact_symbol_from_angel(symbol) is None
+
+
+def test_the_round_trip_through_our_own_parser_recovers_the_contract():
+    ours = compact_symbol_from_angel("CROMPTON23NOV26182.5CE")
+    parts = parse_option_contract_symbol(ours)
+    assert (parts.underlying, parts.expiry, parts.strike, parts.option_type) == (
+        "CROMPTON",
+        dt.date(2026, 11, 23),
+        182.5,
+        "CE",
+    )
