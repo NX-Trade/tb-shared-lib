@@ -178,3 +178,13 @@ def get_stc_dynamic_exit_key(symbol: str, side: str) -> str:
     bar it was computed from.
     """
     return f"execution:stc_dynamic_exit:{symbol}:{side}"
+
+
+def get_stc_spread_exit_key(symbol: str, side: str) -> str:
+    """The same trend-exit signal, for option spreads, under its own key.
+
+    The equity position monitor deletes ``get_stc_dynamic_exit_key`` once it has read it, so a
+    spread on the same symbol could lose its exit to it. This one is never deleted by a reader; its
+    value carries the time it was set, so a spread opened after it ignores it.
+    """
+    return f"execution:stc_spread_exit:{symbol.strip().upper()}:{side.strip().upper()}"

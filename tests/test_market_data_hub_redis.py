@@ -7,6 +7,8 @@ from tb_utils.redis.keys import (
     get_market_data_candle_key,
     get_market_data_subscription_key,
     get_option_chain_key,
+    get_stc_dynamic_exit_key,
+    get_stc_spread_exit_key,
     get_upstox_token_key,
 )
 from tb_utils.redis.sync_market_store import SyncMarketStore
@@ -115,3 +117,9 @@ def test_option_chain_cache_storage():
     assert retrieved is not None
     assert len(retrieved) == 1
     assert retrieved[0]["strike_price"] == 980.0
+
+
+def test_the_spread_exit_flag_has_its_own_key_apart_from_the_equity_one():
+    """The equity monitor deletes its flag when read; a spread must not lose its exit to that."""
+    assert get_stc_spread_exit_key("sail", "buy") == "execution:stc_spread_exit:SAIL:BUY"
+    assert get_stc_spread_exit_key("SAIL", "BUY") != get_stc_dynamic_exit_key("SAIL", "BUY")
