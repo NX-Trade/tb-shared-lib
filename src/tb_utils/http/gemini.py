@@ -82,6 +82,26 @@ def parse_api_keys(values: Iterable[str]) -> tuple[str, ...]:
     return tuple(found)
 
 
+# Gemini 3.8 Flash, standard tier, per million tokens (output includes thinking). These are the
+# introductory rates through 31 Dec 2026; the regular rate applies from 1 Jan 2027 (30 Oct 2026,
+# from third-party price sheets: check Google's own page). The environment can override them.
+INTRO_PRICE_ENDS = dt.date(2027, 1, 1)
+INTRO_PRICE_USD_PER_M = (0.75, 3.75)
+REGULAR_PRICE_USD_PER_M = (1.50, 7.50)
+DEFAULT_USD_INR = (
+    100.94  # the rate implied by the ₹ figures in Google's price table copy (30 Oct 2026)
+)
+
+
+def default_prices(today: Optional[dt.date] = None) -> tuple[float, float]:
+    """The (input, output) USD per million tokens in force on ``today``."""
+    return (
+        INTRO_PRICE_USD_PER_M
+        if (today or dt.date.today()) < INTRO_PRICE_ENDS
+        else REGULAR_PRICE_USD_PER_M
+    )
+
+
 @dataclass(frozen=True)
 class GeminiConfig:
     """Everything the client reads from the environment."""
@@ -91,10 +111,10 @@ class GeminiConfig:
     eod_model: str
     max_calls_per_day: int = 2000
     daily_budget_inr: float = 200.0
-    # Placeholder Flash-class prices: set the real ones in the environment (an estimate).
-    price_in_usd_per_m: float = 0.30
-    price_out_usd_per_m: float = 2.50
-    usd_inr: float = 88.0
+    # Gemini 3.8 Flash's published prices (see default_prices); the environment overrides them.
+    price_in_usd_per_m: float = INTRO_PRICE_USD_PER_M[0]
+    price_out_usd_per_m: float = INTRO_PRICE_USD_PER_M[1]
+    usd_inr: float = DEFAULT_USD_INR
     # Tokens the model may spend thinking before it answers. Thinking counts against the output
     # limit and is billed as output, so it is bounded (room is added to the limit for it).
     # Negative: leave it to the model. Zero was tried live and the model then answered badly.
@@ -104,15 +124,16 @@ class GeminiConfig:
     def from_env(cls) -> "GeminiConfig":
         names = ["GEMINI_API_KEY"] + [f"GEMINI_API_KEY_{n}" for n in range(1, MAX_KEY_VARS + 1)]
         keys = parse_api_keys(os.getenv(name, "") for name in names)
+        price_in, price_out = default_prices()
         return cls(
             api_keys=keys,
             live_model=os.getenv("GEMINI_LIVE_MODEL", ""),
             eod_model=os.getenv("GEMINI_EOD_MODEL", ""),
             max_calls_per_day=int(os.getenv("GEMINI_MAX_CALLS_PER_DAY", "2000")),
             daily_budget_inr=float(os.getenv("GEMINI_DAILY_BUDGET_INR", "200")),
-            price_in_usd_per_m=float(os.getenv("GEMINI_PRICE_INPUT_USD_PER_M", "0.30")),
-            price_out_usd_per_m=float(os.getenv("GEMINI_PRICE_OUTPUT_USD_PER_M", "2.50")),
-            usd_inr=float(os.getenv("GEMINI_USD_INR", "88")),
+            price_in_usd_per_m=float(os.getenv("GEMINI_PRICE_INPUT_USD_PER_M", str(price_in))),
+            price_out_usd_per_m=float(os.getenv("GEMINI_PRICE_OUTPUT_USD_PER_M", str(price_out))),
+            usd_inr=float(os.getenv("GEMINI_USD_INR", str(DEFAULT_USD_INR))),
             thinking_budget=int(os.getenv("GEMINI_THINKING_BUDGET", "512")),
         )
 

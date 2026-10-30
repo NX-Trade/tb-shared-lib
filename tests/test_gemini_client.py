@@ -1,6 +1,7 @@
 # pylint: disable=unused-argument  # fakes mirror the real signatures
 """GeminiClient: structured output, key failover, model fallback, budget, typed errors."""
 
+import datetime as dt
 import json
 from unittest.mock import patch
 
@@ -16,7 +17,7 @@ from tb_utils.http.errors import (
     UpstreamTimeout,
     UpstreamUnavailable,
 )
-from tb_utils.http.gemini import GeminiClient, GeminiConfig, parse_api_keys
+from tb_utils.http.gemini import GeminiClient, GeminiConfig, default_prices, parse_api_keys
 from tb_utils.http.redaction import REDACTED, redact_headers
 
 SCHEMA = {"type": "OBJECT", "properties": {"verdict": {"type": "STRING"}}, "required": ["verdict"]}
@@ -105,6 +106,9 @@ CONFIG = GeminiConfig(
     eod_model="eod-model",
     max_calls_per_day=5,
     daily_budget_inr=50.0,
+    price_in_usd_per_m=0.30,  # pinned, so these cost tests do not move when the default prices do
+    price_out_usd_per_m=2.50,
+    usd_inr=88.0,
 )
 
 
@@ -348,6 +352,9 @@ class TestBudget:
             eod_model="",
             max_calls_per_day=0,
             daily_budget_inr=0.05,
+            price_in_usd_per_m=0.30,  # pinned: the 0.048 per call below assumes these rates
+            price_out_usd_per_m=2.50,
+            usd_inr=88.0,
         )
         gemini, _, _ = client([answer(prompt=1000, completion=100), answer()], config)
         gemini.generate("s", "u", SCHEMA)  # costs about 0.048
@@ -393,3 +400,38 @@ class TestConfiguration:
         monkeypatch.setenv("GEMINI_API_KEY_1", "a")
         monkeypatch.delenv("GEMINI_API_KEY_2", raising=False)
         assert GeminiConfig.from_env().api_keys == ("a",)
+
+
+class TestDefaultPrices:
+    """Gemini 3.8 Flash's published rates, with the January 2027 step (30 Oct 2026)."""
+
+    def test_the_introductory_rate_runs_to_the_end_of_2026(self):
+        assert default_prices(dt.date(2026, 10, 30)) == (0.75, 3.75)
+        assert default_prices(dt.date(2026, 12, 31)) == (0.75, 3.75)
+
+    def test_the_regular_rate_starts_on_the_first_of_january(self):
+        assert default_prices(dt.date(2027, 1, 1)) == (1.50, 7.50)
+
+    def test_the_environment_defaults_follow_the_rate_in_force(self, monkeypatch):
+        for name in (
+            "GEMINI_PRICE_INPUT_USD_PER_M",
+            "GEMINI_PRICE_OUTPUT_USD_PER_M",
+            "GEMINI_USD_INR",
+        ):
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv("GEMINI_API_KEY", "k")
+        config = GeminiConfig.from_env()
+        assert (config.price_in_usd_per_m, config.price_out_usd_per_m) == default_prices()
+        assert config.usd_inr == 100.94
+
+    def test_an_explicit_price_in_the_environment_wins(self, monkeypatch):
+        monkeypatch.setenv("GEMINI_API_KEY", "k")
+        monkeypatch.setenv("GEMINI_PRICE_INPUT_USD_PER_M", "2")
+        monkeypatch.setenv("GEMINI_PRICE_OUTPUT_USD_PER_M", "10")
+        config = GeminiConfig.from_env()
+        assert (config.price_in_usd_per_m, config.price_out_usd_per_m) == (2.0, 10.0)
+
+    def test_a_typical_gatekeeper_call_costs_a_few_tenths_of_a_rupee(self):
+        # about 2,000 tokens in and 600 out (thinking included), at the introductory rate
+        usd = (2000 * 0.75 + 600 * 3.75) / 1e6
+        assert usd * 100.94 == pytest.approx(0.375, abs=0.01)
