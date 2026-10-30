@@ -5,11 +5,13 @@ count (``LOW_OI``, ``WIDE_SPREAD``, ...). Adding a rule is adding a function her
 the engine applies it, which is what lets the same pipeline serve other structures later.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Optional
 
 from tb_utils.options.ideas import Quote
-from tb_utils.options.spread_policy import TRANSITIONAL, SpreadPolicy
+from tb_utils.options.payoff import Leg, max_profit_loss, net_premium
+from tb_utils.options.spread_policy import LOW_VOL, TRANSITIONAL, SpreadPolicy
 
 
 @dataclass(frozen=True)
@@ -80,3 +82,38 @@ def check_credit(credit: float, width: float, policy: SpreadPolicy) -> Optional[
             f"credit {credit:.2f} < {policy.min_credit_pct_of_width:.0%} of width {width:g}",
         )
     return None
+
+
+def vertical_rule_breach(
+    legs: Sequence[Leg], policy: SpreadPolicy = SpreadPolicy()
+) -> Optional[Rejection]:  # noqa: B008
+    """The spec rule a hand-built two-leg vertical breaks, or None.
+
+    Also None when the basket is not a vertical (anything but one bought and one sold leg of the
+    same type, size and expiry at different strikes), so it is safe to call on any basket. A debit
+    spread needs reward:risk of at least the policy's floor; a credit spread needs a minimum credit
+    as a share of its width. The volatility regime is not known for a basket built by hand, so a
+    debit spread is held to the normal floor rather than the stricter transitional one.
+    """
+    if len(legs) != 2:
+        return None
+    a, b = legs
+    same_shape = (
+        a.option_type == b.option_type
+        and a.option_type in ("CE", "PE")
+        and {a.action, b.action} == {"BUY", "SELL"}
+        and a.lots == b.lots
+        and a.expiry == b.expiry
+        and a.strike != b.strike
+    )
+    if not same_shape:
+        return None
+    width = abs(a.strike - b.strike)
+    per_share = net_premium(legs) / (a.lots * a.lot_size)  # positive is a credit
+    if per_share >= 0:
+        return check_credit(per_share, width, policy)
+    extremes = max_profit_loss(legs)
+    max_loss = -extremes.max_loss.value
+    if max_loss <= 0 or extremes.max_profit.value <= 0:
+        return None
+    return check_reward_risk(extremes.max_profit.value / max_loss, LOW_VOL, policy)

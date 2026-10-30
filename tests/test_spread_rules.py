@@ -4,7 +4,9 @@ import datetime as dt
 
 from tb_utils.options import spread_rules as rules
 from tb_utils.options.ideas import Quote
+from tb_utils.options.payoff import Leg
 from tb_utils.options.spread_policy import HIGH_VOL, LOW_VOL, TRANSITIONAL, SpreadPolicy
+from tb_utils.options.spread_rules import vertical_rule_breach
 
 P = SpreadPolicy()
 
@@ -85,3 +87,60 @@ def test_credit_must_be_a_quarter_of_the_width():
 
 def test_the_regime_constant_for_high_vol_is_exported():
     assert HIGH_VOL
+
+
+# ── A hand-built vertical, checked against the same rules ────────────────────────────────────────
+
+_EXP = dt.date(2026, 11, 26)
+
+
+def _leg(action, option_type, strike, premium, lots=1):
+    return Leg(action, option_type, strike, premium, lots, 100, _EXP)
+
+
+class TestVerticalRuleBreach:
+    def test_an_at_the_money_debit_spread_near_one_to_one_breaks_the_reward_risk_rule(self):
+        legs = [
+            _leg("BUY", "CE", 1000, 50.0),
+            _leg("SELL", "CE", 1050, 25.0),
+        ]  # pays 25 for 25: 1:1
+        breach = vertical_rule_breach(legs)
+        assert breach is not None and breach.code == "LOW_REWARD_RISK"
+
+    def test_a_cheap_debit_spread_passes(self):
+        legs = [
+            _leg("BUY", "CE", 1020, 30.0),
+            _leg("SELL", "CE", 1100, 10.0),
+        ]  # pays 20 for 60: 1:3
+        assert vertical_rule_breach(legs) is None
+
+    def test_a_thin_credit_spread_breaks_the_credit_rule(self):
+        legs = [
+            _leg("BUY", "PE", 940, 8.0),
+            _leg("SELL", "PE", 980, 12.0),
+        ]  # collects 4 on a 40 width: 10%
+        breach = vertical_rule_breach(legs)
+        assert breach is not None and breach.code == "LOW_CREDIT"
+
+    def test_a_rich_credit_spread_passes(self):
+        legs = [
+            _leg("BUY", "PE", 940, 5.0),
+            _leg("SELL", "PE", 980, 17.0),
+        ]  # collects 12 on 40: 30%
+        assert vertical_rule_breach(legs) is None
+
+    def test_baskets_that_are_not_verticals_are_left_alone(self):
+        fly = [
+            _leg("BUY", "CE", 1000, 50.0),
+            _leg("SELL", "CE", 1050, 25.0, lots=2),
+            _leg("BUY", "CE", 1100, 10.0),
+        ]
+        straddle = [_leg("BUY", "CE", 1000, 50.0), _leg("BUY", "PE", 1000, 45.0)]
+        mixed_lots = [_leg("BUY", "CE", 1000, 50.0), _leg("SELL", "CE", 1050, 25.0, lots=2)]
+        same_strike = [_leg("BUY", "CE", 1000, 50.0), _leg("SELL", "CE", 1000, 50.0)]
+        for basket in (fly, straddle, mixed_lots, same_strike, [_leg("BUY", "CE", 1000, 50.0)]):
+            assert vertical_rule_breach(basket) is None
+
+    def test_the_order_of_the_legs_does_not_matter(self):
+        legs = [_leg("SELL", "CE", 1050, 25.0), _leg("BUY", "CE", 1000, 50.0)]
+        assert vertical_rule_breach(legs).code == "LOW_REWARD_RISK"

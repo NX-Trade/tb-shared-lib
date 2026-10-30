@@ -35,7 +35,7 @@ import datetime as dt
 import math
 from collections import Counter
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 # internal
@@ -56,9 +56,11 @@ from tb_utils.options.templates import (
     BULLISH,
     CREDIT,
     DEBIT,
+    VERTICAL,
     ResolvedLeg,
     Template,
     TemplateError,
+    get_template,
     list_templates,
     resolve_template,
     shape_of,
@@ -414,6 +416,92 @@ def _rationale(template: Template, bias: str, view: Optional[DirectionalView], m
     )
 
 
+def _steps_between(ctx: _Context, legs: list[IdeaLeg]) -> int:
+    """A vertical's strike distance in listed-strike steps, the way the templates count width."""
+    listed = sorted(ctx.strikes)
+    low, high = min(leg.strike for leg in legs), max(leg.strike for leg in legs)
+    return listed.index(high) - listed.index(low) if low in listed and high in listed else 0
+
+
+def _vertical_ideas(  # pylint: disable=too-many-locals
+    ctx: _Context, bias: str
+) -> tuple[list[Idea], list[Rejection]]:
+    """A debit and a credit vertical for ``bias``, chosen by the spread engine's delta bands.
+
+    The templates place a vertical by strike offset: buy the at-the-money strike, sell one or two
+    strikes away. That costs about half the width, so reward:risk sits near 1:1 whatever the chain,
+    and the spec's rules (long delta 0.35 to 0.45, short 0.15 to 0.20, reward:risk of at least 2.5,
+    a minimum credit, a minimum probability of profit, per-leg liquidity) can never be met. The
+    same engine that builds the STC spreads now builds these, so the Option Builder and the
+    auto-trader follow one rule set. A vertical the rules refuse is reported as a rejection with
+    the reason, never drawn at 1:1 to fill the list. The generic ``min_reward_risk`` floor does
+    not apply to it, because the engine's own floor is the rule.
+    """
+    # Imported here: the engine imports this module for Quote and Skip.
+    from tb_utils.options.spread_engine import (  # pylint: disable=import-outside-toplevel
+        FreshChain,
+        build_spread,
+    )
+    from tb_utils.options.spread_policy import (  # pylint: disable=import-outside-toplevel
+        HIGH_VOL,
+        LOW_VOL,
+        SpreadPolicy,
+    )
+    from tb_utils.options.spread_structures import (  # pylint: disable=import-outside-toplevel
+        choose_vertical,
+    )
+
+    action = "BUY" if bias == BULLISH else "SELL"
+    chain = ctx.chain
+    # The engine reads one expiry from what it is given; hand it the one this request is built on.
+    scoped = replace(chain, quotes=tuple(q for q in chain.quotes if q.expiry == ctx.expiry))
+    fresh = FreshChain(scoped, requested_at=chain.ts)  # the builder uses the stored snapshot as-is
+    policy = SpreadPolicy()
+
+    ideas: list[Idea] = []
+    rejections: list[Rejection] = []
+    for regime in (LOW_VOL, HIGH_VOL):  # debit and credit, whatever the volatility regime
+        key = choose_vertical(action, regime, policy).key
+        result = build_spread(
+            fresh,
+            action,
+            ctx.now,
+            policy,
+            lambda a, _r, p, regime=regime: choose_vertical(a, regime, p),
+        )
+        spread = result.spread
+        if spread is None:
+            reason = result.skip.message if result.skip else "no strike pair met the rules"
+            if result.rejections:  # the closest miss, so the reason is a number the user can read
+                reason = f"{reason}: {result.rejections[0].detail}"
+            rejections.append(Rejection(key, 0, reason))
+            continue
+        legs = [
+            IdeaLeg(
+                l.action,
+                l.option_type,
+                l.strike,
+                l.lots,
+                l.premium,
+                l.premium_basis,
+                l.iv,
+                l.bid,
+                l.ask,
+                l.open_interest,
+                l.volume,
+            )  # fmt: skip
+            for l in spread.legs  # noqa: E741  # pylint: disable=invalid-name
+        ]
+        idea, reason = _judge(
+            ctx, get_template(spread.structure), legs, 0.0, _steps_between(ctx, legs)
+        )
+        if idea is not None:
+            ideas.append(idea)
+        else:
+            rejections.append(Rejection(key, 0, reason or "rejected"))
+    return ideas, rejections
+
+
 def _evaluate(  # pylint: disable=too-many-locals
     ctx: _Context, template: Template, width: int
 ) -> tuple[Optional[Idea], Optional[str]]:
@@ -437,6 +525,15 @@ def _evaluate(  # pylint: disable=too-many-locals
         if priced is None:
             return None, why
         legs.append(priced)
+    return _judge(ctx, template, legs, config.min_reward_risk, width)
+
+
+def _judge(  # pylint: disable=too-many-locals
+    ctx: _Context, template: Template, legs: list[IdeaLeg], min_reward_risk: float, width: int
+) -> tuple[Optional[Idea], Optional[str]]:
+    """Judge priced legs: risk defined, reward:risk, slippage, reach, odds and score."""
+    chain, config, view = ctx.chain, ctx.config, ctx.view
+    bias = view.bias if view else template.bias
     payoff_legs = _payoff_legs(ctx, legs)
 
     extremes = max_profit_loss(payoff_legs)
@@ -445,7 +542,7 @@ def _evaluate(  # pylint: disable=too-many-locals
     max_profit, max_loss = extremes.max_profit.value, -extremes.max_loss.value
     if max_profit <= 0 or max_loss <= 0:
         return None, "no profit is possible" if max_profit <= 0 else "no risk to measure"
-    if max_profit / max_loss < config.min_reward_risk:
+    if max_profit / max_loss < min_reward_risk:
         return None, "reward-to-risk is below the minimum"
 
     slippage = sum(l.lots * chain.lot_size * (l.ask - l.bid) for l in legs)  # noqa: E741
@@ -552,7 +649,7 @@ DEFAULT_HORIZON_DAYS = 10
 SUGGEST_BIASES = (BULLISH, BEARISH)
 
 
-def suggest_strategies(
+def suggest_strategies(  # pylint: disable=too-many-locals
     chain: ChainData,
     now: dt.datetime,
     *,
@@ -599,12 +696,17 @@ def suggest_strategies(
     rejections: list[Rejection] = []
     for bias in SUGGEST_BIASES if view is None else (view.bias,):
         for template in list_templates(bias, generator_only=True):
+            if shape_of(template) == VERTICAL:
+                continue  # verticals are built below by strike delta, not by strike offset
             for width in config.widths:
                 idea, reason = _evaluate(ctx, template, width)
                 if idea is not None:
                     survivors.append(idea)
                 else:
                     rejections.append(Rejection(template.key, width, reason or "rejected"))
+        built, refused = _vertical_ideas(ctx, bias)
+        survivors += built
+        rejections += refused
     survivors.sort(key=lambda i: (SUGGEST_BIASES.index(i.bias), -i.score))
     return Suggestions(
         name,

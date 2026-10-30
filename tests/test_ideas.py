@@ -25,7 +25,17 @@ STRIKES = [float(k) for k in range(800, 1201, 20)]
 HALF_SPREAD = 0.25
 
 
-def _quote(strike, option_type, expiry=EXPIRY, *, oi=5000, volume=1000, iv=IV, two_sided=True):
+def _quote(
+    strike,
+    option_type,
+    expiry=EXPIRY,
+    *,
+    oi=5000,
+    volume=1000,
+    iv=IV,
+    two_sided=True,
+    half=HALF_SPREAD,
+):
     days = (expiry - NOW.date()).days
     fair = float(black_scholes_price(SPOT, strike, days, IV, option_type))
     mid = max(fair, 0.5)
@@ -33,8 +43,8 @@ def _quote(strike, option_type, expiry=EXPIRY, *, oi=5000, volume=1000, iv=IV, t
         expiry=expiry,
         strike=strike,
         option_type=option_type,
-        bid=round(mid - HALF_SPREAD, 2) if two_sided else None,
-        ask=round(mid + HALF_SPREAD, 2) if two_sided else None,
+        bid=round(mid - half, 2) if two_sided else None,
+        ask=round(mid + half, 2) if two_sided else None,
         ltp=round(mid, 2),
         open_interest=oi,
         volume=volume,
@@ -180,8 +190,8 @@ class TestSuggestStrategies:
     def test_a_low_iv_rank_rewards_debit_structures_in_the_ordering(self):
         base = {i.template: i.score for i in suggest_strategies(_chain(), NOW).ideas}
         low = {i.template: i.score for i in suggest_strategies(_chain(), NOW, iv_rank=10.0).ideas}
-        assert low["bull_call_spread"] == pytest.approx(
-            base["bull_call_spread"] + IdeaConfig().family_bonus
+        assert low["call_butterfly"] == pytest.approx(
+            base["call_butterfly"] + IdeaConfig().family_bonus
         )
 
 
@@ -205,7 +215,9 @@ class TestSuggestSkips:
     def test_a_rejection_names_the_template_width_and_reason(self):
         found = suggest_strategies(_chain(), NOW)
         assert found.rejections
-        assert all(r.template and r.width in (1, 2) and r.reason for r in found.rejections)
+        assert all(
+            r.template and r.width in (0, 1, 2) and r.reason for r in found.rejections
+        )  # 0: a delta-built vertical
 
     def test_an_illiquid_chain_says_illiquid(self):
         quotes = [_quote(k, t, oi=10) for k in STRIKES for t in ("CE", "PE")]
@@ -313,8 +325,8 @@ class TestSuggestWithAView:
             i.template: i.score
             for i in suggest_strategies(_chain(), NOW, view=_view(), iv_rank=10.0).ideas
         }
-        assert low["bull_call_spread"] == pytest.approx(
-            base["bull_call_spread"] + IdeaConfig().family_bonus
+        assert low["call_butterfly"] == pytest.approx(
+            base["call_butterfly"] + IdeaConfig().family_bonus
         )
 
 
@@ -360,3 +372,75 @@ class TestMinimumRewardToRisk:
         config = IdeaConfig(min_reward_risk=4.0)
         found = suggest_strategies(_chain(), NOW, view=_view(), config=config)
         assert all(i.reward_risk >= 4.0 for i in found.ideas)
+
+
+# ── Verticals follow the spec, not the strike-offset templates ──────────────────────────────────
+#
+# The templates buy the at-the-money strike and sell one or two strikes away: a debit spread built
+# that way costs about half its width, so its reward:risk is about 1:1 and the spec's 1:2.5 can
+# never
+# be met (30 Oct 2026). Verticals now come from the spread engine's delta bands and rules.
+
+
+def _liquid_chain():
+    quotes = [
+        _quote(k, t, oi=20000, volume=50000, half=0.05) for k in STRIKES for t in ("CE", "PE")
+    ]
+    return _chain(quotes)
+
+
+def _verticals(found):
+    return [i for i in found.ideas if i.shape == "vertical"]
+
+
+class TestVerticalsFollowTheSpec:
+    def test_no_vertical_is_drawn_at_the_old_one_to_one(self):
+        for floor in (0.0, 4.0):
+            found = suggest_strategies(
+                _liquid_chain(), NOW, config=IdeaConfig(min_reward_risk=floor)
+            )
+            for idea in _verticals(found):
+                if idea.family == "DEBIT":
+                    assert idea.reward_risk >= 2.5 - 1e-9
+
+    def test_a_credit_vertical_collects_at_least_a_quarter_of_its_width(self):
+        found = suggest_strategies(_liquid_chain(), NOW)
+        credit_ideas = [i for i in _verticals(found) if i.family == "CREDIT"]
+        assert credit_ideas
+        for idea in credit_ideas:
+            width = max(leg.strike for leg in idea.legs) - min(leg.strike for leg in idea.legs)
+            assert idea.net_premium / idea.lot_size >= 0.25 * width - 1e-6
+
+    def test_the_generic_floor_does_not_remove_a_vertical_the_rules_accept(self):
+        loose = _verticals(
+            suggest_strategies(_liquid_chain(), NOW, config=IdeaConfig(min_reward_risk=0.0))
+        )
+        strict = _verticals(
+            suggest_strategies(_liquid_chain(), NOW, config=IdeaConfig(min_reward_risk=4.0))
+        )
+        assert [i.template for i in strict] == [i.template for i in loose]
+
+    def test_bought_legs_come_first(self):
+        for idea in _verticals(suggest_strategies(_liquid_chain(), NOW)):
+            actions = [leg.action for leg in idea.legs]
+            assert actions == sorted(actions, key=lambda a: a != "BUY")
+
+    def test_a_vertical_the_rules_refuse_is_reported_with_the_reason_not_drawn(self):
+        found = suggest_strategies(_liquid_chain(), NOW)
+        refused = [r for r in found.rejections if r.width == 0]
+        assert refused and all(r.reason for r in refused)
+        built = {i.template for i in _verticals(found)}
+        assert not built & {r.template for r in refused}
+
+    def test_an_illiquid_chain_yields_no_vertical_rather_than_a_one_to_one(self):
+        assert not _verticals(
+            suggest_strategies(_chain(), NOW)
+        )  # default test chain: volume 1,000 < 10,000
+
+    def test_the_other_structures_are_unchanged(self):
+        shapes = {i.shape for i in suggest_strategies(_liquid_chain(), NOW).ideas}
+        assert shapes - {"vertical"}  # butterflies and the rest still come from the templates
+
+    def test_a_requested_expiry_is_the_one_the_vertical_is_built_on(self):
+        found = suggest_strategies(_liquid_chain(), NOW, expiry=EXPIRY)
+        assert all(i.expiry == EXPIRY for i in found.ideas)
