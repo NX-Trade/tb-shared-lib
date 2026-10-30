@@ -1,283 +1,203 @@
-"""Unit tests for tb_utils.options.strategy_builder.build_vertical_spread_strategy."""
+# pylint: disable=redefined-outer-name
+"""The research agent's vertical builder: now the spread engine's rules, on a stored chain.
 
-# stdlib
+It used to buy the at-the-money strike and sell near the signal's target, which priced its debit
+spreads near 1:1, accepted reward:risk of 1.2 on an open interest of 300 and needed a target
+(30 Oct 2026).
+"""
+
 import datetime as dt
-from collections import namedtuple
 from unittest.mock import MagicMock
 
-# internal
-from tb_utils.options.strategy_builder import (
-    MIN_POSITIONAL_DTE,
-    MIN_SPREAD_OPEN_INTEREST,
-    BuiltOptionStrategy,
-    build_vertical_spread_strategy,
-)
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-Row = namedtuple(
-    "Row",
-    [
-        "expiry_date",
-        "strike_price",
-        "option_type",
-        "ltp",
-        "implied_vol",
-        "open_interest",
-        "volume",
-        "underlying_value",
-        "dte",
-    ],
-)
+from tb_utils.greeks import black_scholes_price
+from tb_utils.models.historical_data import OptionChain
+from tb_utils.options import strategy_builder as sb
+from tb_utils.options.ideas import ChainData, Quote
+from tb_utils.options.strategy_builder import BuiltOptionStrategy, build_vertical_spread_strategy
+from tb_utils.time import IST
+
+SPOT = 1000.0
+LOT = 100
+NOW = dt.datetime(2026, 10, 22, 19, 0, tzinfo=IST)
+TS = NOW - dt.timedelta(hours=3)
+EXPIRY = dt.date(2026, 11, 26)
+STRIKES = [float(k) for k in range(800, 1201, 20)]
 
 
-def _mock_db(rows):
-    db = MagicMock()
-    db.execute.return_value.fetchall.return_value = rows
-    return db
-
-
-def test_build_bull_call_spread_success():
-    """Test successful construction of a Bull Call Spread."""
-    expiry = dt.date.today() + dt.timedelta(days=15)
-    rows = [
-        # ATM Call (Strike 1000 <= Entry 1000)
-        Row(
-            expiry_date=expiry,
-            strike_price=1000.0,
-            option_type="CE",
-            ltp=30.0,
-            implied_vol=18.0,
-            open_interest=MIN_SPREAD_OPEN_INTEREST + 500,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=15,
-        ),
-        # OTM Call near Target 1050
-        Row(
-            expiry_date=expiry,
-            strike_price=1050.0,
-            option_type="CE",
-            ltp=10.0,
-            implied_vol=18.0,
-            open_interest=MIN_SPREAD_OPEN_INTEREST + 300,
-            volume=800,
-            underlying_value=1000.0,
-            dte=15,
-        ),
-    ]
-    db = _mock_db(rows)
-
-    strategy = build_vertical_spread_strategy(
-        db=db,
-        symbol="NIFTY",
-        action="BUY",
-        entry_price=1000.0,
-        target_price=1050.0,
-        stop_loss=970.0,
-        lot_size=50,
-        min_dte=MIN_POSITIONAL_DTE,
+def _quote(strike, option_type, *, oi=20000, volume=50000, iv=25.0, half=0.05):
+    days = (EXPIRY - NOW.date()).days
+    mid = max(float(black_scholes_price(SPOT, strike, days, iv, option_type)), 0.5)
+    return Quote(
+        EXPIRY,
+        strike,
+        option_type,
+        round(mid - half, 2),
+        round(mid + half, 2),
+        round(mid, 2),
+        oi,
+        volume,
+        iv,
     )
 
-    assert strategy is not None
+
+def _chain(
+    iv=35.0, **kwargs
+):  # 35% puts the ATM straddle in the high regime: the engine sells credit
+    quotes = [_quote(k, t, iv=iv, **kwargs) for k in STRIKES for t in ("CE", "PE")]
+    return ChainData("ACME", TS, SPOT, LOT, False, quotes)
+
+
+@pytest.fixture
+def liquid(monkeypatch):
+    monkeypatch.setattr(sb, "load_stored_chain", lambda db, symbol, lot_size: _chain())
+
+
+def build(action="BUY", **kwargs):
+    args = {
+        "entry_price": SPOT,
+        "target_price": 1060.0,
+        "stop_loss": 950.0,
+        "lot_size": LOT,
+        "now": NOW,
+    }
+    args.update(kwargs)
+    return build_vertical_spread_strategy(MagicMock(), "ACME", action, **args)
+
+
+@pytest.mark.usefixtures("liquid")
+def test_a_bullish_signal_builds_a_bull_vertical_that_meets_the_rules():
+    strategy = build("BUY")
     assert isinstance(strategy, BuiltOptionStrategy)
-    assert strategy.strategy_type == "BULL_CALL_SPREAD"
-    assert strategy.spread_type == "DEBIT"
-    assert strategy.underlying_symbol == "NIFTY"
-    assert strategy.expiry_date == expiry
-    assert strategy.net_premium == 20.0  # 30 - 10
-    assert strategy.max_profit == 30.0  # 50 width - 20 debit
-    assert strategy.max_loss == 20.0  # 20 debit
-    assert strategy.risk_reward_ratio == 1.50  # 30 / 20 = 1.5 >= 1.20
-
-    # Validate sequenced legs
-    assert len(strategy.legs) == 2
-    leg1, leg2 = strategy.legs
-
-    # Leg 1: BUY Hedge Leg (execution_order 1)
-    assert leg1.execution_order == 1
-    assert leg1.action == "BUY"
-    assert leg1.option_type == "CE"
-    assert leg1.strike_price == 1000.0
-    assert leg1.is_hedge is True
-    assert leg1.delta is not None
-    assert leg1.theta is not None
-
-    # Leg 2: SELL Short Leg (execution_order 2)
-    assert leg2.execution_order == 2
-    assert leg2.action == "SELL"
-    assert leg2.option_type == "CE"
-    assert leg2.strike_price == 1050.0
-    assert leg2.is_hedge is False
-    assert leg2.delta is not None
-    assert leg2.theta is not None
+    assert strategy.strategy_type in ("BULL_CALL_SPREAD", "BULL_PUT_SPREAD")
+    if strategy.spread_type == "DEBIT":
+        assert strategy.risk_reward_ratio >= 2.5 and strategy.net_premium > 0
+    else:  # a credit spread keeps at least a quarter of its width
+        width = abs(strategy.legs[0].strike_price - strategy.legs[1].strike_price)
+        assert strategy.net_premium < 0 and -strategy.net_premium >= 0.25 * width - 1e-6
 
 
-def test_build_bear_put_spread_success():
-    """Test successful construction of a Bear Put Spread."""
-    expiry = dt.date.today() + dt.timedelta(days=15)
-    rows = [
-        # ATM Put (Strike 1000 >= Entry 1000)
-        Row(
-            expiry_date=expiry,
-            strike_price=1000.0,
-            option_type="PE",
-            ltp=32.0,
-            implied_vol=20.0,
-            open_interest=MIN_SPREAD_OPEN_INTEREST + 500,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=15,
-        ),
-        # OTM Put near Target 950
-        Row(
-            expiry_date=expiry,
-            strike_price=950.0,
-            option_type="PE",
-            ltp=12.0,
-            implied_vol=20.0,
-            open_interest=MIN_SPREAD_OPEN_INTEREST + 400,
-            volume=900,
-            underlying_value=1000.0,
-            dte=15,
-        ),
-    ]
-    db = _mock_db(rows)
-
-    strategy = build_vertical_spread_strategy(
-        db=db,
-        symbol="NIFTY",
-        action="SELL",
-        entry_price=1000.0,
-        target_price=950.0,
-        stop_loss=1030.0,
-        lot_size=50,
-        min_dte=MIN_POSITIONAL_DTE,
-    )
-
+@pytest.mark.usefixtures("liquid")
+def test_a_bearish_signal_builds_a_bear_vertical():
+    strategy = build("SELL")
     assert strategy is not None
-    assert isinstance(strategy, BuiltOptionStrategy)
-    assert strategy.strategy_type == "BEAR_PUT_SPREAD"
-    assert strategy.spread_type == "DEBIT"
-    assert strategy.net_premium == 20.0  # 32 - 12
-    assert strategy.max_profit == 30.0  # 50 width - 20 debit
-    assert strategy.max_loss == 20.0
-
-    leg1, leg2 = strategy.legs
-    assert leg1.execution_order == 1
-    assert leg1.action == "BUY"
-    assert leg1.strike_price == 1000.0
-    assert leg1.is_hedge is True
-
-    assert leg2.execution_order == 2
-    assert leg2.action == "SELL"
-    assert leg2.strike_price == 950.0
-    assert leg2.is_hedge is False
+    assert strategy.strategy_type in ("BEAR_PUT_SPREAD", "BEAR_CALL_SPREAD")
 
 
-def test_build_strategy_invalid_prices():
-    """Invalid or zero price inputs return None."""
-    db = _mock_db([])
-    strat = build_vertical_spread_strategy(
-        db=db,
-        symbol="NIFTY",
-        action="BUY",
-        entry_price=0.0,
-        target_price=1050.0,
-        stop_loss=970.0,
+@pytest.mark.usefixtures("liquid")
+def test_the_bought_leg_is_sent_first_and_is_the_hedge():
+    strategy = build("BUY")
+    first, second = strategy.legs
+    assert (first.execution_order, first.action, first.is_hedge) == (1, "BUY", True)
+    assert (second.execution_order, second.action, second.is_hedge) == (2, "SELL", False)
+
+
+@pytest.mark.usefixtures("liquid")
+def test_no_target_is_needed():
+    assert build("BUY", target_price=0.0) is not None
+
+
+@pytest.mark.usefixtures("liquid")
+def test_the_figures_are_per_share_and_consistent():
+    strategy = build("BUY")
+    width = abs(strategy.legs[0].strike_price - strategy.legs[1].strike_price)
+    assert strategy.max_profit + strategy.max_loss == pytest.approx(width, abs=0.05)
+    assert strategy.lot_size == LOT and strategy.margin_required_approx > 0
+
+
+@pytest.mark.usefixtures("liquid")
+def test_legs_are_priced_at_the_ask_and_the_bid_not_the_last_trade():
+    strategy = build("BUY")
+    chain = _chain()
+    by_key = {(q.strike, q.option_type): q for q in chain.quotes}
+    for leg in strategy.legs:
+        quote = by_key[(leg.strike_price, leg.option_type)]
+        assert leg.entry_premium == (quote.ask if leg.action == "BUY" else quote.bid)
+
+
+def test_an_illiquid_chain_builds_nothing(monkeypatch):
+    monkeypatch.setattr(sb, "load_stored_chain", lambda db, symbol, lot_size: _chain(volume=500))
+    assert build("BUY") is None
+
+
+def test_a_stale_chain_builds_nothing(monkeypatch):
+    old = _chain()
+    monkeypatch.setattr(
+        sb,
+        "load_stored_chain",
+        lambda db, symbol, lot_size: ChainData(
+            *(old.symbol, NOW - dt.timedelta(hours=40), old.spot, old.lot_size, False, old.quotes)
+        ),
     )
-    assert strat is None
+    assert build("BUY") is None
 
 
-def test_build_strategy_insufficient_liquid_strikes():
-    """Fewer than 2 liquid strikes returns None."""
-    expiry = dt.date.today() + dt.timedelta(days=15)
-    rows = [
-        Row(
-            expiry_date=expiry,
-            strike_price=1000.0,
-            option_type="CE",
-            ltp=30.0,
-            implied_vol=18.0,
-            open_interest=MIN_SPREAD_OPEN_INTEREST - 10,  # Below threshold
-            volume=10,
-            underlying_value=1000.0,
-            dte=15,
-        ),
-    ]
-    db = _mock_db(rows)
-    strat = build_vertical_spread_strategy(
-        db=db,
-        symbol="NIFTY",
-        action="BUY",
-        entry_price=1000.0,
-        target_price=1050.0,
-        stop_loss=970.0,
+def test_no_chain_builds_nothing(monkeypatch):
+    monkeypatch.setattr(sb, "load_stored_chain", lambda db, symbol, lot_size: None)
+    assert build("BUY") is None
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{"entry_price": 0.0}, {"stop_loss": 0.0}, {"entry_price": -5.0}]
+)
+@pytest.mark.usefixtures("liquid")
+def test_invalid_prices_build_nothing(kwargs):
+    assert build("BUY", **kwargs) is None
+
+
+@pytest.mark.usefixtures("liquid")
+def test_the_old_one_to_one_is_gone():
+    for action in ("BUY", "SELL"):
+        strategy = build(action)
+        if strategy is not None and strategy.spread_type == "DEBIT":
+            assert strategy.risk_reward_ratio >= 2.5
+
+
+# ── The stored chain loader ──────────────────────────────────────────────────
+
+
+@pytest.fixture
+def session():
+    engine = create_engine("sqlite://")
+    OptionChain.__table__.create(engine)
+    db = sessionmaker(bind=engine)()
+    yield db
+    db.close()
+
+
+def _row(ts, strike, option_type="CE", **kw):
+    values = {
+        "ts": ts, "symbol": "ACME", "expiry_date": EXPIRY,
+        "strike_price": strike, "option_type": option_type,
+        "ltp": 10.0, "bid_price": 9.9, "ask_price": 10.1, "open_interest": 7000, "volume": 12000,
+        "implied_vol": 25.0, "underlying_value": 1000.0, "source": "UPSTOX",
+    }  # fmt: skip
+    values.update(kw)
+    return OptionChain(**values)
+
+
+def test_the_loader_reads_only_the_latest_snapshot(session):
+    older, newer = TS - dt.timedelta(hours=1), TS
+    session.add_all([_row(older, 1000.0, ltp=5.0), _row(newer, 1000.0), _row(newer, 1020.0)])
+    session.commit()
+    chain = sb.load_stored_chain(session, "acme", LOT)
+    assert chain.ts.replace(tzinfo=None) == newer.replace(tzinfo=None)
+    assert sorted(q.strike for q in chain.quotes) == [1000.0, 1020.0]
+    assert chain.spot == 1000.0 and chain.lot_size == LOT and chain.symbol == "ACME"
+
+
+def test_the_loader_keeps_bid_ask_volume_and_treats_zero_as_unpriced(session):
+    session.add_all(
+        [_row(TS, 1000.0), _row(TS, 1020.0, bid_price=0, ask_price=0, ltp=0, implied_vol=0)]
     )
-    assert strat is None
+    session.commit()
+    quotes = {q.strike: q for q in sb.load_stored_chain(session, "ACME", LOT).quotes}
+    assert (quotes[1000.0].bid, quotes[1000.0].ask, quotes[1000.0].volume) == (9.9, 10.1, 12000)
+    assert quotes[1020.0].bid is None and quotes[1020.0].ask is None and quotes[1020.0].iv is None
 
 
-def test_build_strategy_filters_low_dte_expiry():
-    """Expiry below min_dte is skipped in favor of a subsequent valid expiry."""
-    low_expiry = dt.date.today() + dt.timedelta(days=2)
-    valid_expiry = dt.date.today() + dt.timedelta(days=16)
-
-    rows = [
-        # Low DTE expiry (DTE=2 < 6)
-        Row(
-            expiry_date=low_expiry,
-            strike_price=1000.0,
-            option_type="CE",
-            ltp=15.0,
-            implied_vol=18.0,
-            open_interest=5000,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=2,
-        ),
-        Row(
-            expiry_date=low_expiry,
-            strike_price=1050.0,
-            option_type="CE",
-            ltp=5.0,
-            implied_vol=18.0,
-            open_interest=5000,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=2,
-        ),
-        # Valid DTE expiry (DTE=16 >= 6)
-        Row(
-            expiry_date=valid_expiry,
-            strike_price=1000.0,
-            option_type="CE",
-            ltp=30.0,
-            implied_vol=18.0,
-            open_interest=5000,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=16,
-        ),
-        Row(
-            expiry_date=valid_expiry,
-            strike_price=1050.0,
-            option_type="CE",
-            ltp=10.0,
-            implied_vol=18.0,
-            open_interest=5000,
-            volume=1000,
-            underlying_value=1000.0,
-            dte=16,
-        ),
-    ]
-    db = _mock_db(rows)
-    strat = build_vertical_spread_strategy(
-        db=db,
-        symbol="NIFTY",
-        action="BUY",
-        entry_price=1000.0,
-        target_price=1050.0,
-        stop_loss=970.0,
-        min_dte=6,
-    )
-    assert strat is not None
-    assert strat.expiry_date == valid_expiry
-    assert strat.dte == 16
+def test_the_loader_returns_none_for_an_unknown_symbol(session):
+    assert sb.load_stored_chain(session, "NOPE", LOT) is None

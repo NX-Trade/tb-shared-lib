@@ -1,57 +1,57 @@
-"""Multi-Leg Option Strategy Builder for Positional / Directional Setups.
+"""Multi-leg option strategy builder for the research agent's directional signals.
 
-Constructs institutional-grade multi-leg option strategies (Bull Call Spread,
-Bear Put Spread) from directional signals (e.g. LTC Positional signals).
+Builds a defined-risk vertical spread (Bull Call, Bear Put, Bull Put or Bear Call) from a BUY or
+SELL signal on an F&O underlying. The strikes and every rule come from the same engine that builds
+the STC spreads (:mod:`tb_utils.options.spread_engine`), so the research agent, the Option Builder
+and the auto-trader follow one rule set:
 
-Key Rules:
-  1. Strict Execution Ordering:
-     - Leg 1: BUY / Long Hedge Leg (execution_order = 1, is_hedge = True)
-     - Leg 2: SELL / Short Leg (execution_order = 2, is_hedge = False)
-     Deploying Leg 1 first unlocks the 75-80% exchange spread margin discount
-     in Indian broker RMS and avoids naked short margin rejections.
-  2. Expiry Selection & DTE Roll Rule:
-     - Prefers monthly contracts with DTE > 6 days to avoid expiry week
-       gamma crush and physical delivery margin escalation on the NSE.
-  3. Dynamic Strike Selection:
-     - Bull Call Spread:
-         Leg 1 (BUY): ATM Strike (Delta ~ 0.50)
-         Leg 2 (SELL): OTM Strike at/near Target 1 (Delta ~ 0.25 - 0.30)
-     - Bear Put Spread:
-         Leg 1 (BUY): ATM Strike (Delta ~ -0.50)
-         Leg 2 (SELL): OTM Strike at/near Target 1 (Delta ~ -0.25 to -0.30)
+  * strikes chosen by **delta band** (debit: long 0.35 to 0.45, short 0.15 to 0.20; credit: short
+    0.30 to 0.40, long 0.15 to 0.20), not by "at the money" and "near the target";
+  * every leg individually liquid (open interest, volume, bid-ask), reward:risk of at least 2.5 for
+    a debit spread, a credit of at least a quarter of the width, a minimum probability of profit;
+  * debit in low volatility and credit when premium is rich, decided from the ATM straddle;
+  * bought legs first (execution order 1), which earns the exchange's spread margin relief.
+
+This replaced an older builder (30 Oct 2026) that bought the at-the-money strike, sold near the
+signal's target and accepted a reward:risk of 1.2 on an open interest of 300 with no volume,
+bid-ask or probability check, which put its debit spreads near 1:1 and made a target price
+mandatory. A signal needs only an entry and a stop now; the target is carried for the record.
+
+The chain is the latest stored ``option_chain`` snapshot (bid, ask, volume and all), refused when
+it is older than :data:`MAX_CHAIN_AGE`. Prices are per share (a one-lot position's rupees divided
+by the lot size), as the old builder reported them.
 """
-# pylint: disable=too-many-instance-attributes,too-many-locals,too-many-return-statements,too-many-branches,too-many-statements
+# pylint: disable=too-many-instance-attributes
 
 # stdlib
 import datetime as dt
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 # third-party
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 # internal
-from tb_utils.greeks import calculate_greeks
+from tb_utils.models.historical_data import OptionChain
 from tb_utils.models.instrument import Instrument
+from tb_utils.options.ideas import ChainData, Quote
 from tb_utils.options.margin import STOCK, estimate_margin, sigma_from_iv
-from tb_utils.options.payoff import Leg, breakevens, max_profit_loss
-from tb_utils.options.resolver import (
-    OPTION_CONTRACTS_QUERY,
-    _extract_candidates_from_db,
-    _extract_candidates_from_redis,
-    _OptionCandidate,
-    get_default_redis_store,
-)
+from tb_utils.options.payoff import Leg
+from tb_utils.options.spread_engine import FreshChain, Spread, SpreadLeg, build_vertical_spread
+from tb_utils.options.spread_policy import SpreadPolicy
 from tb_utils.redis.sync_market_store import SyncMarketStore
 
 logger = logging.getLogger("tb_utils.options.strategy_builder")
 
 # ── Tunables ──────────────────────────────────────────────────────────────────
 
-MIN_POSITIONAL_DTE: int = 6  # Roll if <= 6 calendar days to expiry
-MIN_SPREAD_OPEN_INTEREST: int = 300  # Liquidity floor per leg
-MIN_RISK_REWARD_RATIO: float = 1.20  # Minimum R:R ratio required to qualify
+MIN_POSITIONAL_DTE: int = 4  # the spec's rule: closer than this, use the next month's contracts
+MAX_CHAIN_AGE: dt.timedelta = dt.timedelta(hours=30)  # a stored chain older than this is not used
+# Kept for callers that import it (the basket analyzer's per-leg warning). The builder itself uses
+# SpreadPolicy, whose open interest floor is 5,000.
+MIN_SPREAD_OPEN_INTEREST: int = 300
 DEFAULT_LOT_SIZE: int = 1
 
 
@@ -59,7 +59,7 @@ DEFAULT_LOT_SIZE: int = 1
 class BuiltOptionLeg:
     """Concrete leg specification for execution and persistence."""
 
-    execution_order: int  # 1 = BUY hedge first, 2 = SELL second
+    execution_order: int  # 1 = BUY hedge first, then the SELL
     action: str  # BUY or SELL
     option_type: str  # CE or PE
     strike_price: float
@@ -80,21 +80,21 @@ class BuiltOptionLeg:
 class BuiltOptionStrategy:
     """Complete multi-leg option strategy package."""
 
-    strategy_type: str  # BULL_CALL_SPREAD, BEAR_PUT_SPREAD
+    strategy_type: str  # BULL_CALL_SPREAD, BEAR_PUT_SPREAD, BULL_PUT_SPREAD, BEAR_CALL_SPREAD
     spread_type: str  # DEBIT or CREDIT
     underlying_symbol: str
     expiry_date: dt.date
     dte: int
     lot_size: int
-    net_premium: float  # Net Debit (positive) or Net Credit (negative)
-    max_profit: float
-    max_loss: float
+    net_premium: float  # per share: a net debit is positive, a net credit negative
+    max_profit: float  # per share
+    max_loss: float  # per share
     risk_reward_ratio: float
     breakeven_price: float
     underlying_entry_price: float
     underlying_target_price: float
     underlying_stop_loss: float
-    margin_required_approx: float
+    margin_required_approx: float  # rupees, one lot
     legs: list[BuiltOptionLeg] = field(default_factory=list)
 
 
@@ -109,68 +109,107 @@ def _build_leg_contract_label(
     return f"{symbol} {exp_str} {strike_str} {option_type}"
 
 
-def _get_candidate_chain(
-    db: Session,
-    symbol: str,
-    option_type: str,
-    redis_store: Optional[SyncMarketStore] = None,
-) -> list[_OptionCandidate]:
-    """Fetch option chain candidates from Redis cache first, then PostgreSQL."""
-    store = redis_store or get_default_redis_store()
-    if store is not None:
-        try:
-            fetch_fn = getattr(store, "get_cached_option_chain", None) or getattr(
-                store, "get_option_chain_records", None
-            )
-            records = None
-            if callable(fetch_fn):
-                records = fetch_fn(symbol)
-            if records:
-                candidates = _extract_candidates_from_redis(records, option_type)
-                if candidates:
-                    return candidates
-        except Exception:
-            logger.exception(
-                "[strategy_builder] Redis option chain fetch failed for %s, falling back to DB.",
-                symbol,
-            )
-
-    rows = db.execute(
-        OPTION_CONTRACTS_QUERY, {"symbol": symbol, "option_type": option_type}
-    ).fetchall()
-    return _extract_candidates_from_db(rows, option_type)
+def _price(value: object) -> Optional[float]:
+    """A stored price as a float, or None when it is missing or zero (unpriced)."""
+    number = float(value) if value is not None else 0.0  # type: ignore[arg-type]
+    return number if number > 0 else None
 
 
-def _estimate_margin(
-    symbol: str,
-    option_type: str,
-    expiry: dt.date,
-    lot_size: int,
-    long_cand: _OptionCandidate,
-    short_cand: _OptionCandidate,
-) -> float:
+def load_stored_chain(db: Session, symbol: str, lot_size: int) -> Optional[ChainData]:
+    """The latest stored ``option_chain`` snapshot for ``symbol`` as :class:`ChainData`, or None."""
+    name = symbol.upper()
+    latest = db.query(func.max(OptionChain.ts)).filter(OptionChain.symbol == name).scalar()
+    if latest is None:
+        return None
+    rows = db.query(OptionChain).filter(OptionChain.symbol == name, OptionChain.ts == latest).all()
+    spots = [float(r.underlying_value) for r in rows if r.underlying_value]
+    if not rows or not spots:
+        return None
+    quotes = [
+        Quote(
+            expiry=r.expiry_date,
+            strike=float(r.strike_price),
+            option_type=r.option_type,
+            bid=_price(r.bid_price),
+            ask=_price(r.ask_price),
+            ltp=_price(r.ltp),
+            open_interest=int(r.open_interest or 0),
+            volume=int(r.volume or 0),
+            iv=_price(r.implied_vol),
+        )
+        for r in rows
+    ]
+    return ChainData(name, latest, spots[0], lot_size, False, quotes)
+
+
+def _resolve_lot_size(
+    db: Session, symbol: str, lot_size: int, redis_store: Optional[SyncMarketStore]
+) -> int:
+    """The lot size: the caller's when it is real, else the cache's, else the instrument's."""
+    if lot_size > DEFAULT_LOT_SIZE:
+        return lot_size
+    if redis_store is not None:
+        cached = redis_store.get_lot_size(symbol)
+        if cached and cached > 0:
+            return cached
+    if db is not None:
+        stored = db.query(Instrument.lot_size).filter(Instrument.symbol == symbol.upper()).scalar()
+        if isinstance(stored, (int, float)) and stored > 0:
+            if redis_store is not None:
+                redis_store.set_lot_size(symbol, int(stored))
+            return int(stored)
+    return max(lot_size, DEFAULT_LOT_SIZE)
+
+
+def _estimate_margin(spread: Spread, spot: float, today: dt.date) -> float:
     """Margin for the one-lot spread from the shared SPAN estimate.
 
-    Falls back to the net debit paid, which is exactly what a defined-risk debit spread
-    blocks, if the estimate cannot be produced.
+    Falls back to the most the spread can lose, which is what a defined-risk spread blocks, if the
+    estimate cannot be produced.
     """
-    net_debit = round((long_cand.ltp - short_cand.ltp) * lot_size, 2)
     try:
         legs = [
-            Leg("BUY", option_type, long_cand.strike_price, long_cand.ltp, 1, lot_size, expiry),
-            Leg("SELL", option_type, short_cand.strike_price, short_cand.ltp, 1, lot_size, expiry),
+            Leg(
+                l.action,
+                l.option_type,
+                l.strike,
+                l.premium,
+                l.lots,
+                spread.lot_size,
+                spread.expiry,
+                l.iv,
+            )
+            for l in spread.legs  # noqa: E741
         ]
-        sigma = sigma_from_iv((long_cand.implied_vol + short_cand.implied_vol) / 2.0)
-        breakdown = estimate_margin(legs, long_cand.underlying_value, sigma, STOCK, dt.date.today())
-        return round(breakdown.total, 2)
-    except Exception:
-        logger.exception(
-            "[strategy_builder] Margin estimate failed for %s, using net debit.", symbol
-        )
-        return net_debit
+        sigma = sigma_from_iv(sum(l.iv for l in spread.legs) / len(spread.legs))  # noqa: E741
+        return round(estimate_margin(legs, spot, sigma, STOCK, today).total, 2)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception("[strategy_builder] Margin estimate failed, using max loss.")
+        return round(spread.max_loss, 2)
 
 
-def build_vertical_spread_strategy(
+def _built_leg(symbol: str, spread: Spread, order: int, leg: SpreadLeg) -> BuiltOptionLeg:
+    buying = leg.action == "BUY"
+    premium = leg.premium
+    return BuiltOptionLeg(
+        execution_order=order,
+        action=leg.action,
+        option_type=leg.option_type,
+        strike_price=leg.strike,
+        symbol=_build_leg_contract_label(symbol, spread.expiry, leg.strike, leg.option_type),
+        entry_premium=premium,
+        lots=leg.lots,
+        target_premium=round(premium * (1.35 if buying else 0.30), 2),
+        stop_loss_premium=round(premium * (0.70 if buying else 1.60), 2),
+        delta=leg.delta,
+        iv=round(leg.iv, 2),
+        open_interest=leg.open_interest,
+        volume=leg.volume,
+        is_hedge=buying,
+    )
+
+
+def build_vertical_spread_strategy(  # pylint: disable=too-many-arguments
     db: Session,
     symbol: str,
     action: str,  # BUY or SELL
@@ -180,283 +219,79 @@ def build_vertical_spread_strategy(
     lot_size: int = DEFAULT_LOT_SIZE,
     redis_store: Optional[SyncMarketStore] = None,
     min_dte: int = MIN_POSITIONAL_DTE,
+    now: Optional[dt.datetime] = None,
 ) -> Optional[BuiltOptionStrategy]:
-    """Build a margin-optimized vertical spread strategy for a directional signal.
+    """Build a defined-risk vertical spread for a directional signal, or None (reason logged).
 
     .. warning::
        The price parameters are ``entry_price``/``target_price``/``stop_loss``,
        **not** the ``underlying_*`` names used by
        :func:`tb_utils.options.resolver.resolve_option_contract` or by the
        ``underlying_*`` fields on the :class:`BuiltOptionStrategy` this returns.
-       The two functions are usually called back to back on the same values, and
-       that asymmetry cost months of silently dead spread generation in
-       ``tb-research-agent``'s ``research_signals.py``, where the mismatched
-       keywords raised ``TypeError`` into a bare ``except`` logging at debug
-       level. Keep the names aligned if either signature is ever revised.
+       That asymmetry cost months of silently dead spread generation in
+       ``tb-research-agent``'s ``research_signals.py``. Keep the names aligned if either
+       signature is ever revised.
 
     Args:
         db: SQLAlchemy database session.
         symbol: Underlying equity symbol (e.g. "ICICIBANK").
-        action: Signal action ("BUY" -> Bull Call Spread, "SELL" -> Bear Put Spread).
+        action: Signal action ("BUY" is bullish, "SELL" is bearish).
         entry_price: Underlying entry spot price.
-        target_price: Underlying Target 1 price.
-        stop_loss: Underlying Stop Loss price.
+        target_price: Underlying Target 1, kept for the record. Strikes come from delta bands, so
+            ``0`` is fine when a signal has no target.
+        stop_loss: Underlying stop loss.
         lot_size: Market lot size for the derivative.
-        redis_store: Optional market store for live cache.
-        min_dte: Minimum DTE threshold before rolling to next expiry.
+        redis_store: Optional market store, used only to cache the lot size.
+        min_dte: Calendar days to expiry below which the next month's contracts are used.
+        now: The clock, for tests.
 
     Returns:
-        Optional[BuiltOptionStrategy]: Strategy definition if valid, else None.
+        The strategy, or None when the chain is missing or stale or no strike pair passes the rules.
     """
-    if entry_price <= 0 or target_price <= 0 or stop_loss <= 0:
-        logger.warning(
-            "[build_vertical_spread_strategy] Invalid prices for %s (entry=%s, target=%s).",
-            symbol,
-            entry_price,
-            target_price,
-        )
+    if entry_price <= 0 or stop_loss <= 0:
+        logger.warning("[build_vertical_spread_strategy] Invalid prices for %s.", symbol)
         return None
 
-    # Resolve market lot size if defaulted to 1
-    if lot_size <= DEFAULT_LOT_SIZE:
-        if redis_store is not None:
-            cached_lot = redis_store.get_lot_size(symbol)
-            if cached_lot and cached_lot > 0:
-                lot_size = cached_lot
-
-        if lot_size <= DEFAULT_LOT_SIZE and db is not None:
-            db_lot = (
-                db.query(Instrument.lot_size).filter(Instrument.symbol == symbol.upper()).scalar()
-            )
-            if isinstance(db_lot, (int, float)) and db_lot > 0:
-                lot_size = int(db_lot)
-                if redis_store is not None:
-                    redis_store.set_lot_size(symbol, lot_size)
-
-        if lot_size <= 0:
-            lot_size = DEFAULT_LOT_SIZE
-
-    is_bullish = action.upper() == "BUY"
-    option_type = "CE" if is_bullish else "PE"
-    strategy_type = "BULL_CALL_SPREAD" if is_bullish else "BEAR_PUT_SPREAD"
-
-    candidates = _get_candidate_chain(db, symbol, option_type, redis_store=redis_store)
-    if not candidates:
+    now = now or dt.datetime.now(dt.UTC)
+    lot_size = _resolve_lot_size(db, symbol, lot_size, redis_store)
+    chain = load_stored_chain(db, symbol, lot_size)
+    if chain is None:
+        logger.info("[build_vertical_spread_strategy] No stored option chain for %s.", symbol)
+        return None
+    if now - chain.ts > MAX_CHAIN_AGE:
         logger.info(
-            "[build_vertical_spread_strategy] No option candidates for %s %s.",
+            "[build_vertical_spread_strategy] The stored chain for %s is %.1f h old; not used.",
             symbol,
-            option_type,
+            (now - chain.ts).total_seconds() / 3600,
         )
         return None
 
-    # Group candidates by expiry date
-    expiries: dict[dt.date, list[_OptionCandidate]] = {}
-    for c in candidates:
-        expiries.setdefault(c.expiry_date, []).append(c)
-
-    # Sort expiries ascending
-    sorted_expiries = sorted(expiries.keys())
-    valid_expiry: Optional[dt.date] = None
-    target_chain: list[_OptionCandidate] = []
-
-    # Select earliest expiry with DTE > min_dte
-    for exp in sorted_expiries:
-        chain = expiries[exp]
-        dte = chain[0].dte
-        if dte >= min_dte:
-            valid_expiry = exp
-            target_chain = chain
-            break
-
-    if valid_expiry is None or not target_chain:
+    policy = replace(SpreadPolicy(), min_dte=min_dte)
+    result = build_vertical_spread(FreshChain(chain, requested_at=chain.ts), action, now, policy)
+    spread = result.spread
+    if spread is None:
+        why = f"{result.skip.code}: {result.skip.message}" if result.skip else "no strike pair"
         logger.info(
-            "[build_vertical_spread_strategy] No expiry clearing %d DTE for %s.",
-            min_dte,
-            symbol,
+            "[build_vertical_spread_strategy] No spread for %s %s (%s).", symbol, action, why
         )
         return None
 
-    dte = target_chain[0].dte
-
-    # Enrich candidates with live Greeks
-    enriched: list[tuple[_OptionCandidate, float, float]] = []  # (cand, delta, theta)
-    for c in target_chain:
-        if c.open_interest < MIN_SPREAD_OPEN_INTEREST:
-            continue
-        try:
-            greeks = calculate_greeks(
-                spot=c.underlying_value,
-                strike=c.strike_price,
-                tte_days=max(float(c.dte), 1.0),
-                iv_pct=c.implied_vol,
-                option_type=c.option_type,
-            )
-            delta = greeks.get("delta")
-            theta = greeks.get("theta")
-            if delta is None or theta is None:
-                continue
-            enriched.append((c, float(delta), float(theta)))
-        except Exception:
-            logger.debug(
-                "[build_vertical_spread_strategy] Greeks calculation failed for %s strike %s.",
-                symbol,
-                c.strike_price,
-            )
-
-    if len(enriched) < 2:
-        logger.info(
-            "[build_vertical_spread_strategy] Insufficient liquid strikes for %s %s (found %d).",
-            symbol,
-            valid_expiry,
-            len(enriched),
-        )
-        return None
-
-    # Strike selection logic
-    if is_bullish:
-        # Leg 1: ATM Call (strike <= entry_price, highest strike <= entry_price
-        # or closest delta to 0.50)
-        atm_candidates = [x for x in enriched if x[0].strike_price <= entry_price]
-        if not atm_candidates:
-            atm_candidates = enriched
-        leg1_cand, leg1_delta, leg1_theta = min(atm_candidates, key=lambda x: abs(x[1] - 0.50))
-
-        # Leg 2: OTM Call at or near target_price (must be strike > leg1 strike)
-        otm_candidates = [
-            x
-            for x in enriched
-            if x[0].strike_price > leg1_cand.strike_price
-            and x[0].strike_price >= target_price * 0.98
-        ]
-        if not otm_candidates:
-            # Fallback to any higher strike with Delta ~ 0.25
-            otm_candidates = [x for x in enriched if x[0].strike_price > leg1_cand.strike_price]
-        if not otm_candidates:
-            return None
-
-        # Pick candidate closest to target_price or delta 0.25
-        leg2_cand, leg2_delta, leg2_theta = min(
-            otm_candidates, key=lambda x: abs(x[0].strike_price - target_price)
-        )
-
-    else:
-        # Leg 1: ATM Put (strike >= entry_price, closest delta to -0.50)
-        atm_candidates = [x for x in enriched if x[0].strike_price >= entry_price]
-        if not atm_candidates:
-            atm_candidates = enriched
-        leg1_cand, leg1_delta, leg1_theta = min(atm_candidates, key=lambda x: abs(x[1] - (-0.50)))
-
-        # Leg 2: OTM Put at or near target_price (must be strike < leg1 strike)
-        otm_candidates = [
-            x
-            for x in enriched
-            if x[0].strike_price < leg1_cand.strike_price
-            and x[0].strike_price <= target_price * 1.02
-        ]
-        if not otm_candidates:
-            otm_candidates = [x for x in enriched if x[0].strike_price < leg1_cand.strike_price]
-        if not otm_candidates:
-            return None
-
-        leg2_cand, leg2_delta, leg2_theta = min(
-            otm_candidates, key=lambda x: abs(x[0].strike_price - target_price)
-        )
-
-    # Spread Economics
-    spread_width = abs(leg2_cand.strike_price - leg1_cand.strike_price)
-    net_premium = round(leg1_cand.ltp - leg2_cand.ltp, 2)
-
-    # Sanity checks: debit spread must have positive net debit < spread_width
-    if net_premium <= 0 or net_premium >= spread_width:
-        logger.info(
-            "[build_vertical_spread_strategy] Invalid spread pricing for %s: "
-            "net_premium=%.2f, width=%.2f.",
-            symbol,
-            net_premium,
-            spread_width,
-        )
-        return None
-
-    # Per-share payoff from the shared N-leg engine (lots=1, lot_size=1) — no closed form here.
-    payoff_legs = [
-        Leg("BUY", option_type, leg1_cand.strike_price, leg1_cand.ltp, 1, 1, valid_expiry),
-        Leg("SELL", option_type, leg2_cand.strike_price, leg2_cand.ltp, 1, 1, valid_expiry),
-    ]
-    extremes = max_profit_loss(payoff_legs)
-    max_profit = round(extremes.max_profit.value, 2)
-    max_loss = round(-extremes.max_loss.value, 2)
-    risk_reward = round(max_profit / max_loss, 2) if max_loss > 0 else 0.0
-
-    if risk_reward < MIN_RISK_REWARD_RATIO:
-        logger.info(
-            "[build_vertical_spread_strategy] R:R %.2f below threshold %.2f for %s.",
-            risk_reward,
-            MIN_RISK_REWARD_RATIO,
-            symbol,
-        )
-        return None
-
-    be_points = breakevens(payoff_legs)
-    if not be_points:
-        return None
-    breakeven = round(be_points[0], 2)
-
-    approx_margin = _estimate_margin(
-        symbol, option_type, valid_expiry, lot_size, leg1_cand, leg2_cand
-    )
-
-    # Construct the two sequenced legs:
-    # LEG 1: BUY HEDGE FIRST (unlocks margin benefit)
-    # LEG 2: SELL SECOND
-    leg1 = BuiltOptionLeg(
-        execution_order=1,
-        action="BUY",
-        option_type=option_type,
-        strike_price=leg1_cand.strike_price,
-        symbol=_build_leg_contract_label(symbol, valid_expiry, leg1_cand.strike_price, option_type),
-        entry_premium=leg1_cand.ltp,
-        target_premium=round(leg1_cand.ltp * 1.35, 2),
-        stop_loss_premium=round(leg1_cand.ltp * 0.70, 2),
-        delta=round(leg1_delta, 4),
-        theta=round(leg1_theta, 4),
-        iv=round(leg1_cand.implied_vol, 2),
-        open_interest=leg1_cand.open_interest,
-        volume=leg1_cand.volume,
-        is_hedge=True,
-    )
-
-    leg2 = BuiltOptionLeg(
-        execution_order=2,
-        action="SELL",
-        option_type=option_type,
-        strike_price=leg2_cand.strike_price,
-        symbol=_build_leg_contract_label(symbol, valid_expiry, leg2_cand.strike_price, option_type),
-        entry_premium=leg2_cand.ltp,
-        target_premium=round(leg2_cand.ltp * 0.30, 2),
-        stop_loss_premium=round(leg2_cand.ltp * 1.60, 2),
-        delta=round(leg2_delta, 4),
-        theta=round(leg2_theta, 4),
-        iv=round(leg2_cand.implied_vol, 2),
-        open_interest=leg2_cand.open_interest,
-        volume=leg2_cand.volume,
-        is_hedge=False,
-    )
-
+    per_share = float(spread.lot_size)
     return BuiltOptionStrategy(
-        strategy_type=strategy_type,
-        spread_type="DEBIT",
+        strategy_type=spread.structure.upper(),
+        spread_type=spread.family,
         underlying_symbol=symbol,
-        expiry_date=valid_expiry,
-        dte=dte,
-        lot_size=lot_size,
-        net_premium=net_premium,
-        max_profit=max_profit,
-        max_loss=max_loss,
-        risk_reward_ratio=risk_reward,
-        breakeven_price=breakeven,
+        expiry_date=spread.expiry,
+        dte=spread.dte,
+        lot_size=spread.lot_size,
+        net_premium=round(-spread.net_premium / per_share, 2),
+        max_profit=round(spread.max_profit / per_share, 2),
+        max_loss=round(spread.max_loss / per_share, 2),
+        risk_reward_ratio=round(spread.reward_risk, 2),
+        breakeven_price=round(spread.breakevens[0], 2),
         underlying_entry_price=entry_price,
         underlying_target_price=target_price,
         underlying_stop_loss=stop_loss,
-        margin_required_approx=approx_margin,
-        legs=[leg1, leg2],
+        margin_required_approx=_estimate_margin(spread, chain.spot, now.date()),
+        legs=[_built_leg(symbol, spread, i, leg) for i, leg in enumerate(spread.legs, start=1)],
     )
