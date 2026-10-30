@@ -29,7 +29,36 @@ def positive_price(val: Any) -> Optional[float]:
         return None
 
 
-def persist_approved_signals(
+def resolve_levels(
+    action_val: str, entry_px: float, target_px: float, sl_px: float, dynamic_exit: bool = False
+) -> tuple[float, float]:
+    """The target and stop to store, filling what a signal left empty.
+
+    The table cannot hold an empty target, so a missing one used to be filled with entry +/- 2 % and
+    a missing stop with entry +/- 1.5 %. For most strategies that is a harmless default. For one
+    that exits dynamically (``dynamic_exit``, as STC does) it is not: the invented target was
+    shown, scored and armed as if it were a plan. Such a signal keeps its target at 0, meaning
+    none. A missing
+    stop is still filled, since every signal needs one.
+    """
+    if target_px <= 0 and not dynamic_exit:
+        if action_val == SignalActionEnum.BUY.value:
+            target_px = entry_px * 1.02
+        elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
+            target_px = entry_px * 0.98
+        else:
+            target_px = entry_px  # WATCH: no levels, the entry is its reference price
+    if sl_px <= 0:
+        if action_val == SignalActionEnum.BUY.value:
+            sl_px = entry_px * 0.985
+        elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
+            sl_px = entry_px * 1.015
+        else:
+            sl_px = entry_px
+    return max(target_px, 0.0), sl_px
+
+
+def persist_approved_signals(  # pylint: disable=too-many-locals
     db: Session,
     approved_signals: list[dict[str, Any] | SignalCandidate],
     source: str,
@@ -44,7 +73,7 @@ def persist_approved_signals(
 
     Args:
         db: Active SQLAlchemy database session.
-        approved_signals: List of signal dicts or SignalCandidate instances approved by EnsembleGate.
+        approved_signals: Signal dicts or SignalCandidate instances approved by EnsembleGate.
         source: Scanner source identifier (e.g. "delivery_scanner", "fno_scanner").
         as_of: Trade date of the scan.
         default_instrument_type: Fallback instrument type if not specified in candidate.
@@ -111,23 +140,13 @@ def persist_approved_signals(
             rejected += 1
             continue
 
-        target_px = float(s.get("target_price") or 0.0)
-        if target_px <= 0:
-            if action_val == SignalActionEnum.BUY.value:
-                target_px = entry_px * 1.02
-            elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
-                target_px = entry_px * 0.98
-            else:
-                target_px = entry_px  # WATCH: no levels, the entry is its reference price
-
-        sl_px = float(s.get("stop_loss") or 0.0)
-        if sl_px <= 0:
-            if action_val == SignalActionEnum.BUY.value:
-                sl_px = entry_px * 0.985
-            elif action_val in (SignalActionEnum.EXIT.value, SignalActionEnum.SELL.value):
-                sl_px = entry_px * 1.015
-            else:
-                sl_px = entry_px
+        target_px, sl_px = resolve_levels(
+            action_val,
+            entry_px,
+            float(s.get("target_price") or 0.0),
+            float(s.get("stop_loss") or 0.0),
+            dynamic_exit=bool(s.get("dynamic_exit")),
+        )
 
         inst_type_val = s.get("instrument_type")
         if isinstance(inst_type_val, InstrumentTypeEnum):
