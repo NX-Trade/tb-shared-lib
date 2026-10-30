@@ -53,4 +53,18 @@ def test_ban_sync_migration_follows_the_segment_flags_migration():
 
 
 def test_there_is_still_a_single_head_after_the_ban_sync_migration():
-    assert _scripts().get_heads() == ["v1a2b3c4d5f2"]
+    assert len(_scripts().get_heads()) == 1
+
+
+def test_platform_settings_migration_follows_the_ban_sync_migration():
+    revision = _scripts().get_revision("w1a2b3c4d5f3")
+    assert revision.down_revision == "v1a2b3c4d5f2"
+    source = (ALEMBIC_DIR / "versions" / "w1a2b3c4d5f3_add_platform_setting.py").read_text(
+        encoding="utf-8"
+    )
+    assert source.count("create_table") == 2 and "platform_setting_history" in source
+    assert source.count("drop_table") == 2
+
+
+def test_there_is_a_single_head_after_the_platform_settings_migration():
+    assert _scripts().get_heads() == ["w1a2b3c4d5f3"]

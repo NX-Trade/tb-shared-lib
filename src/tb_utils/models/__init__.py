@@ -54,6 +54,7 @@ from .nse_reference import (
     Nifty500AsOfDate,
     NseIndex,
 )
+from .platform_setting import PlatformSetting, PlatformSettingHistory
 from .signal import SignalCandidate
 from .system import RegimeLog, SystemCommand, SystemLog, SystemMetric, TaskLog, WatchlistFocus
 from .trading import (
@@ -107,6 +108,8 @@ __all__ = [
     "FundamentalData",
     "FundamentalUniverse",
     "HistoricalValuation",
+    "PlatformSetting",
+    "PlatformSettingHistory",
     "SystemCommand",
     "SystemLog",
     "SystemMetric",
