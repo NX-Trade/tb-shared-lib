@@ -93,6 +93,9 @@ class ClientAccount(Base):
     is_commodity_trade_enabled = Column(
         Boolean, nullable=False, server_default="false", default=False
     )
+    # How many option baskets this account may hold open at once (new entries only; exits are never
+    # blocked). 1 matches what the platform did before the column existed.
+    max_open_option_baskets = Column(Integer, nullable=False, server_default="1", default=1)
 
     # Audit timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

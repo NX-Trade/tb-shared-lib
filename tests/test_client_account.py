@@ -2,6 +2,9 @@
 
 from decimal import Decimal
 
+import pytest
+from pydantic import ValidationError
+
 from tb_utils import ClientAccount
 from tb_utils.models import FnoBanSync
 from tb_utils.schema.account import ClientAccountCreate, ClientAccountUpdate
@@ -79,3 +82,28 @@ def test_ban_sync_table_records_one_row_per_synced_day():
     columns = FnoBanSync.__table__.c
     assert [c.name for c in FnoBanSync.__table__.primary_key.columns] == ["trade_date"]
     assert not columns["synced_at"].nullable and not columns["banned_count"].nullable
+
+
+def test_the_basket_limit_defaults_to_one_and_is_bounded():
+    assert ClientAccount.__table__.c.max_open_option_baskets.server_default.arg == "1"
+    assert (
+        ClientAccountCreate(
+            client_code="X", client_name="X", broker_type="ANGELONE"
+        ).max_open_option_baskets
+        == 1
+    )
+    assert (
+        ClientAccountCreate(
+            client_code="X", client_name="X", broker_type="ANGELONE", max_open_option_baskets=3
+        ).max_open_option_baskets
+        == 3
+    )
+    for bad in (0, 21):
+        with pytest.raises(ValidationError):
+            ClientAccountCreate(
+                client_code="X",
+                client_name="X",
+                broker_type="ANGELONE",
+                max_open_option_baskets=bad,
+            )
+    assert ClientAccountUpdate(client_name="Y").max_open_option_baskets is None

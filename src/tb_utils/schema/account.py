@@ -105,6 +105,9 @@ class ClientAccountBase(BaseModel):
     is_commodity_trade_enabled: bool = Field(
         False, description="Allow new commodity entries (stored; no commodity execution yet)"
     )
+    max_open_option_baskets: int = Field(
+        1, ge=1, le=20, description="Most option baskets this account may hold open at once"
+    )
 
 
 class ClientAccountCreate(ClientAccountBase):
@@ -142,6 +145,7 @@ class ClientAccountUpdate(BaseModel):
     is_equity_trade_enabled: Optional[bool] = None
     is_derivative_trade_enabled: Optional[bool] = None
     is_commodity_trade_enabled: Optional[bool] = None
+    max_open_option_baskets: Optional[int] = Field(None, ge=1, le=20)
 
     @model_validator(mode="before")
     @classmethod

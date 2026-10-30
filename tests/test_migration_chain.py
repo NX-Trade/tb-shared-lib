@@ -67,4 +67,17 @@ def test_platform_settings_migration_follows_the_ban_sync_migration():
 
 
 def test_there_is_a_single_head_after_the_platform_settings_migration():
-    assert _scripts().get_heads() == ["w1a2b3c4d5f3"]
+    assert len(_scripts().get_heads()) == 1
+
+
+def test_basket_limit_migration_follows_the_settings_migration_and_defaults_to_one():
+    revision = _scripts().get_revision("x1a2b3c4d5f4")
+    assert revision.down_revision == "w1a2b3c4d5f3"
+    source = (ALEMBIC_DIR / "versions" / "x1a2b3c4d5f4_add_max_open_option_baskets.py").read_text(
+        encoding="utf-8"
+    )
+    assert "server_default='1'" in source and "UPDATE" not in source.upper()
+
+
+def test_there_is_still_a_single_head_after_the_basket_limit_migration():
+    assert _scripts().get_heads() == ["x1a2b3c4d5f4"]
