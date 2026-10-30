@@ -31,6 +31,7 @@ from .historical_data import (
     OptionOiSnapshot,
 )
 from .historical_valuation import HistoricalValuation
+from .index_outlook import IndexOutlook
 from .instrument import Instrument
 from .market_data import (
     BlockDeal,
@@ -108,6 +109,7 @@ __all__ = [
     "FundamentalData",
     "FundamentalUniverse",
     "HistoricalValuation",
+    "IndexOutlook",
     "PlatformSetting",
     "PlatformSettingHistory",
     "SystemCommand",

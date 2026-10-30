@@ -80,4 +80,17 @@ def test_basket_limit_migration_follows_the_settings_migration_and_defaults_to_o
 
 
 def test_there_is_still_a_single_head_after_the_basket_limit_migration():
-    assert _scripts().get_heads() == ["x1a2b3c4d5f4"]
+    assert len(_scripts().get_heads()) == 1
+
+
+def test_index_outlook_migration_follows_the_basket_limit_and_inserts_nothing():
+    revision = _scripts().get_revision("y1a2b3c4d5f5")
+    assert revision.down_revision == "x1a2b3c4d5f4"
+    source = (ALEMBIC_DIR / "versions" / "y1a2b3c4d5f5_add_index_outlook.py").read_text(
+        encoding="utf-8"
+    )
+    assert "create_table" in source and "bulk_insert" not in source and "op.execute" not in source
+
+
+def test_there_is_a_single_head_after_the_index_outlook_migration():
+    assert _scripts().get_heads() == ["y1a2b3c4d5f5"]
