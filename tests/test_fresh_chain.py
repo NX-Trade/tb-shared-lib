@@ -92,6 +92,18 @@ def test_a_fresh_payload_loads_as_a_fresh_chain():
     assert [getattr(a, f) for f in fields] == [getattr(b, f) for f in fields]
 
 
+def test_an_expiry_stored_as_a_datetime_is_read_as_its_date():
+    """The collector wrote "2026-11-23T00:00:00": every STC spread on 30 Oct was skipped."""
+    redis = FakeRedis()
+    original = stored(redis)
+    payload = fc.read_payload(redis, "TESTCO")
+    for record in payload["records"]:
+        record["e"] = record["e"] + "T00:00:00"
+    fc.store_fresh_chain(redis, "TESTCO", payload)
+    fresh = fc.load_fresh_chain(redis, "TESTCO", REQUESTED, lot_size=500)
+    assert [q.expiry for q in fresh.chain.quotes] == [q.expiry for q in original.quotes]
+
+
 def test_the_loaded_chain_drives_the_engine():
     redis = FakeRedis()
     stored(redis)

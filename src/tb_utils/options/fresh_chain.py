@@ -89,7 +89,8 @@ def _positive(value: Any) -> Optional[float]:
 
 def _quote(record: dict[str, Any]) -> Quote:
     return Quote(
-        expiry=dt.date.fromisoformat(record["e"]),
+        # The collector has written both "2026-11-23" and "2026-11-23T00:00:00"; read either.
+        expiry=dt.datetime.fromisoformat(record["e"]).date(),
         strike=float(record["k"]),
         option_type=record["t"],
         bid=_positive(record.get("b")),
