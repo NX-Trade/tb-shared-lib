@@ -338,5 +338,6 @@ def test_order_tag_marks_an_execution_orders():
 def test_only_verified_brokers_run_option_strategies_live():
     assert unsupported_broker_reason("UPSTOX", False) is None
     assert unsupported_broker_reason("upstox", False) is None
-    assert unsupported_broker_reason("ANGELONE", True) is None  # paper never reaches the broker
-    assert "ANGELONE" in unsupported_broker_reason("ANGELONE", False)
+    assert unsupported_broker_reason("ANGELONE", False) is None  # carry-forward, own symbols
+    assert unsupported_broker_reason("ICICI", True) is None  # paper never reaches the broker
+    assert "ICICI" in unsupported_broker_reason("ICICI", False)  # not verified for options yet

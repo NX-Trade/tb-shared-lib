@@ -58,9 +58,16 @@ EXPIRY_EXIT_TIME = dt.time(15, 25)
 # would book an option leg as an equity trade and apply equity exit rules to it.
 ORDER_TAG_PREFIX = "optexec:"
 
-# Brokers whose option contract symbols and delivery product are verified for strategy orders.
-# Angel One and ICICI map the product differently for options and are not verified yet.
-SUPPORTED_OPTION_BROKERS = ("UPSTOX",)
+# Brokers allowed to run option strategies live.
+# * UPSTOX: verified with real orders.
+# * ANGELONE: contract resolution is tested against Angel's real scrip master, and derivative
+#   orders use the carry-forward product, a tag, lot and freeze checks, unknown-outcome handling
+#   and a tag-based order lookup, all unit-tested. Four things can only be confirmed by the first
+#   real order, as Angel has no sandbox: that ``ordertag`` is accepted, the quote response
+#   layout, market orders on options, and the product name. Entries are still gated by
+#   EXECUTION_MODE=LIVE, the live switch and the account's own flags.
+# ICICI maps the product differently for options and is not verified.
+SUPPORTED_OPTION_BROKERS = ("UPSTOX", "ANGELONE")
 
 PRICE_TICK = 0.05
 MARKETABLE_BUFFER = 0.02  # a marketable limit crosses the last price by this fraction
