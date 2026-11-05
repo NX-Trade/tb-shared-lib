@@ -93,4 +93,17 @@ def test_index_outlook_migration_follows_the_basket_limit_and_inserts_nothing():
 
 
 def test_there_is_a_single_head_after_the_index_outlook_migration():
-    assert _scripts().get_heads() == ["y1a2b3c4d5f5"]
+    assert len(_scripts().get_heads()) == 1
+
+
+def test_trade_last_updated_migration_adds_one_nullable_column_and_backfills_nothing():
+    revision = _scripts().get_revision("z1a2b3c4d5f6")
+    assert revision.down_revision == "y1a2b3c4d5f5"
+    source = (ALEMBIC_DIR / "versions" / "z1a2b3c4d5f6_add_trade_last_updated_at.py").read_text(
+        encoding="utf-8"
+    )
+    assert "add_column" in source and "nullable=True" in source and "op.execute" not in source
+
+
+def test_the_head_is_the_trade_last_updated_migration():
+    assert _scripts().get_heads() == ["z1a2b3c4d5f6"]

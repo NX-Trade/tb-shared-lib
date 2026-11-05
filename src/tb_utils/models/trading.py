@@ -346,6 +346,9 @@ class Trade(Base):
     entry_price = Column(Numeric(10, 2), nullable=False)  # True fill price from broker
     exit_price = Column(Numeric(10, 2))  # True fill price from broker
     last_price = Column(Numeric(14, 4), nullable=True)  # Live mark-to-market price
+    last_updated_at = Column(
+        DateTime(timezone=True), nullable=True
+    )  # when the mark above was taken
     entry_time = Column(DateTime(timezone=True), nullable=False)
     exit_time = Column(DateTime(timezone=True))
 

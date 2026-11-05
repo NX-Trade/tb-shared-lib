@@ -132,6 +132,7 @@ class PositionResponse(BaseSchema):
     realized_pnl: float = 0.0
     unrealized_pnl: float = 0.0
     last_price: Optional[float] = None
+    last_updated_at: Optional[datetime] = None
     entry_time: Optional[datetime] = None
     stop_loss: Optional[float] = None
     target: Optional[float] = None
@@ -159,6 +160,7 @@ class TradeResponse(BaseSchema):
     entry_price: float
     exit_price: Optional[float] = None
     last_price: Optional[float] = None
+    last_updated_at: Optional[datetime] = None
     entry_time: datetime
     exit_time: Optional[datetime] = None
     stop_loss: Optional[float] = None
