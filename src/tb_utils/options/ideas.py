@@ -460,9 +460,13 @@ def _vertical_ideas(  # pylint: disable=too-many-locals
     scoped = replace(chain, quotes=tuple(q for q in chain.quotes if q.expiry == ctx.expiry))
     fresh = FreshChain(scoped, requested_at=chain.ts)  # the builder uses the stored snapshot as-is
     # A credit spread's hedge sits far out and costs at most 30% of the short, so its delta band
-    # reaches below the engine's 0.15-0.20 (which is what put it one strike from the short).
+    # reaches below the engine's 0.15-0.20 (which is what put it one strike from the short). A far
+    # hedge makes the credit a smaller share of the width (about the average delta between the two
+    # strikes, so under a quarter), hence 20% here instead of the auto-trader's 25%.
     policy = SpreadPolicy(
-        max_credit_hedge_ratio=CREDIT_HEDGE_MAX_RATIO, credit_long_delta=(0.03, 0.20)
+        max_credit_hedge_ratio=CREDIT_HEDGE_MAX_RATIO,
+        credit_long_delta=(0.03, 0.20),
+        min_credit_pct_of_width=0.20,
     )
 
     ideas: list[Idea] = []

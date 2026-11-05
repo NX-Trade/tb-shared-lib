@@ -425,13 +425,14 @@ class TestVerticalsFollowTheSpec:
         assert not [i for i in _verticals(found) if i.family == "CREDIT"]
         assert any(r.template in ("bull_put_spread", "bear_call_spread") for r in found.rejections)
 
-    def test_a_credit_vertical_collects_at_least_a_quarter_of_its_width(self):
-        # With the hedge held to 30% of the short, a chain may leave no credit spread at all:
-        # whatever is offered must still meet the credit rule.
+    def test_a_credit_vertical_collects_at_least_a_fifth_of_its_width(self):
+        # A far hedge makes the credit a smaller share of the width, so the suggestions use 20%.
         found = suggest_strategies(_tight_chain(), NOW)
-        for idea in (i for i in _verticals(found) if i.family == "CREDIT"):
+        credit_ideas = [i for i in _verticals(found) if i.family == "CREDIT"]
+        assert credit_ideas
+        for idea in credit_ideas:
             width = max(leg.strike for leg in idea.legs) - min(leg.strike for leg in idea.legs)
-            assert idea.net_premium / idea.lot_size >= 0.25 * width - 1e-6
+            assert idea.net_premium / idea.lot_size >= 0.20 * width - 1e-6
 
     def test_the_generic_floor_does_not_remove_a_vertical_the_rules_accept(self):
         loose = _verticals(
