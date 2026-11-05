@@ -15,6 +15,7 @@ from tb_utils.options.templates import (
     get_template,
     list_templates,
     resolve_butterfly_by_premium,
+    resolve_credit_vertical_by_premium,
     resolve_template,
     shape_of,
 )
@@ -254,3 +255,42 @@ class TestButterflyByPremium:
             resolve_butterfly_by_premium(
                 get_template("bull_call_spread"), self.STRIKES, self.CALLS, 24050.0
             )
+
+
+class TestCreditVerticalByPremium:
+    """The sold strike stays near the money; the hedge costs at most 30% of it."""
+
+    STRIKES = [float(k) for k in range(23000, 24401, 50)]
+    # Put premiums rising with the strike, dearer near the money (about 3 up to about 100).
+    PUTS = {strike: round(3 * 1.13**i, 2) for i, strike in enumerate(STRIKES)}
+
+    def resolve(self, key="bull_put_spread", premiums=None, spot=24100.0):
+        return resolve_credit_vertical_by_premium(
+            get_template(key), self.STRIKES, premiums or self.PUTS, spot, 1
+        )
+
+    def test_the_hedge_costs_at_most_thirty_percent_of_the_sold_put(self):
+        sold, hedge = self.resolve()
+        assert (sold.action, hedge.action) == ("SELL", "BUY")
+        assert self.PUTS[hedge.strike] <= 0.30 * self.PUTS[sold.strike]
+
+    def test_the_hedge_is_the_dearest_strike_that_still_qualifies(self):
+        sold, hedge = self.resolve()
+        nearer = [s for s in self.STRIKES if hedge.strike < s < sold.strike]
+        assert nearer and all(self.PUTS[s] > 0.30 * self.PUTS[sold.strike] for s in nearer)
+
+    def test_it_is_further_from_the_short_than_the_equal_step_placement(self):
+        sold, hedge = self.resolve()
+        by_steps = resolve_template(get_template("bull_put_spread"), self.STRIKES, 24100.0, 1)
+        assert sold.strike - hedge.strike > by_steps[0].strike - by_steps[1].strike
+
+    def test_no_cheap_enough_strike_is_an_error(self):
+        dear = {s: 100.0 for s in self.STRIKES}
+        with pytest.raises(TemplateError, match="30%"):
+            self.resolve(premiums=dear)
+
+    def test_a_bear_call_spread_mirrors_it_upwards(self):
+        calls = dict(zip(self.STRIKES, reversed(list(self.PUTS.values())), strict=True))
+        sold, hedge = self.resolve("bear_call_spread", calls, spot=23200.0)
+        assert hedge.strike > sold.strike
+        assert calls[hedge.strike] <= 0.30 * calls[sold.strike]

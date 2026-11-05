@@ -389,6 +389,14 @@ def _liquid_chain():
     return _chain(quotes)
 
 
+def _tight_chain():
+    """Cheap far strikes quote tightly, as real ones do, so a far-out hedge passes liquidity."""
+    quotes = [
+        _quote(k, t, oi=20000, volume=50000, half=0.02) for k in STRIKES for t in ("CE", "PE")
+    ]
+    return _chain(quotes)
+
+
 def _verticals(found):
     return [i for i in found.ideas if i.shape == "vertical"]
 
@@ -403,11 +411,25 @@ class TestVerticalsFollowTheSpec:
                 if idea.family == "DEBIT":
                     assert idea.reward_risk >= 2.5 - 1e-9
 
-    def test_a_credit_vertical_collects_at_least_a_quarter_of_its_width(self):
+    def test_a_credit_vertical_hedge_costs_at_most_thirty_percent_of_the_short(self):
+        for chain in (_tight_chain(), _liquid_chain()):
+            for idea in _verticals(suggest_strategies(chain, NOW)):
+                if idea.family != "CREDIT":
+                    continue
+                bought = next(leg for leg in idea.legs if leg.action == "BUY")
+                sold = next(leg for leg in idea.legs if leg.action == "SELL")
+                assert bought.premium <= 0.30 * sold.premium + 1e-9
+
+    def test_a_credit_vertical_with_no_cheap_enough_hedge_is_reported_not_drawn(self):
         found = suggest_strategies(_liquid_chain(), NOW)
-        credit_ideas = [i for i in _verticals(found) if i.family == "CREDIT"]
-        assert credit_ideas
-        for idea in credit_ideas:
+        assert not [i for i in _verticals(found) if i.family == "CREDIT"]
+        assert any(r.template in ("bull_put_spread", "bear_call_spread") for r in found.rejections)
+
+    def test_a_credit_vertical_collects_at_least_a_quarter_of_its_width(self):
+        # With the hedge held to 30% of the short, a chain may leave no credit spread at all:
+        # whatever is offered must still meet the credit rule.
+        found = suggest_strategies(_tight_chain(), NOW)
+        for idea in (i for i in _verticals(found) if i.family == "CREDIT"):
             width = max(leg.strike for leg in idea.legs) - min(leg.strike for leg in idea.legs)
             assert idea.net_premium / idea.lot_size >= 0.25 * width - 1e-6
 

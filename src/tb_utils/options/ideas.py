@@ -55,14 +55,16 @@ from tb_utils.options.templates import (
     BEARISH,
     BULLISH,
     CREDIT,
+    CREDIT_HEDGE_MAX_RATIO,
     DEBIT,
+    PREMIUM_PLACED,
     VERTICAL,
     ResolvedLeg,
     Template,
     TemplateError,
     get_template,
     list_templates,
-    resolve_butterfly_by_premium,
+    resolve_by_premium,
     resolve_template,
     shape_of,
 )
@@ -457,7 +459,11 @@ def _vertical_ideas(  # pylint: disable=too-many-locals
     # The engine reads one expiry from what it is given; hand it the one this request is built on.
     scoped = replace(chain, quotes=tuple(q for q in chain.quotes if q.expiry == ctx.expiry))
     fresh = FreshChain(scoped, requested_at=chain.ts)  # the builder uses the stored snapshot as-is
-    policy = SpreadPolicy()
+    # A credit spread's hedge sits far out and costs at most 30% of the short, so its delta band
+    # reaches below the engine's 0.15-0.20 (which is what put it one strike from the short).
+    policy = SpreadPolicy(
+        max_credit_hedge_ratio=CREDIT_HEDGE_MAX_RATIO, credit_long_delta=(0.03, 0.20)
+    )
 
     ideas: list[Idea] = []
     rejections: list[Rejection] = []
@@ -503,10 +509,6 @@ def _vertical_ideas(  # pylint: disable=too-many-locals
     return ideas, rejections
 
 
-# 1:2:1 butterflies are placed by premium (40-50% body, <=30% wing), see templates.py.
-PREMIUM_PLACED = frozenset({"call_butterfly", "put_butterfly"})
-
-
 def _mid_premiums(quotes: dict[tuple[float, str], Quote], option_type: str) -> dict[float, float]:
     """One price per strike for ranking by premium: the bid-ask mid, else the last price."""
     prices: dict[float, float] = {}
@@ -535,9 +537,7 @@ def _evaluate(  # pylint: disable=too-many-locals
     try:
         if template.key in PREMIUM_PLACED:
             premiums = _mid_premiums(ctx.quotes, template.legs[0].option_type)
-            resolved = resolve_butterfly_by_premium(
-                template, strikes, premiums, chain.spot, width, target
-            )
+            resolved = resolve_by_premium(template, strikes, premiums, chain.spot, width, target)
         else:
             resolved = resolve_template(template, strikes, chain.spot, width, target)
     except TemplateError as exc:

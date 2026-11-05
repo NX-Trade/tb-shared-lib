@@ -371,16 +371,23 @@ def _body_strike(
     return best
 
 
+def _wing_strike_at(
+    beyond: Sequence[float], premiums: Mapping[float, float], first: float, cap: float
+) -> Optional[int]:
+    """Index in ``beyond`` of the dearest strike still at or under ``cap`` of ``first``."""
+    best, best_ratio = None, None
+    for i, strike in enumerate(beyond):
+        ratio = premiums.get(strike, 0.0) / first
+        if 0 < ratio <= cap and (best_ratio is None or ratio > best_ratio):
+            best, best_ratio = i, ratio
+    return best
+
+
 def _wing_strike(
     beyond: Sequence[float], premiums: Mapping[float, float], first: float
 ) -> Optional[int]:
     """Index in ``beyond`` of the dearest strike still at or under 30% of the first buy."""
-    best, best_ratio = None, None
-    for i, strike in enumerate(beyond):
-        ratio = premiums.get(strike, 0.0) / first
-        if 0 < ratio <= BUTTERFLY_WING_MAX_RATIO and (best_ratio is None or ratio > best_ratio):
-            best, best_ratio = i, ratio
-    return best
+    return _wing_strike_at(beyond, premiums, first, BUTTERFLY_WING_MAX_RATIO)
 
 
 def resolve_butterfly_by_premium(
@@ -433,3 +440,61 @@ def resolve_butterfly_by_premium(
         ResolvedLeg(SELL, first.option_type, body, 2),
         ResolvedLeg(BUY, first.option_type, wing, 1),
     ]
+
+
+# A credit vertical's hedge is placed by premium too: the sold strike stays where the template puts
+# it (near the money, rich premium) and the bought strike is the dearest one further out that costs
+# at most 30% of it. A hedge one strike from the short is dear, so it gives back most of the credit.
+CREDIT_HEDGE_MAX_RATIO = 0.30
+
+
+def resolve_credit_vertical_by_premium(
+    template: Template,
+    strikes: Sequence[float],
+    premiums: Mapping[float, float],
+    spot: float,
+    width: int = 1,
+    target: Optional[float] = None,
+) -> list[ResolvedLeg]:
+    """A bull put or bear call spread whose bought (hedge) strike is chosen by premium.
+
+    Raises :class:`TemplateError` when no strike beyond the sold one costs 30% or less of it.
+    """
+    if template.key not in ("bull_put_spread", "bear_call_spread"):
+        raise TemplateError(f"{template.label} is not a credit vertical")
+    legs = resolve_template(template, strikes, spot, width, target)
+    sold = next(leg for leg in legs if leg.action == SELL)
+    sold_premium = premiums.get(sold.strike, 0.0)
+    if sold_premium <= 0:
+        raise TemplateError(f"{template.label}: the sold strike {sold.strike:g} has no price")
+    listed = sorted({float(s) for s in strikes})
+    outward = sold.option_type == CE
+    beyond = [s for s in listed if (s > sold.strike if outward else s < sold.strike)]
+    if not outward:
+        beyond.reverse()
+    hedge_i = _wing_strike_at(beyond, premiums, sold_premium, CREDIT_HEDGE_MAX_RATIO)
+    if hedge_i is None:
+        raise TemplateError(
+            f"{template.label}: no strike beyond {sold.strike:g} costs "
+            f"{CREDIT_HEDGE_MAX_RATIO:.0%} or less of the sold {sold_premium:g}"
+        )
+    return [sold, ResolvedLeg(BUY, sold.option_type, beyond[hedge_i], sold.lots)]
+
+
+PREMIUM_PLACED = frozenset(
+    {"call_butterfly", "put_butterfly", "bull_put_spread", "bear_call_spread"}
+)
+
+
+def resolve_by_premium(
+    template: Template,
+    strikes: Sequence[float],
+    premiums: Mapping[float, float],
+    spot: float,
+    width: int = 1,
+    target: Optional[float] = None,
+) -> list[ResolvedLeg]:
+    """Place a premium-placed template (see ``PREMIUM_PLACED``); ``premiums`` is per strike."""
+    if template.key in ("bull_put_spread", "bear_call_spread"):
+        return resolve_credit_vertical_by_premium(template, strikes, premiums, spot, width, target)
+    return resolve_butterfly_by_premium(template, strikes, premiums, spot, width, target)

@@ -55,6 +55,10 @@ class SpreadPolicy:  # pylint: disable=too-many-instance-attributes
     credit_long_delta: tuple[float, float] = (0.15, 0.20)
     min_credit_pct_of_width: float = 0.25
     min_pop_credit: float = 0.65
+    # Most a credit vertical's bought (hedge) leg may cost, as a share of the sold leg's premium.
+    # None switches the rule off: the STC auto-trader keeps its delta bands only. The builder's
+    # suggestions set 0.30 so the hedge sits far out, not one strike from the short.
+    max_credit_hedge_ratio: Optional[float] = None
 
 
 def classify_regime(straddle_pct: float, policy: SpreadPolicy) -> str:

@@ -117,3 +117,11 @@ def vertical_rule_breach(
     if max_loss <= 0 or extremes.max_profit.value <= 0:
         return None
     return check_reward_risk(extremes.max_profit.value / max_loss, LOW_VOL, policy)
+
+
+def check_hedge_cost(ratio: float, policy: SpreadPolicy) -> Optional[Rejection]:
+    """A credit vertical's hedge may cost at most ``max_credit_hedge_ratio`` of the sold premium."""
+    cap = policy.max_credit_hedge_ratio
+    if cap is not None and ratio > cap:
+        return Rejection("COSTLY_HEDGE", f"hedge costs {ratio:.0%} of the sold premium > {cap:.0%}")
+    return None

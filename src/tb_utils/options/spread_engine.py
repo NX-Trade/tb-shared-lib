@@ -237,6 +237,13 @@ def _spread_leg(action: str, lots: int, quote: Quote, delta: float) -> SpreadLeg
     )  # fmt: skip
 
 
+def _hedge_ratio(legs: tuple[SpreadLeg, ...]) -> float:
+    """Premium paid for the bought legs over premium taken for the sold ones (0 if none sold)."""
+    paid = sum(l.premium * l.lots for l in legs if l.action == BUY)  # noqa: E741
+    taken = sum(l.premium * l.lots for l in legs if l.action == SELL)  # noqa: E741
+    return paid / taken if taken > 0 else 0.0
+
+
 def _evaluate_one(
     frame: Frame, candidate: Candidate
 ) -> tuple[Optional[Spread], Optional[Rejection]]:
@@ -274,6 +281,7 @@ def _evaluate_one(
     facts = CandidateFacts(
         regime=frame.regime,
         net_per_share=net / chain.lot_size,
+        hedge_ratio=_hedge_ratio(legs),
         width=max(strikes) - min(strikes),
         reward_risk=max_profit / max_loss,
         pop=analyze_probability(payoff_legs, chain.spot, frame.atm_iv, frame.days).pop,

@@ -18,6 +18,7 @@ from tb_utils.options.spread_policy import HIGH_VOL, SpreadPolicy
 from tb_utils.options.spread_rules import (
     Rejection,
     check_credit,
+    check_hedge_cost,
     check_pop,
     check_reward_risk,
 )
@@ -42,6 +43,7 @@ class CandidateFacts:
 
     regime: str
     net_per_share: float  # positive is a credit
+    hedge_ratio: float  # premium paid for the bought legs over premium taken for the sold legs
     width: float
     reward_risk: float
     pop: float
@@ -81,6 +83,10 @@ def _credit_rule(facts: CandidateFacts, policy: SpreadPolicy) -> Optional[Reject
     return check_credit(facts.net_per_share, facts.width, policy)
 
 
+def _hedge_rule(facts: CandidateFacts, policy: SpreadPolicy) -> Optional[Rejection]:
+    return check_hedge_cost(facts.hedge_ratio, policy)
+
+
 def _pop_rule(family: str) -> CandidateRule:
     return lambda facts, policy: check_pop(facts.pop, family, policy)
 
@@ -113,7 +119,7 @@ def _vertical(
         legs=(LegSpec(BUY, option_type, bought), LegSpec(SELL, option_type, sold)),
         strike_order=(lambda k: k[1] > k[0]) if sold_above_bought else (lambda k: k[1] < k[0]),
         rules=(
-            (_reward_risk_rule if family == DEBIT else _credit_rule),
+            *((_reward_risk_rule,) if family == DEBIT else (_credit_rule, _hedge_rule)),
             _pop_rule(family),
         ),
         rank=_least_risk_first if family == DEBIT else _richest_credit_first,
