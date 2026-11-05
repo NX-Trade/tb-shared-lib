@@ -37,7 +37,8 @@ src/tb_utils/
 │   ├── execution_rules.py  how a saved strategy runs: buys before sells, rollback, P&L, 2x-max-loss target, expiry exit (pure)
 │   ├── gex.py          Gamma exposure by strike, GEX profile and flip level (estimate: calls +, puts -; gamma recomputed from IV) — pure
 │   ├── probability.py  Exact POP and expected value at expiry (lognormal; market and view-tilted) — pure
-│   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator
+│   └── templates.py    Named structures as strike-step offsets (`resolve_template`) — shared by the builder picker and the generator;
+│                       1:2:1 butterflies go through `resolve_butterfly_by_premium` (sold strike 40-50% of the first buy's premium, wing <= 30%)
 ├── http/               ExternalClient (limit, break, retry, redact, store every request/response) + gemini.py: GeminiClient
 │                       (structured JSON, two API keys with 429 failover, model fallback, daily call/rupee budget)
 ├── greeks.py           Black-Scholes greeks + implied_volatility solver
