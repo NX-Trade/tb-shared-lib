@@ -14,6 +14,7 @@ from tb_utils.options.templates import (
     TemplateError,
     get_template,
     list_templates,
+    resolve_butterfly_by_premium,
     resolve_template,
     shape_of,
 )
@@ -192,3 +193,64 @@ class TestResolution:
     def test_duplicate_strikes_in_input_are_ignored(self):
         legs = resolve_template(get_template("bull_call_spread"), STRIKES + STRIKES, SPOT)
         assert [leg.strike for leg in legs] == [1000.0, 1020.0]
+
+
+class TestButterflyByPremium:
+    """The sold strike costs 40-50% of the first buy, the far wing at most 30%."""
+
+    STRIKES = [24000.0 + 50 * i for i in range(0, 13)]  # 24000 .. 24600
+    # Call premiums falling away from the money, roughly the 5 Nov Nifty chain.
+    CALLS = dict(zip(STRIKES, [140, 123, 107, 91, 76, 64, 54, 45, 38, 31, 26, 21, 17], strict=True))
+
+    def resolve(self, premiums=None, **kw):
+        template = get_template("call_butterfly")
+        return resolve_butterfly_by_premium(
+            template, self.STRIKES, premiums or self.CALLS, 24050.0, 1, **kw
+        )
+
+    def test_the_sold_strike_is_forty_to_fifty_percent_of_the_first_buy(self):
+        first, body, _ = self.resolve(target=24100.0)
+        ratio = self.CALLS[body.strike] / self.CALLS[first.strike]
+        assert 0.40 <= ratio <= 0.50
+
+    def test_the_far_wing_is_at_most_thirty_percent(self):
+        first, _, wing = self.resolve(target=24100.0)
+        assert self.CALLS[wing.strike] / self.CALLS[first.strike] <= 0.30
+
+    def test_it_is_still_one_two_one_with_capped_loss(self):
+        legs = self.resolve(target=24100.0)
+        assert [(leg.action, leg.lots) for leg in legs] == [("BUY", 1), ("SELL", 2), ("BUY", 1)]
+        priced = [
+            Leg(g.action, g.option_type, g.strike, self.CALLS[g.strike], g.lots, 65, EXPIRY)
+            for g in legs
+        ]
+        assert math.isfinite(max_profit_loss(priced).max_loss.value)
+
+    def test_strikes_are_further_out_than_the_equal_step_placement(self):
+        by_steps = resolve_template(
+            get_template("call_butterfly"), self.STRIKES, 24050.0, 1, 24100.0
+        )
+        by_premium = self.resolve(target=24100.0)
+        assert by_premium[1].strike > by_steps[1].strike
+
+    def test_a_put_butterfly_mirrors_it_downwards(self):
+        puts = dict(zip(reversed(self.STRIKES), self.CALLS.values(), strict=True))
+        legs = resolve_butterfly_by_premium(
+            get_template("put_butterfly"), self.STRIKES, puts, 24550.0, 1, 24500.0
+        )
+        first, body, wing = legs
+        assert wing.strike < body.strike < first.strike
+        assert 0.40 <= puts[body.strike] / puts[first.strike] <= 0.50
+
+    def test_no_strike_in_the_band_is_an_error_not_a_drift(self):
+        first = self.resolve(target=24100.0)[0]
+        base = self.CALLS[first.strike]
+        sparse = {s: p for s, p in self.CALLS.items() if not 0.40 <= p / base <= 0.50}
+        with pytest.raises(TemplateError, match="40%-50%"):
+            self.resolve(sparse, target=24100.0)
+
+    def test_other_templates_are_refused(self):
+        with pytest.raises(TemplateError, match="not a 1:2:1"):
+            resolve_butterfly_by_premium(
+                get_template("bull_call_spread"), self.STRIKES, self.CALLS, 24050.0
+            )

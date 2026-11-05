@@ -25,7 +25,7 @@ payoff and the leg cover so one cannot be added by accident.
 
 # stdlib
 from bisect import bisect_left
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Optional
 
@@ -347,3 +347,89 @@ def resolve_template(
     if len({(leg.option_type, leg.strike, leg.action) for leg in resolved}) != len(resolved):
         raise TemplateError(f"{template.label}: width {width} collapses two legs onto one strike")
     return resolved
+
+
+# A 1:2:1 butterfly is placed by premium, not by equal strike steps. The two sold strikes sit where
+# the option costs 40-50% of the first buy, the far wing where it costs at most 30%. Sold legs that
+# are nearly as dear as the long (ATM-ish body) gain and lose value as fast as the long does, so in
+# a volatility spike they eat the gain; further out they are slower and the structure keeps it.
+BUTTERFLY_BODY_RATIO = (0.40, 0.50)
+BUTTERFLY_WING_MAX_RATIO = 0.30
+
+
+def _body_strike(
+    beyond: Sequence[float], premiums: Mapping[float, float], first: float
+) -> Optional[int]:
+    """Index in ``beyond`` of the strike nearest 45% of the first buy, inside the 40-50% band."""
+    low, high = BUTTERFLY_BODY_RATIO
+    middle = (low + high) / 2
+    best, best_gap = None, None
+    for i, strike in enumerate(beyond):
+        ratio = premiums.get(strike, 0.0) / first
+        if low <= ratio <= high and (best_gap is None or abs(ratio - middle) < best_gap):
+            best, best_gap = i, abs(ratio - middle)
+    return best
+
+
+def _wing_strike(
+    beyond: Sequence[float], premiums: Mapping[float, float], first: float
+) -> Optional[int]:
+    """Index in ``beyond`` of the dearest strike still at or under 30% of the first buy."""
+    best, best_ratio = None, None
+    for i, strike in enumerate(beyond):
+        ratio = premiums.get(strike, 0.0) / first
+        if 0 < ratio <= BUTTERFLY_WING_MAX_RATIO and (best_ratio is None or ratio > best_ratio):
+            best, best_ratio = i, ratio
+    return best
+
+
+def resolve_butterfly_by_premium(
+    template: Template,
+    strikes: Sequence[float],
+    premiums: Mapping[float, float],
+    spot: float,
+    width: int = 1,
+    target: Optional[float] = None,
+) -> list[ResolvedLeg]:
+    """A call or put butterfly whose sold and far strikes are chosen by premium.
+
+    The first buy is where :func:`resolve_template` puts it. The body (sold twice) is the listed
+    strike further out whose premium is closest to 45% of the first buy's, inside 40-50%. The far
+    wing is the dearest strike beyond the body at or under 30%. ``premiums`` is one price per
+    strike for this template's option type (the caller chooses mid or last). The wings need not be
+    equally far from the body: the loss stays capped either way (1 + 1 bought, 2 sold). Raises
+    :class:`TemplateError` when no strike meets a band, instead of drifting outside it.
+    """
+    if template.key not in ("call_butterfly", "put_butterfly"):
+        raise TemplateError(f"{template.label} is not a 1:2:1 butterfly")
+    legs = resolve_template(template, strikes, spot, width, target)
+    first = legs[0]
+    first_premium = premiums.get(first.strike, 0.0)
+    if first_premium <= 0:
+        raise TemplateError(f"{template.label}: the first buy at {first.strike:g} has no price")
+
+    listed = sorted({float(s) for s in strikes})
+    outward = first.option_type == CE
+    beyond = [s for s in listed if (s > first.strike if outward else s < first.strike)]
+    if not outward:
+        beyond.reverse()  # nearest the first buy first, whichever way the strikes run
+
+    body_i = _body_strike(beyond, premiums, first_premium)
+    if body_i is None:
+        low, high = BUTTERFLY_BODY_RATIO
+        raise TemplateError(
+            f"{template.label}: no strike costs {low:.0%}-{high:.0%} of the {first.strike:g} buy"
+            f" ({first_premium:g})"
+        )
+    wing_i = _wing_strike(beyond[body_i + 1 :], premiums, first_premium)
+    if wing_i is None:
+        raise TemplateError(
+            f"{template.label}: no strike beyond {beyond[body_i]:g} costs "
+            f"{BUTTERFLY_WING_MAX_RATIO:.0%} or less of the {first.strike:g} buy"
+        )
+    body, wing = beyond[body_i], beyond[body_i + 1 + wing_i]
+    return [
+        first,
+        ResolvedLeg(SELL, first.option_type, body, 2),
+        ResolvedLeg(BUY, first.option_type, wing, 1),
+    ]

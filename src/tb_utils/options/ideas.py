@@ -62,6 +62,7 @@ from tb_utils.options.templates import (
     TemplateError,
     get_template,
     list_templates,
+    resolve_butterfly_by_premium,
     resolve_template,
     shape_of,
 )
@@ -502,6 +503,23 @@ def _vertical_ideas(  # pylint: disable=too-many-locals
     return ideas, rejections
 
 
+# 1:2:1 butterflies are placed by premium (40-50% body, <=30% wing), see templates.py.
+PREMIUM_PLACED = frozenset({"call_butterfly", "put_butterfly"})
+
+
+def _mid_premiums(quotes: dict[tuple[float, str], Quote], option_type: str) -> dict[float, float]:
+    """One price per strike for ranking by premium: the bid-ask mid, else the last price."""
+    prices: dict[float, float] = {}
+    for (strike, kind), quote in quotes.items():
+        if kind != option_type:
+            continue
+        if quote.bid and quote.ask and quote.bid > 0 and quote.ask > 0:
+            prices[strike] = (quote.bid + quote.ask) / 2
+        elif quote.ltp and quote.ltp > 0:
+            prices[strike] = quote.ltp
+    return prices
+
+
 def _evaluate(  # pylint: disable=too-many-locals
     ctx: _Context, template: Template, width: int
 ) -> tuple[Optional[Idea], Optional[str]]:
@@ -515,7 +533,13 @@ def _evaluate(  # pylint: disable=too-many-locals
     lean = 1.0 if bias == BULLISH else -1.0
     target = view.target if view else chain.spot + lean * BODY_MOVES * ctx.sigma_move
     try:
-        resolved = resolve_template(template, strikes, chain.spot, width, target)
+        if template.key in PREMIUM_PLACED:
+            premiums = _mid_premiums(ctx.quotes, template.legs[0].option_type)
+            resolved = resolve_butterfly_by_premium(
+                template, strikes, premiums, chain.spot, width, target
+            )
+        else:
+            resolved = resolve_template(template, strikes, chain.spot, width, target)
     except TemplateError as exc:
         return None, str(exc)
 
