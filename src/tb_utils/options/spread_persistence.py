@@ -30,8 +30,8 @@ from tb_utils.options.spread_types import CREDIT, Spread
 logger = logging.getLogger("tb_utils.options.spread_persistence")
 
 SOURCE_STC = "STC"
-# Spec §7.1: take profit at 50-65 % of the maximum on a vertical; the middle of that range.
-DEFAULT_CAPTURE_PCT = 0.575
+# Take profit at half the maximum profit (owner's decision, 5 Nov 2026; spec §7.1 allows 50-65 %).
+DEFAULT_CAPTURE_PCT = 0.50
 # Spec §7.1: a credit spread stops at 1.5-2.0x the credit received.
 DEFAULT_CREDIT_STOP_MULTIPLE = 1.75
 MIN_TARGET_MULTIPLE = 0.01  # the column is Numeric(5, 2)

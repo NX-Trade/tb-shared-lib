@@ -21,11 +21,13 @@ HIGH_VOL = "HIGH"  # premium is rich: sell a credit spread
 class SpreadPolicy:  # pylint: disable=too-many-instance-attributes
     """Limits a vertical spread must satisfy. Defaults are the spec's numbers."""
 
-    # §2 liquidity: every leg, individually.
-    min_open_interest: int = 5_000
-    min_volume: int = 10_000
-    max_bid_ask_pct: float = 0.015  # of the mid price ...
-    bid_ask_floor_ticks: int = 1  # ... but never tighter than this many ticks (see spread_rules)
+    # §2 liquidity: every leg, individually. The spec's 5,000 / 10,000 / 1.5% passed only 20% of the
+    # F&O stock options near the trading deltas on the 5 Nov 2026 snapshots (the bid-ask limit was
+    # the one that bit), so no spread could be built on most chains. These pass about 65%.
+    min_open_interest: int = 2_000
+    min_volume: int = 1_000
+    max_bid_ask_pct: float = 0.05  # of the mid price ...
+    bid_ask_floor_ticks: int = 2  # ... but never tighter than this many ticks (see spread_rules)
 
     # §2 expiry: under this many calendar days to expiry, use the next month's contracts.
     min_dte: int = 4

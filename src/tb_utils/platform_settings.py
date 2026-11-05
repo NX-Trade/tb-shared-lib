@@ -67,6 +67,11 @@ class StcSpreadSettings(BaseModel):  # pylint: disable=too-few-public-methods
     entry_start: str = "09:30"
     entry_end: str = "14:30"  # two legs must enter and the exit must finish
     signal_max_age_minutes: int = Field(10, ge=1, le=60)
+    # A spread is taken only after the Gemini gatekeeper has approved the signal. The gatekeeper
+    # answers in batches every two minutes, so the signal may be this old when its verdict arrives
+    # (it replaces ``signal_max_age_minutes`` while the gate is on).
+    require_gemini_approval: bool = True
+    gemini_wait_minutes: int = Field(15, ge=2, le=60)
     order_type: Literal["MARKETABLE_LIMIT", "MARKET"] = "MARKETABLE_LIMIT"
     refresh_timeout_seconds: int = Field(45, ge=10, le=300)
     eod_exit_time: str = "15:15"  # the exit starts, with marketable limits

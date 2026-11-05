@@ -29,13 +29,13 @@ def test_a_liquid_tight_quote_passes():
 
 
 def test_open_interest_floor_is_inclusive():
-    assert code(rules.check_leg_liquidity(quote(open_interest=4_999), P)) == "LOW_OI"
-    assert rules.check_leg_liquidity(quote(open_interest=5_000), P) is None
+    assert code(rules.check_leg_liquidity(quote(open_interest=1_999), P)) == "LOW_OI"
+    assert rules.check_leg_liquidity(quote(open_interest=2_000), P) is None
 
 
 def test_volume_floor_is_inclusive():
-    assert code(rules.check_leg_liquidity(quote(volume=9_999), P)) == "LOW_VOLUME"
-    assert rules.check_leg_liquidity(quote(volume=10_000), P) is None
+    assert code(rules.check_leg_liquidity(quote(volume=999), P)) == "LOW_VOLUME"
+    assert rules.check_leg_liquidity(quote(volume=1_000), P) is None
 
 
 def test_a_missing_side_is_not_priced_blind():
@@ -45,7 +45,8 @@ def test_a_missing_side_is_not_priced_blind():
 
 
 def test_wide_percentage_spread_is_rejected():
-    assert code(rules.check_leg_liquidity(quote(bid=10.0, ask=10.5), P)) == "WIDE_SPREAD"
+    assert code(rules.check_leg_liquidity(quote(bid=10.0, ask=10.6), P)) == "WIDE_SPREAD"  # 5.8%
+    assert rules.check_leg_liquidity(quote(bid=10.0, ask=10.5), P) is None  # 4.9%
 
 
 def test_one_tick_is_always_allowed_on_a_cheap_contract():
@@ -55,14 +56,15 @@ def test_one_tick_is_always_allowed_on_a_cheap_contract():
 
 
 def test_the_tick_allowance_uses_the_contracts_own_tick():
-    """On a 1-paisa-tick contract the same 5-paise spread is five ticks wide, so it fails."""
-    finer = quote(bid=1.95, ask=2.00, tick=0.01)
+    """On a 1-paisa-tick contract a 4-paise spread on a 40-paise option is four ticks: it fails."""
+    finer = quote(bid=0.38, ask=0.42, tick=0.01)
     assert code(rules.check_leg_liquidity(finer, P)) == "WIDE_SPREAD"
+    assert rules.check_leg_liquidity(quote(bid=0.38, ask=0.42, tick=0.05), P) is None
 
 
 def test_bid_ask_limit_is_the_larger_of_percent_and_ticks():
-    assert rules.bid_ask_limit(mid=100.0, tick=0.05, policy=P) == 1.5
-    assert rules.bid_ask_limit(mid=2.0, tick=0.05, policy=P) == 0.05
+    assert rules.bid_ask_limit(mid=100.0, tick=0.05, policy=P) == 5.0
+    assert rules.bid_ask_limit(mid=2.0, tick=0.05, policy=P) == 0.10  # two ticks beat 5% of 2
 
 
 def test_reward_risk_floor_depends_on_the_regime():

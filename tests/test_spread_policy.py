@@ -13,10 +13,11 @@ from tb_utils.options.spread_policy import (
 )
 
 
-def test_defaults_are_the_spec_numbers():
+def test_defaults_are_the_spec_numbers_except_the_loosened_liquidity_floors():
     p = SpreadPolicy()
-    assert (p.min_open_interest, p.min_volume) == (5_000, 10_000)
-    assert p.max_bid_ask_pct == 0.015 and p.bid_ask_floor_ticks == 1
+    # Spec §2 asks 5,000 / 10,000 / 1.5% / 1 tick; that passed 20% of real strikes (5 Nov 2026).
+    assert (p.min_open_interest, p.min_volume) == (2_000, 1_000)
+    assert p.max_bid_ask_pct == 0.05 and p.bid_ask_floor_ticks == 2
     assert p.min_dte == 4
     assert (p.low_vol_max_straddle_pct, p.high_vol_min_straddle_pct) == (5.5, 6.0)
     assert p.debit_long_delta == (0.35, 0.45) and p.debit_short_delta == (0.15, 0.20)

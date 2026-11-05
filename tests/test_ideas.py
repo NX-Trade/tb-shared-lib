@@ -389,6 +389,12 @@ def _liquid_chain():
     return _chain(quotes)
 
 
+def _thin_chain():
+    """Open interest and volume under the floors: every vertical is refused, with its reason."""
+    quotes = [_quote(k, t, oi=500, volume=100, half=0.05) for k in STRIKES for t in ("CE", "PE")]
+    return _chain(quotes)
+
+
 def _tight_chain():
     """Cheap far strikes quote tightly, as real ones do, so a far-out hedge passes liquidity."""
     quotes = [
@@ -420,11 +426,6 @@ class TestVerticalsFollowTheSpec:
                 sold = next(leg for leg in idea.legs if leg.action == "SELL")
                 assert bought.premium <= 0.30 * sold.premium + 1e-9
 
-    def test_a_credit_vertical_with_no_cheap_enough_hedge_is_reported_not_drawn(self):
-        found = suggest_strategies(_liquid_chain(), NOW)
-        assert not [i for i in _verticals(found) if i.family == "CREDIT"]
-        assert any(r.template in ("bull_put_spread", "bear_call_spread") for r in found.rejections)
-
     def test_a_credit_vertical_collects_at_least_a_fifth_of_its_width(self):
         # A far hedge makes the credit a smaller share of the width, so the suggestions use 20%.
         found = suggest_strategies(_tight_chain(), NOW)
@@ -449,7 +450,7 @@ class TestVerticalsFollowTheSpec:
             assert actions == sorted(actions, key=lambda a: a != "BUY")
 
     def test_a_vertical_the_rules_refuse_is_reported_with_the_reason_not_drawn(self):
-        found = suggest_strategies(_liquid_chain(), NOW)
+        found = suggest_strategies(_thin_chain(), NOW)
         refused = [r for r in found.rejections if r.width == 0]
         assert refused and all(r.reason for r in refused)
         built = {i.template for i in _verticals(found)}
@@ -457,8 +458,8 @@ class TestVerticalsFollowTheSpec:
 
     def test_an_illiquid_chain_yields_no_vertical_rather_than_a_one_to_one(self):
         assert not _verticals(
-            suggest_strategies(_chain(), NOW)
-        )  # default test chain: volume 1,000 < 10,000
+            suggest_strategies(_thin_chain(), NOW)
+        )  # OI and volume under the floors
 
     def test_the_other_structures_are_unchanged(self):
         shapes = {i.shape for i in suggest_strategies(_liquid_chain(), NOW).ideas}

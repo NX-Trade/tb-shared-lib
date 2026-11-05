@@ -238,3 +238,21 @@ def test_the_tables_have_the_columns_the_api_and_audit_need():
         assert column in PlatformSetting.__table__.c
     for column in ("key", "version", "old_value", "new_value", "changed_by", "changed_at"):
         assert column in PlatformSettingHistory.__table__.c
+
+
+def test_the_gemini_gate_is_on_by_default_and_an_old_saved_row_still_loads():
+    """A row saved before the gate existed has neither field; it must validate and gate."""
+    old_row = {
+        "enabled": True,
+        "max_active_baskets": 1,
+        "entry_start": "09:30",
+        "entry_end": "14:30",
+    }
+    s = ps.StcSpreadSettings(**old_row)
+    assert s.require_gemini_approval is True and s.gemini_wait_minutes == 15
+
+
+@pytest.mark.parametrize("minutes", [1, 61])
+def test_the_gemini_wait_is_bounded(minutes):
+    with pytest.raises(ValueError):
+        ps.StcSpreadSettings(gemini_wait_minutes=minutes)
