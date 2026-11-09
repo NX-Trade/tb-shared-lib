@@ -17,6 +17,7 @@ from tb_utils.options.spread_engine import (
     build_vertical_spread,
 )
 from tb_utils.options.spread_policy import HIGH_VOL, LOW_VOL, SpreadPolicy
+from tb_utils.options.spread_structures import AUTOMATIC_STRUCTURES
 from tb_utils.time import IST
 
 NOW = dt.datetime(2026, 10, 29, 10, 30, tzinfo=IST)
@@ -110,6 +111,26 @@ def test_structure_follows_direction_and_volatility(iv, action, structure, famil
     assert (spread.structure, spread.family, spread.regime) == (structure, family, regime)
     assert {leg.option_type for leg in spread.legs} == {kind}
     assert result.regime == regime and result.straddle_pct is not None
+
+
+@pytest.mark.parametrize("iv", [15.0, 30.0], ids=["low_vol", "high_vol"])
+@pytest.mark.parametrize(
+    ("action", "structure", "kind"),
+    [("BUY", "bull_call_spread", "CE"), ("SELL", "bear_put_spread", "PE")],
+)
+def test_the_automatic_builder_is_always_a_debit_spread_whatever_the_volatility(
+    iv, action, structure, kind
+):
+    """High volatility makes build_vertical_spread pick a credit spread; this one never does."""
+    result = engine.build_debit_vertical_spread(fresh(make_chain(iv=iv)), action, NOW, RELAXED)
+    assert result.skip is None, result.skip
+    assert (result.spread.structure, result.spread.family) == (structure, "DEBIT")
+    assert {leg.option_type for leg in result.spread.legs} == {kind}
+    assert result.spread.structure in AUTOMATIC_STRUCTURES
+
+
+def test_only_the_bull_call_and_bear_put_spreads_are_automatic():
+    assert set(AUTOMATIC_STRUCTURES) == {"bull_call_spread", "bear_put_spread"}
 
 
 def test_an_unknown_action_is_skipped():

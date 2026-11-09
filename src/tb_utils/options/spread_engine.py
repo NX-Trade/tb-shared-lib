@@ -38,6 +38,7 @@ from tb_utils.options.spread_structures import (
     CandidateFacts,
     StructureChooser,
     StructureSpec,
+    choose_debit_vertical,
     choose_vertical,
 )
 from tb_utils.options.spread_types import (
@@ -379,6 +380,20 @@ def build_vertical_spread(
     return build_spread(fresh, action, now, policy, choose_vertical)
 
 
+def build_debit_vertical_spread(
+    fresh: FreshChain,
+    action: str,
+    now: dt.datetime,
+    policy: SpreadPolicy = SpreadPolicy(),  # noqa: B008 - frozen, so safe as a default
+) -> SpreadResult:
+    """The bull call spread (BUY) or bear put spread (SELL) for a signal, in any volatility.
+
+    What automatic trading uses: it never picks a credit spread, unlike
+    :func:`build_vertical_spread`.
+    """
+    return build_spread(fresh, action, now, policy, choose_debit_vertical)
+
+
 __all__ = [
     "FreshChain",
     "Frame",
@@ -388,4 +403,5 @@ __all__ = [
     "StaleChainError",
     "build_spread",
     "build_vertical_spread",
+    "build_debit_vertical_spread",
 ]

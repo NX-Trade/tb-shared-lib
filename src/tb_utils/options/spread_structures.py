@@ -126,6 +126,29 @@ def _vertical(
     )
 
 
+# The only structures the system may open on its own. Anything else (credit spreads,
+# butterflies, ...) is something a person builds by hand in the strategy builder.
+AUTOMATIC_STRUCTURES = ("bull_call_spread", "bear_put_spread")
+
+
+def choose_debit_vertical(action: str, regime: str, policy: SpreadPolicy) -> StructureSpec:
+    """A bull call spread for a BUY signal, a bear put spread for a SELL, whatever the volatility.
+
+    ``regime`` is accepted so this fits ``StructureChooser`` but is deliberately ignored:
+    a rich-premium market does not turn an automatic trade into a credit spread.
+    """
+    del regime
+    bullish = action == BUY
+    return _vertical(
+        "bull_call_spread" if bullish else "bear_put_spread",
+        DEBIT,
+        "CE" if bullish else "PE",
+        policy.debit_long_delta,
+        policy.debit_short_delta,
+        sold_above_bought=bullish,
+    )
+
+
 def choose_vertical(action: str, regime: str, policy: SpreadPolicy) -> StructureSpec:
     """The vertical for a BUY/SELL signal: debit in low volatility, credit when premium is rich."""
     bullish = action == BUY
@@ -138,14 +161,7 @@ def choose_vertical(action: str, regime: str, policy: SpreadPolicy) -> Structure
             policy.credit_short_delta,
             sold_above_bought=bullish,
         )
-    return _vertical(
-        "bull_call_spread" if bullish else "bear_put_spread",
-        DEBIT,
-        "CE" if bullish else "PE",
-        policy.debit_long_delta,
-        policy.debit_short_delta,
-        sold_above_bought=bullish,
-    )
+    return choose_debit_vertical(action, regime, policy)
 
 
 StructureChooser = Callable[[str, str, SpreadPolicy], StructureSpec]
