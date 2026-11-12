@@ -64,6 +64,11 @@ class StcSpreadSettings(BaseModel):  # pylint: disable=too-few-public-methods
     enabled: bool = False  # the master switch; every account's own flags still apply
     max_active_baskets: int = Field(3, ge=1, le=20)  # across the platform
     max_per_underlying: int = Field(1, ge=1, le=5)  # per account
+    # The most an account's open spreads may put at risk together (their debits, which is each one's
+    # maximum loss), as a share of the account's allocated capital. Every automatic spread is a bull
+    # call spread, so they lose together when the market turns: this bounds that, whatever the
+    # count.
+    max_open_risk_pct: float = Field(0.30, gt=0, le=1)
     entry_start: str = "09:30"
     entry_end: str = "14:30"  # two legs must enter and the exit must finish
     signal_max_age_minutes: int = Field(10, ge=1, le=60)
