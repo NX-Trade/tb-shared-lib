@@ -3,6 +3,7 @@
 import html
 import logging
 import os
+import re
 from enum import StrEnum
 from typing import Optional
 
@@ -14,6 +15,14 @@ logger = logging.getLogger("tb_utils.telegram")
 def escape_html(text: str) -> str:
     """Escape HTML characters to prevent Telegram parse errors."""
     return html.escape(str(text), quote=False)
+
+
+_TAG = re.compile(r"</?(?:b|i|u|s|em|strong|code|pre|a|tg-spoiler)(?:\s[^<>]*)?>", re.IGNORECASE)
+
+
+def _strip_tags(text: str) -> str:
+    """The message without Telegram's HTML formatting tags, for the plain-text resend."""
+    return html.unescape(_TAG.sub("", text))
 
 
 def _chunk_message(text: str, max_chars: int = 4000) -> list[str]:
@@ -134,6 +143,14 @@ class TelegramNotifier:
             payload = {"chat_id": self.chat_id, "text": chunk, "parse_mode": "HTML"}
             try:
                 response = requests.post(self.api_url, json=payload, timeout=10)
+                if response.status_code == 400 and "can't parse entities" in response.text:
+                    # A stray "<" in the text ("RSI <= 30") is not valid HTML for Telegram and the
+                    # whole alert is refused. Resend it as plain text rather than lose it.
+                    logger.warning(
+                        "Telegram refused the HTML in an alert; resending as plain text."
+                    )
+                    plain = {"chat_id": self.chat_id, "text": _strip_tags(chunk)}
+                    response = requests.post(self.api_url, json=plain, timeout=10)
                 response.raise_for_status()
             except requests.exceptions.RequestException as exc:
                 resp_text = ""

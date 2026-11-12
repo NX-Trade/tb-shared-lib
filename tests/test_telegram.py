@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 """Unit tests for TelegramNotifier and multi-channel routing."""
 
 import os
@@ -185,7 +186,11 @@ def test_telegram_notifier_chunks_long_message(mock_post):
 @patch("requests.post")
 def test_send_channel_helpers(mock_post):
     """Test send_alpha_alert, send_error_alert, send_sync_alert."""
-    from tb_utils import send_alpha_alert, send_error_alert, send_sync_alert
+    from tb_utils import (  # pylint: disable=import-outside-toplevel
+        send_alpha_alert,
+        send_error_alert,
+        send_sync_alert,
+    )
 
     mock_resp = MagicMock()
     mock_resp.raise_for_status.return_value = None
@@ -229,3 +234,21 @@ def test_telegram_notifier_handles_http_error(mock_post):
 
     assert success is False
     assert mock_post.called
+
+
+def test_an_alert_telegram_cannot_parse_is_resent_as_plain_text():
+    """A raw '<' makes Telegram refuse the HTML; the alert must still arrive."""
+    refused = MagicMock(
+        status_code=400, text='{"description":"Bad Request: can\'t parse entities"}'
+    )
+    accepted = MagicMock(status_code=200, text="{}")
+    accepted.raise_for_status.return_value = None
+
+    with patch("tb_utils.telegram.requests.post", side_effect=[refused, accepted]) as post:
+        ok = TelegramNotifier(token="t", chat_id="c").send("<b>SIGNAL</b> RSI <= 30 &amp; rising")
+
+    assert ok is True
+    assert post.call_count == 2
+    resent = post.call_args_list[1].kwargs["json"]
+    assert "parse_mode" not in resent
+    assert resent["text"] == "SIGNAL RSI <= 30 & rising"

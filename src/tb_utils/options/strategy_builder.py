@@ -182,10 +182,11 @@ def _estimate_margin(spread: Spread, spot: float, today: dt.date) -> float:
             for l in spread.legs  # noqa: E741
         ]
         sigma = sigma_from_iv(sum(l.iv for l in spread.legs) / len(spread.legs))  # noqa: E741
-        return round(estimate_margin(legs, spot, sigma, STOCK, today).total, 2)
+        # float(): the SPAN maths is numpy, and a numpy scalar cannot be written to Postgres.
+        return float(round(estimate_margin(legs, spot, sigma, STOCK, today).total, 2))
     except Exception:  # pylint: disable=broad-exception-caught
         logger.exception("[strategy_builder] Margin estimate failed, using max loss.")
-        return round(spread.max_loss, 2)
+        return float(round(spread.max_loss, 2))
 
 
 def _built_leg(symbol: str, spread: Spread, order: int, leg: SpreadLeg) -> BuiltOptionLeg:
