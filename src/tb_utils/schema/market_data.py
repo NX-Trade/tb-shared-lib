@@ -151,6 +151,10 @@ class SpotPriceResponse(BaseSchema):
     price: float
     change: Optional[float] = None
     p_change: Optional[float] = None
+    # Filled only when asked for (``/spot/bulk?returns=true``): the return over 5 and 21
+    # sessions, in percent.
+    ret_1w: Optional[float] = None
+    ret_1m: Optional[float] = None
     updated_at: datetime
 
 
