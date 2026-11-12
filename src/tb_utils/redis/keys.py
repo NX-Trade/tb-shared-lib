@@ -18,6 +18,11 @@ def get_most_active_key(by: str) -> str:
     return f"market_data:most_active:{by}"
 
 
+def get_index_catalog_key() -> str:
+    """Each collected NSE index: its symbol, NSE name and category (written by the collector)."""
+    return "market_data:index_catalog"
+
+
 def get_instrument_spot_key(symbol: str) -> str:
     return f"market_data:spot:{symbol}"
 
