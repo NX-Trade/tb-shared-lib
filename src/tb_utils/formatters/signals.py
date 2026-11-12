@@ -52,7 +52,10 @@ def format_fno_summary(
         )
         opt = s.get("indicators", {}).get("option_contract")
         if opt:
-            entry_line += f"\n    💼 <b>OPTION STRATEGY:</b> {opt.get('contract_label', '')} @ ₹{opt.get('entry_premium', 0):.2f}"
+            entry_line += (
+                f"\n    💼 <b>OPTION STRATEGY:</b> {opt.get('contract_label', '')} "
+                f"@ ₹{opt.get('entry_premium', 0):.2f}"
+            )
         lines.append(entry_line)
 
     if len(signals) > 10:
@@ -61,7 +64,7 @@ def format_fno_summary(
     return "\n".join(lines)
 
 
-def format_research_signal_card(
+def format_research_signal_card(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
     signal: dict[str, Any],
     trade_date: Optional[dt.date | str] = None,
     as_of: Optional[dt.date | str] = None,
@@ -124,6 +127,11 @@ def format_research_signal_card(
             ]
             if action_val == SignalActionEnum.WATCH.value
             else [
+                f"• Price at signal: ₹{ep:.2f}",
+                "• Close or reduce an existing holding. No new trade, so no target or stop.",
+            ]
+            if action_val == SignalActionEnum.EXIT.value
+            else [
                 f"• Entry: ₹{ep:.2f}",
                 f"• Target: ₹{tp:.2f} ({tp_pct:+.1f}%)",
                 f"• Stop Loss: ₹{sl:.2f} ({sl_pct:+.1f}%)",
@@ -173,7 +181,8 @@ def format_research_signal_card(
             else ""
         )
         lines.append(
-            f"• Entry: ₹{ep_prem:.2f} | Target: ₹{float(tp_target or 0.0):.2f}{tp_pct_str} | SL: ₹{float(sl_stop or 0.0):.2f}{sl_pct_str}"
+            f"• Entry: ₹{ep_prem:.2f} | Target: ₹{float(tp_target or 0.0):.2f}{tp_pct_str} "
+            f"| SL: ₹{float(sl_stop or 0.0):.2f}{sl_pct_str}"
         )
         if opt.get("delta") is not None or opt.get("dte") is not None or opt.get("iv") is not None:
             delta_val = float(opt.get("delta") or 0.0)
