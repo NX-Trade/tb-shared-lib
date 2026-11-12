@@ -13,6 +13,11 @@ def get_market_breadth_key(exchange: str) -> str:
     return f"market_data:breadth:{exchange}"
 
 
+def get_most_active_key(by: str) -> str:
+    """The latest "most active equities" list, ``by`` being ``value`` or ``volume``."""
+    return f"market_data:most_active:{by}"
+
+
 def get_instrument_spot_key(symbol: str) -> str:
     return f"market_data:spot:{symbol}"
 
