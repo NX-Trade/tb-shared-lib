@@ -105,5 +105,14 @@ def test_trade_last_updated_migration_adds_one_nullable_column_and_backfills_not
     assert "add_column" in source and "nullable=True" in source and "op.execute" not in source
 
 
-def test_the_head_is_the_trade_last_updated_migration():
-    assert _scripts().get_heads() == ["z1a2b3c4d5f6"]
+def test_news_sectors_migration_adds_one_nullable_column_and_backfills_nothing():
+    revision = _scripts().get_revision("a2b3c4d5e6f7")
+    assert revision.down_revision == "z1a2b3c4d5f6"
+    source = (ALEMBIC_DIR / "versions" / "a2b3c4d5e6f7_add_news_sectors.py").read_text(
+        encoding="utf-8"
+    )
+    assert "add_column" in source and "nullable=True" in source and "op.execute" not in source
+
+
+def test_the_head_is_the_news_sectors_migration():
+    assert _scripts().get_heads() == ["a2b3c4d5e6f7"]

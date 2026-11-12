@@ -59,6 +59,8 @@ class News(Base):
     source = Column(String(100), index=True)
     category = Column(String(50))
     symbols = Column(String(200))  # comma-separated
+    # Sector index symbols the item is about, comma-separated (see tb_utils.news_sectors).
+    sectors = Column(String(200))
     published_at = Column(DateTime(timezone=True), index=True)
     fetched_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 

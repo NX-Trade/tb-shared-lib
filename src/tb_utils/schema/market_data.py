@@ -102,6 +102,8 @@ class NewsResponse(BaseSchema):
     source: Optional[str] = None
     category: Optional[str] = None
     symbols: Optional[str] = None
+    # Sector index symbols, comma-separated (e.g. "NIFTYIT,CNXPHRM"); None when about no sector.
+    sectors: Optional[str] = None
     published_at: Optional[datetime] = None
     fetched_at: datetime
 
