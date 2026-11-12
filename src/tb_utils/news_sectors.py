@@ -22,6 +22,21 @@ from typing import Optional
 
 SECTOR_MAX_LEN = 200  # news.sectors is VARCHAR(200); all 16 tags together are about 140 characters
 
+# A story about more sectors than this is a market roundup ("stocks to buy today", "results live"):
+# tagging it with five sectors says nothing about any of them, so it gets none.
+MAX_SECTORS_PER_STORY = 4
+
+# Stocks whose mention does not mean their sector, so they add none from the constituent lists
+# (a sector word in the text can still tag the story). Found from the live tags:
+# * BSE, MCX: "NSE, BSE" and "Sensex" are in nearly every market story, and MCX is where commodities
+#   trade (silver futures are not a financial-services story);
+# * MOTILALOFS, ANANDRATHI: the broker named as the source of a call ("says Anand Rathi's...");
+# * RELIANCE, ADANIENT: groups whose Jio, retail, debt and port stories are not the oil or the
+#   infrastructure index's.
+SECTOR_NEUTRAL_SYMBOLS = frozenset(
+    {"BSE", "MCX", "MOTILALOFS", "ANANDRATHI", "RELIANCE", "ADANIENT"}
+)
+
 
 @dataclass(frozen=True)
 class Sector:
@@ -129,6 +144,7 @@ SECTORS: tuple[Sector, ...] = (
             "oil (&|and) gas",
             "refiners?",
             "refiner(y|ies)",
+            "refining",
             "petroleum",
             "natural gas",
             "lng",
@@ -249,8 +265,10 @@ def tag_sectors(
     """The sectors for a news item as a comma-separated string, or None when it is about none."""
     tags = keyword_sectors(f"{headline or ''}. {summary or ''}")
     for symbol in (symbols_csv or "").split(","):
-        tags |= symbol_sectors.get(symbol.strip().upper(), set())
-    if not tags:
+        symbol = symbol.strip().upper()
+        if symbol not in SECTOR_NEUTRAL_SYMBOLS:
+            tags |= symbol_sectors.get(symbol, set())
+    if not tags or len(tags) > MAX_SECTORS_PER_STORY:
         return None
     return ",".join(sorted(tags))[:SECTOR_MAX_LEN].rstrip(",")
 

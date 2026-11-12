@@ -112,10 +112,47 @@ class TestTagging:
         assert ns.tag_sectors("Results", "Pharma exports up", None, {}) == "CNXPHRM"
 
     def test_the_result_always_fits_the_column(self):
-        everything = " ".join(w for s in ns.SECTORS for w in s.keywords[:1])
-        out = ns.tag_sectors(everything, None, None, {})
-        assert out is not None and len(out) <= ns.SECTOR_MAX_LEN
+        longest = sorted((s for s in ns.SECTORS), key=lambda s: -len(s.symbol))[
+            : ns.MAX_SECTORS_PER_STORY
+        ]
+        text = " ".join(s.keywords[0] for s in longest)
+        out = ns.tag_sectors(text, None, None, {})
+        assert out is not None and len(out) <= ns.SECTOR_MAX_LEN  # a story has at most four tags
 
     def test_every_sector_symbol_is_unique(self):
         symbols = [s.symbol for s in ns.SECTORS]
         assert len(symbols) == len(set(symbols))
+
+
+class TestNoise:
+    """What over-tagged stories in the live data, and how the tagger treats it now."""
+
+    def sectors(self):
+        return {
+            "BSE": {"NSEFIN"},
+            "MCX": {"NSEFIN"},
+            "ANANDRATHI": {"NSEFIN"},
+            "RELIANCE": {"NIFTYOIL"},
+            "TCS": {"NIFTYIT"},
+            "A": {"CNXAUTO"}, "B": {"CNXMET"}, "C": {"CNXFMCG"}, "D": {"CNXPHRM"}, "E": {"CNXREAL"},
+        }  # fmt: skip
+
+    @pytest.mark.parametrize("symbol", ["BSE", "MCX", "ANANDRATHI", "RELIANCE"])
+    def test_a_neutral_symbol_adds_no_sector(self, symbol):
+        assert ns.tag_sectors("Some headline", None, symbol, self.sectors()) is None
+
+    def test_a_neutral_symbol_does_not_hide_the_other_stocks_or_the_words(self):
+        assert ns.tag_sectors("Results", None, "BSE,TCS", self.sectors()) == "NIFTYIT"
+        assert ns.tag_sectors("Crude oil futures fall", None, "MCX", self.sectors()) == "NIFTYOIL"
+
+    def test_a_refining_story_is_oil_and_gas_by_its_words(self):
+        assert (
+            ns.tag_sectors("Reliance refining margins widen", None, "RELIANCE", self.sectors())
+            == "NIFTYOIL"
+        )
+
+    def test_a_story_about_more_than_four_sectors_is_a_roundup_and_gets_none(self):
+        assert (
+            ns.tag_sectors("Stocks to buy today", None, "A,B,C,D", self.sectors()) is not None
+        )  # four is fine
+        assert ns.tag_sectors("Stocks to buy today", None, "A,B,C,D,E", self.sectors()) is None
